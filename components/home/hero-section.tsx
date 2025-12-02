@@ -40,7 +40,7 @@ export async function HeroSection() {
               </div>
               <div className="text-center">
                 <Link href="/dashboard/projects">
-                  <Button variant="outline" size="lg" className="hover-glow">
+                  <Button variant="outline" size="lg" className="hover-glow hover:cursor-pointer">
                     View All Projects
                   </Button>
                 </Link>
@@ -51,7 +51,7 @@ export async function HeroSection() {
               <SignInButton mode="modal">
                 <Button
                   size="lg"
-                  className="gradient-emerald text-white hover-glow text-lg px-8 py-6 rounded-xl shadow-lg"
+                  className="gradient-emerald text-white hover-glow text-lg px-8 py-6 rounded-xl shadow-lg hover:cursor-pointer"
                 >
                   Get Started
                   <Sparkles className="ml-2 h-6 w-6" />

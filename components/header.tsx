@@ -168,8 +168,8 @@ export function Header() {
                 <Button
                   className={
                     isDashboard
-                      ? "bg-white/95 text-emerald-600 hover:bg-white hover:scale-105 shadow-lg font-semibold transition-all duration-300"
-                      : "gradient-emerald text-white hover-glow hover:scale-105 shadow-lg transition-all duration-300"
+                      ? "bg-white/95 text-emerald-600 hover:bg-white hover:scale-105 shadow-lg font-semibold transition-all duration-300 "
+                      : "gradient-emerald text-white hover-glow hover:scale-105 shadow-lg transition-all duration-300 hover:cursor-pointer"
                   }
                 >
                   Sign In
