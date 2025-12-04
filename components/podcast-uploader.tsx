@@ -48,7 +48,7 @@ export function PodcastUploader() {
   // Upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileDuration, setFileDuration] = useState<number | undefined>(
-    undefined
+    undefined,
   );
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
