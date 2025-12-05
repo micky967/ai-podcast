@@ -1,17 +1,17 @@
 /**
  * Title Suggestions Generation
- * 
+ *
  * Generates 4 types of title variations for different contexts:
  * 1. YouTube Short Titles: Hook-focused, curiosity-driven (40-60 chars)
  * 2. YouTube Long Titles: SEO-optimized with keywords (70-100 chars)
  * 3. Podcast Episode Titles: Creative and memorable for RSS feeds
  * 4. SEO Keywords: Discovery optimization across platforms
- * 
+ *
  * Use Cases:
  * - Content creators need multiple title options to A/B test
  * - Different platforms favor different title styles
  * - SEO keywords improve discoverability across search engines
- * 
+ *
  * Design Decision: Multiple title formats
  * - Saves manual brainstorming time
  * - Each format optimized for specific distribution channel
@@ -30,12 +30,12 @@ const TITLES_SYSTEM_PROMPT =
 
 /**
  * Builds prompt with transcript preview and title-specific guidelines
- * 
+ *
  * Context Provided:
  * - First 2000 chars of transcript (enough for topic understanding)
  * - Chapter headlines (topic structure)
  * - Specific requirements for each title type
- * 
+ *
  * Prompt Engineering:
  * - Character limits explicitly stated
  * - Examples of formatting conventions
@@ -86,12 +86,12 @@ Make titles compelling, accurate, and optimized for discovery.`;
 
 /**
  * Generates title suggestions using OpenAI with structured outputs
- * 
+ *
  * Error Handling:
  * - Returns placeholder titles on failure
  * - Logs errors for debugging
  * - Graceful degradation (workflow continues)
- * 
+ *
  * Validation:
  * - Zod schema enforces exact array lengths (3 short, 3 long, 3 podcast)
  * - SEO keywords validated for 5-10 range

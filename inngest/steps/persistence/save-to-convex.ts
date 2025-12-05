@@ -78,7 +78,7 @@ type GeneratedContent = {
  */
 export async function saveResultsToConvex(
   projectId: Id<"projects">,
-  results: GeneratedContent
+  results: GeneratedContent,
 ): Promise<void> {
   // Save all AI-generated content in one atomic operation
   // This mutation updates the project document with all new fields

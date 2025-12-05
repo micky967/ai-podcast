@@ -27,7 +27,7 @@ export function GenerationOutputItem({
           ? "opacity-30 scale-100"
           : isActive
             ? "ring-2 ring-emerald-400 shadow-lg scale-[1.02]"
-            : "opacity-40 scale-100"
+            : "opacity-40 scale-100",
       )}
     >
       <div className="p-5">
@@ -39,7 +39,7 @@ export function GenerationOutputItem({
                 ? "bg-gray-200"
                 : isActive
                   ? "gradient-emerald shadow-md"
-                  : "bg-emerald-100"
+                  : "bg-emerald-100",
             )}
           >
             <Icon
@@ -49,7 +49,7 @@ export function GenerationOutputItem({
                   ? "text-gray-400"
                   : isActive
                     ? "text-white"
-                    : "text-emerald-600"
+                    : "text-emerald-600",
               )}
             />
           </div>
@@ -62,7 +62,7 @@ export function GenerationOutputItem({
                     ? "text-gray-400"
                     : isActive
                       ? "text-emerald-700"
-                      : "text-gray-600"
+                      : "text-gray-600",
                 )}
               >
                 {name}
@@ -73,7 +73,7 @@ export function GenerationOutputItem({
                     "h-5 w-5 animate-spin transition-all duration-500",
                     isActive
                       ? "text-emerald-600 opacity-100"
-                      : "text-gray-400 opacity-50"
+                      : "text-gray-400 opacity-50",
                   )}
                 />
               )}
@@ -85,7 +85,7 @@ export function GenerationOutputItem({
                   ? "text-gray-400 opacity-50"
                   : isActive
                     ? "text-gray-700 opacity-100"
-                    : "text-gray-500 opacity-60"
+                    : "text-gray-500 opacity-60",
               )}
             >
               {description}

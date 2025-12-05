@@ -1,17 +1,17 @@
 /**
  * Zod Schemas for AI-Generated Content
- * 
+ *
  * These schemas enforce structure for OpenAI Structured Outputs, ensuring:
  * - Type safety: Generated content matches our TypeScript types
  * - Validation: OpenAI's responses conform to our expected format
  * - Descriptions: Guide GPT on what to generate (used in prompt construction)
- * 
+ *
  * OpenAI Structured Outputs Flow:
  * 1. Define Zod schema with .describe() hints for GPT
  * 2. Pass schema to zodResponseFormat() in OpenAI API call
  * 3. OpenAI returns JSON matching the schema (no parsing errors!)
  * 4. Parse with schema.parse() for TypeScript types
- * 
+ *
  * Design Decision: Zod over TypeScript types alone
  * - Runtime validation (catches API changes or malformed responses)
  * - Self-documenting schemas (descriptions guide both GPT and developers)
@@ -21,7 +21,7 @@ import { z } from "zod";
 
 /**
  * Summary Schema - Multi-format podcast overview
- * 
+ *
  * Provides different summary lengths for various use cases:
  * - full: Detailed overview for blog posts or show notes
  * - bullets: Scannable list for quick reference
@@ -47,7 +47,7 @@ export type Summary = z.infer<typeof summarySchema>;
 
 /**
  * Titles Schema - Context-specific title suggestions
- * 
+ *
  * Different title formats optimized for:
  * - youtubeShort: Clickable, emotional hooks (40-60 chars)
  * - youtubeLong: SEO-optimized with keywords (70-100 chars)
@@ -78,7 +78,7 @@ export type Titles = z.infer<typeof titlesSchema>;
 
 /**
  * Social Posts Schema - Platform-optimized content
- * 
+ *
  * Each platform has unique characteristics:
  * - twitter: 280 char limit, punchy and quotable
  * - linkedin: Professional tone, longer-form acceptable
@@ -102,7 +102,7 @@ export type SocialPosts = z.infer<typeof socialPostsSchema>;
 
 /**
  * Hashtags Schema - Platform-specific discovery tags
- * 
+ *
  * Hashtag strategies vary by platform:
  * - youtube: Broader reach (lower competition)
  * - instagram: Mix of niche + broad (6-8 is optimal)
@@ -137,3 +137,57 @@ export const hashtagsSchema = z.object({
 
 export type Hashtags = z.infer<typeof hashtagsSchema>;
 
+/**
+ * Engagement Schema - Audience engagement and growth tools
+ * Helps content creators spark conversations and build community
+ * - commentStarters: Questions/comments to prime engagement
+ * - pinComment: Best comment to pin on YouTube (builds community)
+ * - communityPosts: Follow-up content ideas to keep audience engaged
+ * - descriptions: Podcast descriptions for different contexts (short/medium/long)
+ */
+export const engagementSchema = z.object({
+  commentStarters: z
+    .array(
+      z.object({
+        question: z
+          .string()
+          .describe("The comment or question to prime engagement"),
+        answer: z
+          .string()
+          .describe(
+            "A thoughtful answer to the question based on the podcast content",
+          ),
+      }),
+    )
+    .min(5)
+    .max(7)
+    .describe("5-7 anticipated questions with answers to prime engagement"),
+  pinComment: z
+    .string()
+    .describe(
+      "Best comment to pin on YouTube (welcoming, conversation starter)",
+    ),
+  communityPosts: z
+    .array(z.string())
+    .length(3)
+    .describe("3 follow-up community post ideas to keep audience engaged"),
+  descriptions: z
+    .object({
+      short: z
+        .string()
+        .max(200)
+        .describe("Short description (150-200 chars for previews)"),
+      medium: z
+        .string()
+        .max(500)
+        .describe("Medium description (300-500 chars for podcast feeds)"),
+      long: z
+        .string()
+        .describe(
+          "Long description (800-1000 words for blog/show notes with full context)",
+        ),
+    })
+    .describe("Podcast description variants for different use cases"),
+});
+
+export type Engagement = z.infer<typeof engagementSchema>;

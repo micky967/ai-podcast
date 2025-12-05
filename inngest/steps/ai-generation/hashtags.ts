@@ -101,14 +101,14 @@ All hashtags should include the # symbol and be relevant to the actual content d
  */
 export async function generateHashtags(
   step: typeof InngestStep,
-  transcript: TranscriptWithExtras
+  transcript: TranscriptWithExtras,
 ): Promise<Hashtags> {
   console.log("Generating hashtags with GPT");
 
   try {
     // Bind OpenAI method to preserve `this` context for step.ai.wrap
     const createCompletion = openai.chat.completions.create.bind(
-      openai.chat.completions
+      openai.chat.completions,
     );
 
     // Call OpenAI with Structured Outputs for validated response
@@ -122,7 +122,7 @@ export async function generateHashtags(
           { role: "user", content: buildHashtagsPrompt(transcript) },
         ],
         response_format: zodResponseFormat(hashtagsSchema, "hashtags"),
-      }
+      },
     )) as OpenAI.Chat.Completions.ChatCompletion;
 
     const content = response.choices[0]?.message?.content;

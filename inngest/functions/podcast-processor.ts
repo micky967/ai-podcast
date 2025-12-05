@@ -37,7 +37,9 @@
  */
 import { api } from "@/convex/_generated/api";
 import { inngest } from "@/inngest/client";
+import { convex } from "@/lib/convex-client";
 import type { PlanName } from "@/lib/tier-config";
+import { generateEngagement } from "../steps/ai-generation/engagement";
 import { generateHashtags } from "../steps/ai-generation/hashtags";
 import { generateKeyMoments } from "../steps/ai-generation/key-moments";
 import { generateSocialPosts } from "../steps/ai-generation/social-posts";
@@ -46,7 +48,6 @@ import { generateTitles } from "../steps/ai-generation/titles";
 import { generateYouTubeTimestamps } from "../steps/ai-generation/youtube-timestamps";
 import { saveResultsToConvex } from "../steps/persistence/save-to-convex";
 import { transcribeWithAssemblyAI } from "../steps/transcription/assemblyai";
-import { convex } from "@/lib/convex-client";
 
 export const podcastProcessor = inngest.createFunction(
   {
@@ -85,7 +86,7 @@ export const podcastProcessor = inngest.createFunction(
       // This step is durable: if it fails, Inngest retries automatically
       // Speaker diarization is always enabled; UI access is gated by plan
       const transcript = await step.run("transcribe-audio", () =>
-        transcribeWithAssemblyAI(fileUrl, projectId, plan)
+        transcribeWithAssemblyAI(fileUrl, projectId, plan),
       );
 
       // Update jobStatus: transcription complete
@@ -138,9 +139,12 @@ export const podcastProcessor = inngest.createFunction(
 
         jobs.push(generateYouTubeTimestamps(step, transcript));
         jobNames.push("youtubeTimestamps");
+
+        jobs.push(generateEngagement(step, transcript));
+        jobNames.push("engagement");
       } else {
         console.log(
-          `Skipping key moments and YouTube timestamps for ${plan} plan`
+          `Skipping key moments, YouTube timestamps, and engagement tools for ${plan} plan`,
         );
       }
 
@@ -180,7 +184,7 @@ export const podcastProcessor = inngest.createFunction(
           convex.mutation(api.projects.saveJobErrors, {
             projectId,
             jobErrors,
-          })
+          }),
         );
       }
 
@@ -195,7 +199,7 @@ export const podcastProcessor = inngest.createFunction(
       // Step 3: Save all results to Convex in one atomic operation
       // Convex mutation updates the project, triggering UI re-render
       await step.run("save-results-to-convex", () =>
-        saveResultsToConvex(projectId, generatedContent)
+        saveResultsToConvex(projectId, generatedContent),
       );
 
       // Workflow complete - return success
@@ -212,7 +216,9 @@ export const podcastProcessor = inngest.createFunction(
           message:
             error instanceof Error ? error.message : "Unknown error occurred",
           step: "workflow",
-          details: error instanceof Error ? error.stack : String(error),
+          details: error instanceof Error
+            ? { stack: error.stack }
+            : undefined,
         });
       } catch (cleanupError) {
         // If cleanup fails, log it but don't prevent the original error from being thrown
@@ -222,5 +228,5 @@ export const podcastProcessor = inngest.createFunction(
       // Re-throw to mark function as failed in Inngest (triggers retry if attempts remain)
       throw error;
     }
-  }
+  },
 );

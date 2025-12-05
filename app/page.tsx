@@ -5,10 +5,7 @@ import { Footer } from "@/components/home/footer";
 import { HeroSection } from "@/components/home/hero-section";
 import { PricingSection } from "@/components/home/pricing-section";
 
-
 export default function Home() {
-
-
   return (
     <div className="">
       <Header />
@@ -18,6 +15,5 @@ export default function Home() {
       <CtaSection />
       <Footer />
     </div>
-      );
-    };
-
+  );
+}

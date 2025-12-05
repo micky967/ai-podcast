@@ -86,7 +86,7 @@ export const updateProjectStatus = mutation({
       v.literal("uploaded"),
       v.literal("processing"),
       v.literal("completed"),
-      v.literal("failed")
+      v.literal("failed"),
     ),
   },
   handler: async (ctx, args) => {
@@ -136,10 +136,10 @@ export const saveTranscript = mutation({
                 word: v.string(),
                 start: v.number(),
                 end: v.number(),
-              })
-            )
+              }),
+            ),
           ),
-        })
+        }),
       ),
       speakers: v.optional(
         v.array(
@@ -149,8 +149,8 @@ export const saveTranscript = mutation({
             end: v.number(),
             text: v.string(),
             confidence: v.number(),
-          })
-        )
+          }),
+        ),
       ),
       chapters: v.optional(
         v.array(
@@ -160,8 +160,8 @@ export const saveTranscript = mutation({
             headline: v.string(),
             summary: v.string(),
             gist: v.string(),
-          })
-        )
+          }),
+        ),
       ),
     }),
   },
@@ -191,16 +191,16 @@ export const updateJobStatus = mutation({
         v.literal("pending"),
         v.literal("running"),
         v.literal("completed"),
-        v.literal("failed")
-      )
+        v.literal("failed"),
+      ),
     ),
     contentGeneration: v.optional(
       v.union(
         v.literal("pending"),
         v.literal("running"),
         v.literal("completed"),
-        v.literal("failed")
-      )
+        v.literal("failed"),
+      ),
     ),
   },
   handler: async (ctx, args) => {
@@ -213,7 +213,9 @@ export const updateJobStatus = mutation({
       jobStatus: {
         ...project.jobStatus,
         ...(args.transcription && { transcription: args.transcription }),
-        ...(args.contentGeneration && { contentGeneration: args.contentGeneration }),
+        ...(args.contentGeneration && {
+          contentGeneration: args.contentGeneration,
+        }),
       },
       updatedAt: Date.now(),
     };
@@ -248,8 +250,8 @@ export const saveGeneratedContent = mutation({
           timestamp: v.number(),
           text: v.string(),
           description: v.string(),
-        })
-      )
+        }),
+      ),
     ),
     summary: v.optional(
       v.object({
@@ -257,7 +259,7 @@ export const saveGeneratedContent = mutation({
         bullets: v.array(v.string()),
         insights: v.array(v.string()),
         tldr: v.string(),
-      })
+      }),
     ),
     socialPosts: v.optional(
       v.object({
@@ -267,7 +269,7 @@ export const saveGeneratedContent = mutation({
         tiktok: v.string(),
         youtube: v.string(),
         facebook: v.string(),
-      })
+      }),
     ),
     titles: v.optional(
       v.object({
@@ -275,7 +277,7 @@ export const saveGeneratedContent = mutation({
         youtubeLong: v.array(v.string()),
         podcastTitles: v.array(v.string()),
         seoKeywords: v.array(v.string()),
-      })
+      }),
     ),
     hashtags: v.optional(
       v.object({
@@ -284,15 +286,32 @@ export const saveGeneratedContent = mutation({
         tiktok: v.array(v.string()),
         linkedin: v.array(v.string()),
         twitter: v.array(v.string()),
-      })
+      }),
     ),
     youtubeTimestamps: v.optional(
       v.array(
         v.object({
           timestamp: v.string(),
           description: v.string(),
-        })
-      )
+        }),
+      ),
+    ),
+    engagement: v.optional(
+      v.object({
+        commentStarters: v.array(
+          v.object({
+            question: v.string(),
+            answer: v.string(),
+          }),
+        ),
+        pinComment: v.string(),
+        communityPosts: v.array(v.string()),
+        descriptions: v.object({
+          short: v.string(),
+          medium: v.string(),
+          long: v.string(),
+        }),
+      }),
     ),
   },
   handler: async (ctx, args) => {
@@ -328,7 +347,7 @@ export const recordError = mutation({
       v.object({
         statusCode: v.optional(v.number()),
         stack: v.optional(v.string()),
-      })
+      }),
     ),
   },
   handler: async (ctx, args) => {
@@ -362,6 +381,7 @@ export const saveJobErrors = mutation({
       titles: v.optional(v.string()),
       hashtags: v.optional(v.string()),
       youtubeTimestamps: v.optional(v.string()),
+      engagement: v.optional(v.string()),
     }),
   },
   handler: async (ctx, args) => {
@@ -415,7 +435,7 @@ export const listUserProjects = query({
       v.object({
         numItems: v.number(),
         cursor: v.optional(v.string()),
-      })
+      }),
     ),
   },
   handler: async (ctx, args) => {

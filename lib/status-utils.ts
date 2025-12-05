@@ -15,7 +15,7 @@ export type ProjectStatus = Doc<"projects">["status"];
 export type JobStatus = Doc<"projects">["jobStatus"];
 
 export function getStatusVariant(
-  status: ProjectStatus
+  status: ProjectStatus,
 ): "default" | "secondary" | "destructive" {
   switch (status) {
     case "uploaded":

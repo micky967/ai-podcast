@@ -52,10 +52,10 @@ type YouTubeTimestamp = {
  */
 export async function generateYouTubeTimestamps(
   step: typeof InngestStep,
-  transcript: TranscriptWithExtras
+  transcript: TranscriptWithExtras,
 ): Promise<YouTubeTimestamp[]> {
   console.log(
-    "Generating YouTube timestamps from AssemblyAI chapters with AI-enhanced titles"
+    "Generating YouTube timestamps from AssemblyAI chapters with AI-enhanced titles",
   );
 
   // Use AssemblyAI chapters for accurate timing
@@ -64,7 +64,7 @@ export async function generateYouTubeTimestamps(
   // Validation: Timestamps require chapter timing data
   if (!chapters || chapters.length === 0) {
     throw new Error(
-      "No chapters available from AssemblyAI. Cannot generate YouTube timestamps."
+      "No chapters available from AssemblyAI. Cannot generate YouTube timestamps.",
     );
   }
 
@@ -100,7 +100,7 @@ CHAPTERS:
 ${chapterData
   .map(
     (ch, idx) =>
-      `Chapter ${idx}: [${ch.timestamp}s]\nContext: ${ch.headline}\nSummary: ${ch.summary}`
+      `Chapter ${idx}: [${ch.timestamp}s]\nContext: ${ch.headline}\nSummary: ${ch.summary}`,
   )
   .join("\n\n")}
 
@@ -132,7 +132,7 @@ Remember: Create TITLES, not transcript excerpts!`;
 
   // Bind OpenAI method to preserve `this` context for step.ai.wrap
   const createCompletion = openai.chat.completions.create.bind(
-    openai.chat.completions
+    openai.chat.completions,
   );
 
   // Call GPT to enhance chapter titles
@@ -185,7 +185,7 @@ Remember: Create TITLES, not transcript excerpts!`;
         },
       ],
       max_completion_tokens: 1500, // Enough for 100 titles
-    }
+    },
   )) as OpenAI.Chat.Completions.ChatCompletion;
 
   const content = response.choices[0]?.message?.content || '{"titles":[]}';
@@ -214,7 +214,7 @@ Remember: Create TITLES, not transcript excerpts!`;
     // Check if we're using fallback
     if (!aiTitle) {
       console.warn(
-        `No AI title found for chapter ${chapter.index}, using fallback: "${chapter.headline}"`
+        `No AI title found for chapter ${chapter.index}, using fallback: "${chapter.headline}"`,
       );
     }
 
@@ -227,7 +227,7 @@ Remember: Create TITLES, not transcript excerpts!`;
 
   console.log(
     `Generated ${aiTimestamps.length} YouTube timestamps (first 3):`,
-    aiTimestamps.slice(0, 3).map((t) => `${t.timestamp}s: ${t.description}`)
+    aiTimestamps.slice(0, 3).map((t) => `${t.timestamp}s: ${t.description}`),
   );
 
   // Format timestamps in YouTube's required format (MM:SS or HH:MM:SS)

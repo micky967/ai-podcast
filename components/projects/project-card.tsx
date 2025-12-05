@@ -10,9 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { formatDuration, formatFileSize, formatSmartDate } from "@/lib/format";
 import {
+  getProcessingPhaseLabel,
   getStatusIcon,
   getStatusVariant,
-  getProcessingPhaseLabel,
 } from "@/lib/status-utils";
 import { cn } from "@/lib/utils";
 

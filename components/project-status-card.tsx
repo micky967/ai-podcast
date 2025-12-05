@@ -1,6 +1,6 @@
+import { Calendar, Clock, FileType, HardDrive } from "lucide-react";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { formatDuration, formatFileSize, formatSmartDate } from "@/lib/format";
-import { Clock, Calendar, FileType, HardDrive } from "lucide-react";
 
 interface ProjectStatusCardProps {
   project: Doc<"projects">;

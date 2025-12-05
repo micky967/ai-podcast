@@ -95,14 +95,14 @@ Be specific, engaging, and valuable. Focus on what makes this podcast unique and
  */
 export async function generateSummary(
   step: typeof InngestStep,
-  transcript: TranscriptWithExtras
+  transcript: TranscriptWithExtras,
 ): Promise<Summary> {
   console.log("Generating podcast summary with GPT-4");
 
   try {
     // Bind OpenAI method to preserve `this` context (required for step.ai.wrap)
     const createCompletion = openai.chat.completions.create.bind(
-      openai.chat.completions
+      openai.chat.completions,
     );
 
     // Call OpenAI with Structured Outputs for type-safe response
@@ -117,7 +117,7 @@ export async function generateSummary(
         ],
         // zodResponseFormat ensures response matches summarySchema
         response_format: zodResponseFormat(summarySchema, "summary"),
-      }
+      },
     )) as OpenAI.Chat.Completions.ChatCompletion;
 
     const content = response.choices[0]?.message?.content;

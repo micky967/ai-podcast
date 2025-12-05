@@ -22,39 +22,34 @@ export function CompactProgress({
 }: CompactProgressProps) {
   const [progress, setProgress] = useState(0);
 
-  const isTranscribing = jobStatus.transcription === "running";
-
-  // Count completed content generation steps (all 6 outputs)
-  const contentSteps = [
-    jobStatus.keyMoments,
-    jobStatus.summary,
-    jobStatus.social,
-    jobStatus.titles,
-    jobStatus.hashtags,
-    jobStatus.youtubeTimestamps,
-  ];
-  const completedSteps = contentSteps.filter((s) => s === "completed").length;
-  const totalSteps = contentSteps.length;
+  const isTranscribing = jobStatus?.transcription === "running";
+  const isGenerating = jobStatus?.contentGeneration === "running";
 
   useEffect(() => {
-    if (!isTranscribing) {
-      const stepProgress = (completedSteps / totalSteps) * 100;
-      setProgress(stepProgress);
+    if (!isTranscribing && !isGenerating) {
+      setProgress(0);
       return;
     }
 
-    // Tutorial: Calculate progress based on elapsed time vs estimated completion time
-    const updateProgress = () => {
-      const estimate = estimateAssemblyAITime(fileDuration);
-      const elapsed = Math.floor((Date.now() - createdAt) / 1000);
-      const calculatedProgress = (elapsed / estimate.conservative) * 100;
-      setProgress(Math.min(PROGRESS_CAP_PERCENTAGE, calculatedProgress));
-    };
+    if (isTranscribing) {
+      // Calculate progress based on elapsed time vs estimated completion time
+      const updateProgress = () => {
+        const estimate = estimateAssemblyAITime(fileDuration);
+        const elapsed = Math.floor((Date.now() - createdAt) / 1000);
+        const calculatedProgress = (elapsed / estimate.conservative) * 100;
+        setProgress(Math.min(PROGRESS_CAP_PERCENTAGE, calculatedProgress));
+      };
 
-    updateProgress();
-    const interval = setInterval(updateProgress, PROGRESS_UPDATE_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [isTranscribing, createdAt, fileDuration, completedSteps, totalSteps]);
+      updateProgress();
+      const interval = setInterval(updateProgress, PROGRESS_UPDATE_INTERVAL_MS);
+      return () => clearInterval(interval);
+    }
+
+    if (isGenerating) {
+      // For content generation, show indeterminate progress
+      setProgress(50);
+    }
+  }, [isTranscribing, isGenerating, createdAt, fileDuration]);
 
   const statusText = isTranscribing
     ? "🎙️ Transcribing..."
@@ -71,7 +66,7 @@ export function CompactProgress({
         </span>
       </div>
       <div className="relative h-2 bg-emerald-100 rounded-full overflow-hidden">
-        <div 
+        <div
           className="absolute inset-y-0 left-0 progress-emerald rounded-full transition-all duration-300"
           style={{ width: `${progress}%` }}
         />

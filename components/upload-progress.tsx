@@ -57,7 +57,9 @@ export function UploadProgress({
           {/* File info */}
           <div className="flex-1 min-w-0">
             {/* File name (truncated if too long) */}
-            <p className="font-bold text-lg truncate text-gray-900">{fileName}</p>
+            <p className="font-bold text-lg truncate text-gray-900">
+              {fileName}
+            </p>
 
             {/* Size and duration metadata */}
             <div className="flex items-center gap-3 text-sm text-gray-600 mt-2">
@@ -67,7 +69,9 @@ export function UploadProgress({
                   <span>•</span>
                   <div className="flex items-center gap-1.5">
                     <Clock className="h-4 w-4" />
-                    <span className="font-medium">{formatDuration(fileDuration)}</span>
+                    <span className="font-medium">
+                      {formatDuration(fileDuration)}
+                    </span>
                   </div>
                 </>
               )}
@@ -85,9 +89,7 @@ export function UploadProgress({
             {status === "completed" && (
               <CheckCircle2 className="h-7 w-7 text-emerald-600" />
             )}
-            {status === "error" && (
-              <XCircle className="h-7 w-7 text-red-500" />
-            )}
+            {status === "error" && <XCircle className="h-7 w-7 text-red-500" />}
           </div>
         </div>
 
@@ -95,7 +97,7 @@ export function UploadProgress({
         {(status === "uploading" || status === "processing") && (
           <div className="space-y-3">
             <div className="relative h-3 bg-gray-200 rounded-full overflow-hidden">
-              <div 
+              <div
                 className="absolute inset-y-0 left-0 progress-emerald rounded-full transition-all duration-300 ease-out"
                 style={{ width: `${progress}%` }}
               />
@@ -130,8 +132,7 @@ export function UploadProgress({
                 {/* Helpful hints based on error message */}
                 {error.includes("plan limit") && (
                   <p className="text-xs text-gray-600 mt-3 pt-3 border-t border-red-200">
-                    💡 Upgrade your plan to upload larger files or more
-                    projects
+                    💡 Upgrade your plan to upload larger files or more projects
                   </p>
                 )}
                 {error.includes("Authentication") && (

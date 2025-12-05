@@ -10,16 +10,17 @@
  */
 
 // import type { Auth } from "@clerk/nextjs/server";
-import { auth } from "@clerk/nextjs/server";
+import type { auth } from "@clerk/nextjs/server";
+
 type Auth = Awaited<ReturnType<typeof auth>>;
 
-import { convex } from "@/lib/convex-client";
 import { api } from "@/convex/_generated/api";
+import { convex } from "@/lib/convex-client";
 import {
   FEATURES,
+  type FeatureName,
   PLAN_FEATURES,
   PLAN_LIMITS,
-  type FeatureName,
   type PlanLimits,
   type PlanName,
 } from "./tier-config";
@@ -50,7 +51,7 @@ export async function checkUploadLimits(
   auth: Auth,
   userId: string,
   fileSize: number,
-  duration?: number
+  duration?: number,
 ): Promise<UploadValidationResult> {
   // Get user's plan using Clerk's has() method
   const { has } = auth;
@@ -60,7 +61,7 @@ export async function checkUploadLimits(
   } else if (has?.({ plan: "pro" })) {
     plan = "pro";
   }
-  
+
   const limits = PLAN_LIMITS[plan];
 
   // Check file size limit
@@ -117,10 +118,7 @@ export async function checkUploadLimits(
  * @param feature - Feature name to check
  * @returns True if user has access to feature
  */
-export function checkFeatureAccess(
-  auth: Auth,
-  feature: FeatureName
-): boolean {
+export function checkFeatureAccess(auth: Auth, feature: FeatureName): boolean {
   const { has } = auth;
   return has ? has({ feature }) : false;
 }
@@ -157,4 +155,3 @@ export function getMinimumPlanForFeature(feature: FeatureName): PlanName {
   if (PLAN_FEATURES.pro.includes(feature)) return "pro";
   return "ultra";
 }
-

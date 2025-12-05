@@ -13,10 +13,11 @@ import {
 import { ProcessingFlow } from "@/components/processing-flow";
 import { TabContent } from "@/components/project-detail/tab-content";
 import {
-  MobileTabItem,
   DesktopTabTrigger,
+  MobileTabItem,
 } from "@/components/project-detail/tab-triggers";
 import { ProjectStatusCard } from "@/components/project-status-card";
+import { EngagementTab } from "@/components/project-tabs/engagement-tab";
 import { HashtagsTab } from "@/components/project-tabs/hashtags-tab";
 import { KeyMomentsTab } from "@/components/project-tabs/key-moments-tab";
 import { SocialPostsTab } from "@/components/project-tabs/social-posts-tab";
@@ -36,9 +37,9 @@ import {
 import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import type { PhaseStatus } from "@/lib/types";
-import { FEATURES } from "@/lib/tier-config";
 import { PROJECT_TABS } from "@/lib/tab-config";
+import { FEATURES } from "@/lib/tier-config";
+import type { PhaseStatus } from "@/lib/types";
 
 export default function ProjectDetailPage() {
   const { userId } = useAuth();
@@ -373,6 +374,21 @@ export default function ProjectDetailPage() {
                 emptyMessage="No titles available"
               >
                 <TitlesTab titles={project.titles} />
+              </TabContent>
+            </TabsContent>
+
+            <TabsContent value="engagement" className="space-y-4">
+              <TabContent
+                isLoading={showGenerating}
+                data={project.engagement}
+                error={project.jobErrors?.engagement}
+                projectId={projectId}
+                feature={FEATURES.ENGAGEMENT}
+                featureName="Engagement Tools"
+                jobName="engagement"
+                emptyMessage="No engagement tools available"
+              >
+                <EngagementTab engagement={project.engagement} />
               </TabContent>
             </TabsContent>
 

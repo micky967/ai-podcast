@@ -1,7 +1,7 @@
 "use client";
 
-import { CheckCircle2, Clock, Loader2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { CheckCircle2, Clock, Loader2 } from "lucide-react";
 import type { PhaseStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 

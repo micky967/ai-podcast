@@ -1,11 +1,11 @@
 "use client";
 
-import { generateMissingFeatures } from "@/app/actions/generate-missing-features";
-import { Button } from "@/components/ui/button";
-import type { Id } from "@/convex/_generated/dataModel";
 import { Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { generateMissingFeatures } from "@/app/actions/generate-missing-features";
+import { Button } from "@/components/ui/button";
+import type { Id } from "@/convex/_generated/dataModel";
 
 interface GenerateMissingCardProps {
   projectId: Id<"projects">;
@@ -57,4 +57,3 @@ export function GenerateMissingCard({
     </div>
   );
 }
-

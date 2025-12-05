@@ -56,6 +56,12 @@ export const PROJECT_TABS: TabConfig[] = [
     feature: FEATURES.TITLES,
   },
   {
+    value: "engagement",
+    label: "Engagement Tools",
+    errorKey: "engagement",
+    feature: FEATURES.ENGAGEMENT,
+  },
+  {
     value: "speakers",
     label: "Speaker Dialogue",
     // No errorKey - this uses transcript data

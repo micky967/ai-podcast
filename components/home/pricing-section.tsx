@@ -10,16 +10,18 @@ export function PricingSection({ compact = false }: PricingSectionProps) {
     <section className="relative py-24 md:py-32 overflow-hidden">
       {/* Gradient background */}
       <div className="absolute inset-0 mesh-background-subtle"></div>
-      
+
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-6xl mx-auto">
           {/* Section Header */}
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Simple, <span className="gradient-emerald-text">Transparent</span> Pricing
+              Simple, <span className="gradient-emerald-text">Transparent</span>{" "}
+              Pricing
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Choose the plan that fits your needs. Upgrade, downgrade, or cancel anytime.
+              Choose the plan that fits your needs. Upgrade, downgrade, or
+              cancel anytime.
             </p>
           </div>
 
@@ -30,7 +32,8 @@ export function PricingSection({ compact = false }: PricingSectionProps) {
                 appearance={{
                   elements: {
                     pricingTableCardHeader: {
-                      background: "linear-gradient(135deg, rgb(16 185 129), rgb(45 212 191))",
+                      background:
+                        "linear-gradient(135deg, rgb(16 185 129), rgb(45 212 191))",
                       color: "white",
                       borderRadius: "1rem 1rem 0 0",
                       padding: compact ? "2rem" : "2.5rem",
@@ -83,7 +86,8 @@ export function PricingSection({ compact = false }: PricingSectionProps) {
                       padding: "1rem 2.5rem",
                       transition: "all 0.2s ease",
                       fontSize: "1.1rem",
-                      background: "linear-gradient(135deg, rgb(16 185 129), rgb(45 212 191))",
+                      background:
+                        "linear-gradient(135deg, rgb(16 185 129), rgb(45 212 191))",
                       border: "none",
                       boxShadow: "0 4px 15px rgba(16, 185, 129, 0.3)",
                     },
@@ -93,7 +97,9 @@ export function PricingSection({ compact = false }: PricingSectionProps) {
                   <div className="flex items-center justify-center py-20">
                     <div className="text-center space-y-4 glass-card p-12 rounded-2xl">
                       <Loader2 className="h-16 w-16 animate-spin text-emerald-600 mx-auto" />
-                      <p className="text-gray-600 text-lg font-medium">Loading pricing options...</p>
+                      <p className="text-gray-600 text-lg font-medium">
+                        Loading pricing options...
+                      </p>
                     </div>
                   </div>
                 }
@@ -105,4 +111,3 @@ export function PricingSection({ compact = false }: PricingSectionProps) {
     </section>
   );
 }
-

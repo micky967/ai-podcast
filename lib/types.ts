@@ -19,4 +19,3 @@ export type UploadStatus =
   | "processing"
   | "completed"
   | "error";
-

@@ -1,12 +1,12 @@
 "use client";
 
-import { SignInButton, UserButton, useAuth, Protect } from "@clerk/nextjs";
-import { Home, Sparkles, Zap, Crown } from "lucide-react";
+import { Protect, SignInButton, UserButton, useAuth } from "@clerk/nextjs";
+import { Crown, Home, Sparkles, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { DashboardNav } from "@/components/dashboard-nav";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export function Header() {
   const { isSignedIn } = useAuth();

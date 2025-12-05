@@ -5,8 +5,8 @@ import {
   MessageSquare,
   Sparkles,
   Upload,
-  Zap,
   Users,
+  Zap,
 } from "lucide-react";
 
 interface Feature {

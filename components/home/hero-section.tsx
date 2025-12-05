@@ -40,7 +40,11 @@ export async function HeroSection() {
               </div>
               <div className="text-center">
                 <Link href="/dashboard/projects">
-                  <Button variant="outline" size="lg" className="hover-glow hover:cursor-pointer">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="hover-glow hover:cursor-pointer"
+                  >
                     View All Projects
                   </Button>
                 </Link>

@@ -41,7 +41,7 @@ type KeyMoment = {
  * Performance: Near-instant (no AI API call)
  */
 export async function generateKeyMoments(
-  transcript: TranscriptWithExtras
+  transcript: TranscriptWithExtras,
 ): Promise<KeyMoment[]> {
   console.log("Generating key moments from AssemblyAI chapters");
 
@@ -55,7 +55,7 @@ export async function generateKeyMoments(
   // This is not an error - some short podcasts may not have distinct chapters
   if (chapters.length === 0) {
     console.log(
-      "No chapters detected by AssemblyAI - returning empty key moments"
+      "No chapters detected by AssemblyAI - returning empty key moments",
     );
     return [];
   }

@@ -37,7 +37,7 @@ export default defineSchema({
       v.literal("uploaded"),
       v.literal("processing"),
       v.literal("completed"),
-      v.literal("failed")
+      v.literal("failed"),
     ),
 
     // Granular job status tracking - shows progress of individual processing steps
@@ -48,18 +48,18 @@ export default defineSchema({
             v.literal("pending"),
             v.literal("running"),
             v.literal("completed"),
-            v.literal("failed")
-          )
+            v.literal("failed"),
+          ),
         ),
         contentGeneration: v.optional(
           v.union(
             v.literal("pending"),
             v.literal("running"),
             v.literal("completed"),
-            v.literal("failed")
-          )
+            v.literal("failed"),
+          ),
         ),
-      })
+      }),
     ),
 
     // Error tracking - stores failure details for debugging
@@ -72,9 +72,9 @@ export default defineSchema({
           v.object({
             statusCode: v.optional(v.number()), // HTTP status if applicable
             stack: v.optional(v.string()), // Stack trace for debugging
-          })
+          }),
         ),
-      })
+      }),
     ),
 
     // Per-job error tracking - stores errors for individual generation steps
@@ -86,7 +86,8 @@ export default defineSchema({
         titles: v.optional(v.string()),
         hashtags: v.optional(v.string()),
         youtubeTimestamps: v.optional(v.string()),
-      })
+        engagement: v.optional(v.string()),
+      }),
     ),
 
     // Transcript from AssemblyAI - includes word-level timing and speaker detection
@@ -105,10 +106,10 @@ export default defineSchema({
                   word: v.string(),
                   start: v.number(),
                   end: v.number(),
-                })
-              )
+                }),
+              ),
             ),
-          })
+          }),
         ),
         // Speaker diarization - who said what and when
         speakers: v.optional(
@@ -119,8 +120,8 @@ export default defineSchema({
               end: v.number(),
               text: v.string(),
               confidence: v.number(), // Detection confidence (0-1)
-            })
-          )
+            }),
+          ),
         ),
         // Auto-generated chapters from AssemblyAI
         chapters: v.optional(
@@ -131,10 +132,10 @@ export default defineSchema({
               headline: v.string(), // Chapter title
               summary: v.string(), // Chapter summary
               gist: v.string(), // Short gist
-            })
-          )
+            }),
+          ),
         ),
-      })
+      }),
     ),
 
     // AI-generated key moments - interesting points for social media clips
@@ -145,8 +146,8 @@ export default defineSchema({
           timestamp: v.number(), // Seconds for programmatic use
           text: v.string(), // What was said at this moment
           description: v.string(), // Why this moment is interesting
-        })
-      )
+        }),
+      ),
     ),
 
     // Podcast summary - multi-format for different use cases
@@ -156,7 +157,7 @@ export default defineSchema({
         bullets: v.array(v.string()), // 5-7 key points
         insights: v.array(v.string()), // 3-5 actionable takeaways
         tldr: v.string(), // One sentence hook
-      })
+      }),
     ),
 
     // Platform-optimized social media posts
@@ -169,7 +170,7 @@ export default defineSchema({
         tiktok: v.string(), // Casual, trend-aware
         youtube: v.string(), // Description with timestamps and CTAs
         facebook: v.string(), // Community-focused, conversation starters
-      })
+      }),
     ),
 
     // Title suggestions for various contexts
@@ -179,7 +180,7 @@ export default defineSchema({
         youtubeLong: v.array(v.string()), // Descriptive, SEO-friendly
         podcastTitles: v.array(v.string()), // Episode titles
         seoKeywords: v.array(v.string()), // Keywords for discoverability
-      })
+      }),
     ),
 
     // Platform-specific hashtag recommendations
@@ -190,7 +191,7 @@ export default defineSchema({
         tiktok: v.array(v.string()),
         linkedin: v.array(v.string()),
         twitter: v.array(v.string()),
-      })
+      }),
     ),
 
     // YouTube chapter timestamps - enhances navigation and watch time
@@ -199,8 +200,27 @@ export default defineSchema({
         v.object({
           timestamp: v.string(), // Format: "12:34"
           description: v.string(), // Chapter title/description
-        })
-      )
+        }),
+      ),
+    ),
+
+    // Engagement & Growth Tools - helps build community and drive engagement
+    engagement: v.optional(
+      v.object({
+        commentStarters: v.array(
+          v.object({
+            question: v.string(), // The question/comment to prime engagement
+            answer: v.string(), // Thoughtful answer based on podcast content
+          }),
+        ), // 5-7 anticipated questions with answers to prime engagement
+        pinComment: v.string(), // Best comment to pin on YouTube for community building
+        communityPosts: v.array(v.string()), // 3 follow-up post ideas to keep audience engaged
+        descriptions: v.object({
+          short: v.string(), // 150-200 chars for social media previews
+          medium: v.string(), // 300-500 chars for podcast feed descriptions
+          long: v.string(), // 800-1000 words for blog/show notes
+        }),
+      }),
     ),
 
     // Timestamp metadata

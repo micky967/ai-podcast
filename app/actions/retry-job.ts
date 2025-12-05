@@ -8,12 +8,12 @@
  * Triggers a new Inngest event to regenerate just that specific output.
  */
 
-import { inngest } from "@/inngest/client";
 import { auth } from "@clerk/nextjs/server";
+import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { inngest } from "@/inngest/client";
 // Removed getUserPlan - using Clerk's has() directly per docs
 import { convex } from "@/lib/convex-client";
-import { api } from "@/convex/_generated/api";
 
 export type RetryableJob =
   | "keyMoments"
@@ -21,7 +21,8 @@ export type RetryableJob =
   | "socialPosts"
   | "titles"
   | "hashtags"
-  | "youtubeTimestamps";
+  | "youtubeTimestamps"
+  | "engagement";
 
 export async function retryJob(projectId: Id<"projects">, job: RetryableJob) {
   const authObj = await auth();
@@ -48,7 +49,7 @@ export async function retryJob(projectId: Id<"projects">, job: RetryableJob) {
 
   // Infer original plan from what features were generated
   let originalPlan: "free" | "pro" | "ultra" = "free";
-  if (project.keyMoments || project.youtubeTimestamps) {
+  if (project.keyMoments || project.youtubeTimestamps || project.engagement) {
     originalPlan = "ultra";
   } else if (project.socialPosts || project.titles || project.hashtags) {
     originalPlan = "pro";

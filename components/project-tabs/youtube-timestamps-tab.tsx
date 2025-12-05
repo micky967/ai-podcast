@@ -1,8 +1,8 @@
 "use client";
 
+import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCopyToClipboard } from "@/lib/hooks/use-copy-to-clipboard";
-import { Check, Copy } from "lucide-react";
 
 type YouTubeTimestamp = {
   timestamp: string;

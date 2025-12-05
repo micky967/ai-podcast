@@ -16,15 +16,15 @@
 
 import { PricingTable } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
-import { ArrowLeft, Lock, Zap, Crown } from "lucide-react";
+import { ArrowLeft, Crown, Lock, Zap } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
 interface UpgradePageProps {
-  searchParams: {
+  searchParams: Promise<{
     reason?: string;
     feature?: string;
-  };
+  }>;
 }
 
 /**
@@ -81,7 +81,7 @@ function getCurrentPlan(authObj: Awaited<ReturnType<typeof auth>>) {
 }
 
 export default async function UpgradePage({ searchParams }: UpgradePageProps) {
-  const { reason, feature } = searchParams;
+  const { reason, feature } = await searchParams;
   const message = getUpgradeMessage(reason, feature);
   const Icon = message.icon;
 

@@ -28,14 +28,14 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <ConvexClientProvider>
-      <html lang="en">
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        >
-          {children}
-          <Toaster position="top-center" richColors />
-        </body>
-      </html>
+        <html lang="en">
+          <body
+            className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+          >
+            {children}
+            <Toaster position="top-center" richColors />
+          </body>
+        </html>
       </ConvexClientProvider>
     </ClerkProvider>
   );

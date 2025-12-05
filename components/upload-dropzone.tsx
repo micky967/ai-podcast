@@ -1,9 +1,9 @@
 /**
  * Upload Dropzone Component
- * 
+ *
  * Drag-and-drop file selector with validation and visual feedback.
  * Built on react-dropzone for cross-browser compatibility.
- * 
+ *
  * Features:
  * - Drag and drop support
  * - Click to browse files
@@ -11,12 +11,12 @@
  * - File size validation
  * - Visual feedback (drag state, errors)
  * - Accessible file input
- * 
+ *
  * Supported Audio Formats:
  * - MP3, M4A, WAV, AAC, FLAC, OGG, Opus, WebM
  * - 3GP, 3G2 (mobile formats)
  * - Multiple MIME type variants for cross-browser support
- * 
+ *
  * Design Decision: Why so many MIME types?
  * - Browsers report different MIME types for same format
  * - x-m4a vs. mp4 vs. m4a inconsistencies
@@ -43,7 +43,7 @@ export function UploadDropzone({
 }: UploadDropzoneProps) {
   /**
    * Handle accepted files from dropzone
-   * 
+   *
    * Only takes first file (maxFiles: 1 enforced)
    * Rejected files are handled by react-dropzone
    */
@@ -92,13 +92,14 @@ export function UploadDropzone({
           "border-3 border-dashed rounded-2xl p-16 text-center cursor-pointer transition-all",
           "border-emerald-300 hover:border-emerald-500 hover:bg-emerald-50/50",
           // Drag active state (file hovering over dropzone)
-          isDragActive && "border-emerald-600 bg-emerald-50 scale-[1.02] shadow-xl",
+          isDragActive &&
+            "border-emerald-600 bg-emerald-50 scale-[1.02] shadow-xl",
           // Disabled state
           disabled && "opacity-50 cursor-not-allowed",
           // Error state
           errorMessage && "border-red-400 bg-red-50/30",
           // Hover glow effect
-          !disabled && "hover-glow"
+          !disabled && "hover-glow",
         )}
       >
         {/* Hidden file input (accessibility) */}
@@ -106,10 +107,14 @@ export function UploadDropzone({
 
         <div className="flex flex-col items-center gap-6">
           {/* Icon indicator */}
-          <div className={cn(
-            "rounded-3xl p-8 transition-all",
-            isDragActive ? "gradient-emerald animate-pulse-emerald shadow-2xl scale-110" : "glass-card"
-          )}>
+          <div
+            className={cn(
+              "rounded-3xl p-8 transition-all",
+              isDragActive
+                ? "gradient-emerald animate-pulse-emerald shadow-2xl scale-110"
+                : "glass-card",
+            )}
+          >
             {isDragActive ? (
               <Upload className="h-16 w-16 text-white animate-bounce" />
             ) : (
@@ -124,9 +129,7 @@ export function UploadDropzone({
                 ? "Drop your podcast file here"
                 : "Drag & drop your podcast file"}
             </p>
-            <p className="text-base text-gray-600">
-              or click to browse files
-            </p>
+            <p className="text-base text-gray-600">or click to browse files</p>
             <div className="pt-2 space-y-1">
               <p className="text-sm text-gray-500 font-medium">
                 Supports: MP3, WAV, M4A, FLAC, OGG, AAC, and more

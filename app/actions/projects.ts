@@ -47,7 +47,7 @@ export async function validateUploadAction(input: {
     authObj,
     userId,
     input.fileSize,
-    input.duration
+    input.duration,
   );
 
   if (!validation.allowed) {
@@ -131,7 +131,7 @@ export async function createProjectAction(input: CreateProjectInput) {
       authObj,
       userId,
       fileSize || 0,
-      fileDuration
+      fileDuration,
     );
 
     if (!validation.allowed) {
@@ -239,7 +239,7 @@ export async function deleteProjectAction(projectId: Id<"projects">) {
  */
 export async function updateDisplayNameAction(
   projectId: Id<"projects">,
-  displayName: string
+  displayName: string,
 ) {
   try {
     // Authenticate user via Clerk

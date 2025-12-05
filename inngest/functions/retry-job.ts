@@ -7,10 +7,11 @@
  */
 import { api } from "@/convex/_generated/api";
 import { convex } from "@/lib/convex-client";
-import type { PlanName, FeatureName } from "@/lib/tier-config";
+import type { FeatureName, PlanName } from "@/lib/tier-config";
 import { FEATURE_TO_JOB_MAP } from "@/lib/tier-config";
 import { planHasFeature } from "@/lib/tier-utils";
 import { inngest } from "../client";
+import { generateEngagement } from "../steps/ai-generation/engagement";
 import { generateHashtags } from "../steps/ai-generation/hashtags";
 import { generateKeyMoments } from "../steps/ai-generation/key-moments";
 import { generateSocialPosts } from "../steps/ai-generation/social-posts";
@@ -31,7 +32,7 @@ export const retryJobFunction = inngest.createFunction(
 
     // Get feature key from job name using the shared mapping
     const jobToFeature = Object.fromEntries(
-      Object.entries(FEATURE_TO_JOB_MAP).map(([k, v]) => [v, k])
+      Object.entries(FEATURE_TO_JOB_MAP).map(([k, v]) => [v, k]),
     );
 
     // Check if user has access to this feature with current plan
@@ -41,14 +42,14 @@ export const retryJobFunction = inngest.createFunction(
       !planHasFeature(currentUserPlan, featureKey as FeatureName)
     ) {
       throw new Error(
-        `This feature (${job}) is not available on your current plan. Please upgrade to access it.`
+        `This feature (${job}) is not available on your current plan. Please upgrade to access it.`,
       );
     }
 
     // Log if this is an upgrade scenario
     if (originalUserPlan !== currentUserPlan) {
       console.log(
-        `User upgraded from ${originalUserPlan} to ${currentUserPlan}. Generating ${job}.`
+        `User upgraded from ${originalUserPlan} to ${currentUserPlan}. Generating ${job}.`,
       );
     }
 
@@ -64,7 +65,7 @@ export const retryJobFunction = inngest.createFunction(
     // Basic validation: All jobs need transcript text
     if (!transcript.text || transcript.text.length === 0) {
       throw new Error(
-        "Cannot generate content: transcript text is empty. Please re-upload the file."
+        "Cannot generate content: transcript text is empty. Please re-upload the file.",
       );
     }
 
@@ -73,7 +74,7 @@ export const retryJobFunction = inngest.createFunction(
     if (jobsRequiringChapters.includes(job)) {
       if (!transcript.chapters || transcript.chapters.length === 0) {
         throw new Error(
-          `Cannot generate ${job}: transcript has no chapters. This podcast may be too short or lack distinct topics for chapter detection.`
+          `Cannot generate ${job}: transcript has no chapters. This podcast may be too short or lack distinct topics for chapter detection.`,
         );
       }
     }
@@ -90,7 +91,7 @@ export const retryJobFunction = inngest.createFunction(
             convex.mutation(api.projects.saveGeneratedContent, {
               projectId,
               keyMoments: result,
-            })
+            }),
           );
           break;
         }
@@ -101,7 +102,7 @@ export const retryJobFunction = inngest.createFunction(
             convex.mutation(api.projects.saveGeneratedContent, {
               projectId,
               summary: result,
-            })
+            }),
           );
           break;
         }
@@ -112,7 +113,7 @@ export const retryJobFunction = inngest.createFunction(
             convex.mutation(api.projects.saveGeneratedContent, {
               projectId,
               socialPosts: result,
-            })
+            }),
           );
           break;
         }
@@ -123,7 +124,7 @@ export const retryJobFunction = inngest.createFunction(
             convex.mutation(api.projects.saveGeneratedContent, {
               projectId,
               titles: result,
-            })
+            }),
           );
           break;
         }
@@ -134,7 +135,7 @@ export const retryJobFunction = inngest.createFunction(
             convex.mutation(api.projects.saveGeneratedContent, {
               projectId,
               hashtags: result,
-            })
+            }),
           );
           break;
         }
@@ -145,10 +146,24 @@ export const retryJobFunction = inngest.createFunction(
             convex.mutation(api.projects.saveGeneratedContent, {
               projectId,
               youtubeTimestamps: result,
-            })
+            }),
           );
           break;
         }
+
+        case "engagement": {
+          const result = await generateEngagement(step, transcript);
+          await step.run("save-engagement", () =>
+            convex.mutation(api.projects.saveGeneratedContent, {
+              projectId,
+              engagement: result,
+            }),
+          );
+          break;
+        }
+
+        default:
+          throw new Error(`Unknown job type: ${job}`);
       }
 
       // Clear the error for this job after successful completion
@@ -178,5 +193,5 @@ export const retryJobFunction = inngest.createFunction(
 
       throw error;
     }
-  }
+  },
 );

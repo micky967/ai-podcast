@@ -10,6 +10,7 @@ import {
   Hash,
   Heading,
   MessageSquare,
+  Sparkles,
   Target,
   Youtube,
 } from "lucide-react";
@@ -112,6 +113,12 @@ export const GENERATION_OUTPUTS: GenerationOutput[] = [
     icon: Hash,
     description:
       "Creating trending platform-specific hashtag strategies for better discoverability",
+  },
+  {
+    name: "Engagement Tools",
+    icon: Sparkles,
+    description:
+      "Generating comment starters, pin-worthy comments, community posts, and optimized descriptions",
   },
   {
     name: "YouTube Timestamps",

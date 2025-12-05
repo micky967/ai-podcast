@@ -1,12 +1,12 @@
 "use client";
 
-import { retryJob, type RetryableJob } from "@/app/actions/retry-job";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Id } from "@/convex/_generated/dataModel";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { type RetryableJob, retryJob } from "@/app/actions/retry-job";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Id } from "@/convex/_generated/dataModel";
 
 interface ErrorRetryCardProps {
   projectId: Id<"projects">;
@@ -59,6 +59,3 @@ export function ErrorRetryCard({
     </Card>
   );
 }
-
-
-

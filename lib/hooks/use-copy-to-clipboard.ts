@@ -27,7 +27,7 @@ export function useCopyToClipboard() {
     text: string,
     id: string,
     successMessage = "Copied to clipboard!",
-    timeout = 2000
+    timeout = 2000,
   ) => {
     try {
       await navigator.clipboard.writeText(text);

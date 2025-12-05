@@ -1,13 +1,13 @@
 "use client";
 
 import { Protect } from "@clerk/nextjs";
+import type { RetryableJob } from "@/app/actions/retry-job";
+import type { Id } from "@/convex/_generated/dataModel";
+import type { FeatureName } from "@/lib/tier-config";
 import { ErrorRetryCard } from "./error-retry-card";
 import { GenerateMissingCard } from "./generate-missing-card";
 import { TabSkeleton } from "./tab-skeleton";
 import { UpgradePrompt } from "./upgrade-prompt";
-import type { Id } from "@/convex/_generated/dataModel";
-import type { FeatureName } from "@/lib/tier-config";
-import type { RetryableJob } from "@/app/actions/retry-job";
 
 interface TabContentProps {
   isLoading: boolean;

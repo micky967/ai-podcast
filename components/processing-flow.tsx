@@ -15,9 +15,9 @@ import {
   estimateAssemblyAITime,
   formatTimeRange,
 } from "@/lib/processing-time-estimator";
-import type { PhaseStatus } from "@/lib/types";
-import { PLAN_FEATURES, FEATURES, type FeatureName } from "@/lib/tier-config";
+import { FEATURES, type FeatureName, PLAN_FEATURES } from "@/lib/tier-config";
 import { getMinimumPlanForFeature } from "@/lib/tier-utils";
+import type { PhaseStatus } from "@/lib/types";
 
 interface ProcessingFlowProps {
   transcriptionStatus: PhaseStatus;

@@ -60,10 +60,10 @@ const assemblyai = new AssemblyAI({
 export async function transcribeWithAssemblyAI(
   audioUrl: string,
   projectId: Id<"projects">,
-  userPlan: PlanName = "free"
+  userPlan: PlanName = "free",
 ): Promise<TranscriptWithExtras> {
   console.log(
-    `Starting AssemblyAI transcription for project ${projectId} (${userPlan} plan)`
+    `Starting AssemblyAI transcription for project ${projectId} (${userPlan} plan)`,
   );
 
   try {
@@ -79,7 +79,7 @@ export async function transcribeWithAssemblyAI(
     // Check for transcription errors
     if (transcriptResponse.status === "error") {
       throw new Error(
-        transcriptResponse.error || "AssemblyAI transcription failed"
+        transcriptResponse.error || "AssemblyAI transcription failed",
       );
     }
 
@@ -101,7 +101,7 @@ export async function transcribeWithAssemblyAI(
         response.segments?.length || 0
       } segments, ${response.chapters?.length || 0} chapters, ${
         response.utterances?.length || 0
-      } speakers`
+      } speakers`,
     );
 
     // Transform AssemblyAI response to match our Convex schema
@@ -137,7 +137,7 @@ export async function transcribeWithAssemblyAI(
         end: utterance.end / 1000, // ms to seconds
         text: utterance.text,
         confidence: utterance.confidence,
-      })
+      }),
     );
 
     // Format chapters for Convex (keep milliseconds as AssemblyAI provides them)

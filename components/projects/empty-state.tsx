@@ -14,9 +14,12 @@ export function EmptyState() {
             <FileAudio className="h-20 w-20 text-white" />
           </div>
         </div>
-        <h3 className="text-3xl font-bold mb-4 text-gray-900">No projects yet</h3>
+        <h3 className="text-3xl font-bold mb-4 text-gray-900">
+          No projects yet
+        </h3>
         <p className="text-lg text-gray-600 mb-8 leading-relaxed">
-          Upload your first podcast to unlock AI-powered insights, summaries, and social content
+          Upload your first podcast to unlock AI-powered insights, summaries,
+          and social content
         </p>
         <Link href="/dashboard/upload">
           <Button className="gradient-emerald text-white hover-glow shadow-xl px-8 py-6 text-lg">

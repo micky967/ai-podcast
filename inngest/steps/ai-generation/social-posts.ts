@@ -1,12 +1,12 @@
 /**
  * Platform-Optimized Social Media Posts Generation
- * 
+ *
  * Generates 6 unique social media posts, each tailored to a specific platform's:
  * - Character limits and formatting conventions
  * - Audience demographics and tone expectations
  * - Engagement patterns and best practices
  * - Algorithm preferences
- * 
+ *
  * Platforms Covered:
  * - Twitter/X: 280 chars, punchy and quotable
  * - LinkedIn: Professional, thought-leadership
@@ -14,7 +14,7 @@
  * - TikTok: Gen Z voice, trend-aware
  * - YouTube: Detailed descriptions with keywords
  * - Facebook: Community-focused, shareable
- * 
+ *
  * Prompt Engineering:
  * - Provides chapter summaries (context without full transcript)
  * - Strict character limits enforced in prompt
@@ -34,12 +34,12 @@ const SOCIAL_SYSTEM_PROMPT =
 
 /**
  * Builds prompt with episode context and platform-specific guidelines
- * 
+ *
  * Prompt Structure:
  * - Episode summary from first chapter (context)
  * - Key topics from all chapters (content outline)
  * - Detailed platform requirements (formatting, tone, best practices)
- * 
+ *
  * Design Decision: Why 6 separate posts vs. one generic post?
  * - Each platform has unique audience expectations
  * - Cross-posting generic content performs poorly
@@ -110,12 +110,12 @@ Make each post unique and truly optimized for that platform. No generic content.
 
 /**
  * Generates platform-optimized social posts using OpenAI
- * 
+ *
  * Error Handling:
  * - Returns placeholder posts on failure (graceful degradation)
  * - Safety check: Truncates Twitter post if it exceeds 280 chars
  * - Logs errors for debugging
- * 
+ *
  * Validation:
  * - Zod schema enforces structure
  * - Twitter max length enforced in schema and post-validation
@@ -123,14 +123,14 @@ Make each post unique and truly optimized for that platform. No generic content.
  */
 export async function generateSocialPosts(
   step: typeof InngestStep,
-  transcript: TranscriptWithExtras
+  transcript: TranscriptWithExtras,
 ): Promise<SocialPosts> {
   console.log("Generating social posts with GPT-4");
 
   try {
     // Bind OpenAI method to preserve `this` context for step.ai.wrap
     const createCompletion = openai.chat.completions.create.bind(
-      openai.chat.completions
+      openai.chat.completions,
     );
 
     // Call OpenAI with Structured Outputs for type-safe, validated response
@@ -144,7 +144,7 @@ export async function generateSocialPosts(
           { role: "user", content: buildSocialPrompt(transcript) },
         ],
         response_format: zodResponseFormat(socialPostsSchema, "social_posts"),
-      }
+      },
     )) as OpenAI.Chat.Completions.ChatCompletion;
 
     const content = response.choices[0]?.message?.content;
@@ -164,7 +164,7 @@ export async function generateSocialPosts(
     // GPT sometimes exceeds despite prompt instructions
     if (socialPosts.twitter.length > 280) {
       console.warn(
-        `Twitter post exceeded 280 chars (${socialPosts.twitter.length}), truncating...`
+        `Twitter post exceeded 280 chars (${socialPosts.twitter.length}), truncating...`,
       );
       socialPosts.twitter = `${socialPosts.twitter.substring(0, 277)}...`;
     }
