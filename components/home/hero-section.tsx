@@ -39,7 +39,7 @@ export async function HeroSection() {
                 <PodcastUploader />
               </div>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link href="/dashboard/projects">
+                <Link href="/dashboard/projects" prefetch={true}>
                   <Button
                     variant="outline"
                     size="lg"
@@ -48,7 +48,7 @@ export async function HeroSection() {
                     View All Projects
                   </Button>
                 </Link>
-                <Link href="/dashboard/categories">
+                <Link href="/dashboard/categories" prefetch={true}>
                   <Button
                     variant="outline"
                     size="lg"
@@ -70,7 +70,7 @@ export async function HeroSection() {
                   <Sparkles className="ml-2 h-6 w-6" />
                 </Button>
               </SignInButton>
-              <Link href="/dashboard/projects">
+              <Link href="/dashboard/projects" prefetch={true}>
                 <Button
                   size="lg"
                   variant="outline"
@@ -79,7 +79,7 @@ export async function HeroSection() {
                   View Projects
                 </Button>
               </Link>
-              <Link href="/dashboard/categories">
+              <Link href="/dashboard/categories" prefetch={true}>
                 <Button
                   size="lg"
                   variant="outline"

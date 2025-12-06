@@ -4,6 +4,7 @@ import type { Preloaded } from "convex/react";
 import { usePreloadedQuery, useQuery } from "convex/react";
 import { ArrowLeft, FolderTree, Search, X } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -25,6 +26,7 @@ export function CategoryHeader({
   searchQuery = "",
   onSearchChange,
 }: CategoryHeaderProps) {
+  const router = useRouter();
   const category = preloadedCategory
     ? usePreloadedQuery(preloadedCategory)
     : useQuery(api.categories.getCategory, { categoryId });
@@ -35,7 +37,11 @@ export function CategoryHeader({
   return (
     <div className="mb-12">
       <div className="flex items-center gap-4 mb-6">
-        <Link href="/dashboard/categories">
+        <Link 
+          href="/dashboard/categories"
+          prefetch={true}
+          onMouseEnter={() => router.prefetch("/dashboard/categories")}
+        >
           <Button
             variant="ghost"
             size="sm"
@@ -69,7 +75,11 @@ export function CategoryHeader({
               : `View all projects in ${category?.name || "this category"}`}
           </p>
         </div>
-        <Link href="/dashboard/upload">
+        <Link 
+          href="/dashboard/upload"
+          prefetch={true}
+          onMouseEnter={() => router.prefetch("/dashboard/upload")}
+        >
           <Button className="gradient-emerald text-white hover-glow shadow-lg px-6 py-6 text-base">
             <FolderTree className="mr-2 h-5 w-5" />
             New Upload

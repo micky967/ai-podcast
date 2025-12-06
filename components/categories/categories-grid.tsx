@@ -5,6 +5,7 @@ import type { Preloaded } from "convex/react";
 import { usePreloadedQuery, useQuery } from "convex/react";
 import { FolderTree, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { Card } from "@/components/ui/card";
 
@@ -14,6 +15,7 @@ interface CategoriesGridProps {
 
 export function CategoriesGrid({ preloadedCategories }: CategoriesGridProps) {
   const { userId } = useAuth();
+  const router = useRouter();
   const mainCategories = preloadedCategories
     ? usePreloadedQuery(preloadedCategories)
     : useQuery(api.categories.getMainCategories);
@@ -54,7 +56,14 @@ export function CategoriesGrid({ preloadedCategories }: CategoriesGridProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {/* "All Categories" option */}
-      <Link href="/dashboard/projects" className="group">
+      <Link 
+        href="/dashboard/projects" 
+        className="group"
+        prefetch={true}
+        onMouseEnter={() => {
+          router.prefetch("/dashboard/projects");
+        }}
+      >
         <Card className="glass-card border-blue-200/50 hover:border-blue-400 transition-all hover:shadow-lg hover:shadow-blue-200/50 h-full flex flex-col cursor-pointer bg-gradient-to-br from-blue-50/50 to-indigo-50/50">
           <div className="p-6 flex-1 flex flex-col">
             <div className="flex items-start justify-between mb-4">
@@ -77,6 +86,10 @@ export function CategoriesGrid({ preloadedCategories }: CategoriesGridProps) {
           key={category._id}
           href={`/dashboard/projects?category=${category._id}`}
           className="group"
+          prefetch={true}
+          onMouseEnter={() => {
+            router.prefetch(`/dashboard/projects?category=${category._id}`);
+          }}
         >
           <Card className="glass-card border-emerald-200/50 hover:border-emerald-400 transition-all hover:shadow-lg hover:shadow-emerald-200/50 h-full flex flex-col cursor-pointer relative">
             <div className="p-6 flex-1 flex flex-col">

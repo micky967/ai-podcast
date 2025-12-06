@@ -2,6 +2,7 @@
 
 import { FileAudio, Loader2, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { deleteProjectAction } from "@/app/actions/projects";
@@ -29,6 +30,7 @@ export function ProjectCard({
   highlightProjectId 
 }: ProjectCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const router = useRouter();
 
   const StatusIcon = getStatusIcon(project.status);
   const processingPhase = getProcessingPhaseLabel(project);
@@ -68,6 +70,12 @@ export function ProjectCard({
     return `/dashboard/projects/${project._id}`;
   };
 
+  // Prefetch on hover for better performance
+  const handleMouseEnter = () => {
+    const href = getHref();
+    router.prefetch(href);
+  };
+
   const isHighlighted = highlightProjectId === project._id;
 
   return (
@@ -75,7 +83,12 @@ export function ProjectCard({
       id={isHighlighted ? `project-${project._id}` : undefined}
       className={cn(isHighlighted && "scroll-mt-24")}
     >
-      <Link href={getHref()} className="block">
+      <Link 
+        href={getHref()} 
+        className="block"
+        prefetch={true}
+        onMouseEnter={handleMouseEnter}
+      >
         <div
           className={cn(
             "glass-card rounded-2xl group relative hover-lift cursor-pointer overflow-hidden transition-all",

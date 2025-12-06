@@ -2,6 +2,7 @@
 
 import { FileAudio, Upload } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 interface EmptyStateProps {
@@ -9,6 +10,8 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({ message }: EmptyStateProps) {
+  const router = useRouter();
+  
   return (
     <div className="glass-card rounded-3xl p-12 md:p-16 text-center hover-lift">
       <div className="max-w-md mx-auto">
@@ -25,7 +28,11 @@ export function EmptyState({ message }: EmptyStateProps) {
           {message ||
             "Upload your first podcast to unlock AI-powered insights, summaries, and social content"}
         </p>
-        <Link href="/dashboard/upload">
+        <Link 
+          href="/dashboard/upload"
+          prefetch={true}
+          onMouseEnter={() => router.prefetch("/dashboard/upload")}
+        >
           <Button className="gradient-emerald text-white hover-glow shadow-xl px-8 py-6 text-lg">
             <Upload className="mr-2 h-6 w-6" />
             Upload Your First Podcast

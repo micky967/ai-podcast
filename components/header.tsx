@@ -3,7 +3,7 @@
 import { Protect, SignInButton, UserButton, useAuth } from "@clerk/nextjs";
 import { Crown, Home, Sparkles, Zap } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 export function Header() {
   const { isSignedIn } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const isDashboard = pathname?.startsWith("/dashboard");
   const showDashboardNav = isDashboard;
 
@@ -128,7 +129,11 @@ export function Header() {
                 </Protect>
 
                 {!showDashboardNav && (
-                  <Link href="/dashboard/projects">
+                  <Link
+                    href="/dashboard/projects"
+                    prefetch={true}
+                    onMouseEnter={() => router.prefetch("/dashboard/projects")}
+                  >
                     <Button
                       variant="ghost"
                       size="sm"
@@ -144,7 +149,7 @@ export function Header() {
                   </Link>
                 )}
                 {showDashboardNav && (
-                  <Link href="/" className="hidden lg:block">
+                  <Link href="/" className="hidden lg:block" prefetch={true}>
                     <Button
                       variant="ghost"
                       size="sm"
