@@ -44,10 +44,24 @@ import type {
   TranscriptWithExtras,
 } from "../../types/assemblyai";
 
-// Initialize AssemblyAI client with API key from environment
-const assemblyai = new AssemblyAI({
-  apiKey: process.env.ASSEMBLYAI_API_KEY || "",
-});
+/**
+ * Create AssemblyAI client with user API key (REQUIRED)
+ *
+ * @param userApiKey - User-provided API key (required - no fallback)
+ * @returns AssemblyAI client instance
+ * @throws Error if userApiKey is not provided
+ */
+function createAssemblyAIClient(userApiKey?: string): AssemblyAI {
+  if (!userApiKey) {
+    throw new Error(
+      "AssemblyAI API key is required. Please add your AssemblyAI API key in Settings.",
+    );
+  }
+
+  return new AssemblyAI({
+    apiKey: userApiKey,
+  });
+}
 
 /**
  * Main transcription function called by Inngest workflow
@@ -55,18 +69,23 @@ const assemblyai = new AssemblyAI({
  * @param audioUrl - Public URL to audio file (from Vercel Blob)
  * @param projectId - Convex project ID for status updates
  * @param userPlan - User's subscription plan (for logging, speaker data always captured)
+ * @param userApiKey - Optional user-provided AssemblyAI API key (BYOK)
  * @returns TranscriptWithExtras - Enhanced transcript with chapters and speakers
  */
 export async function transcribeWithAssemblyAI(
   audioUrl: string,
   projectId: Id<"projects">,
   userPlan: PlanName = "free",
+  userApiKey?: string,
 ): Promise<TranscriptWithExtras> {
   console.log(
     `Starting AssemblyAI transcription for project ${projectId} (${userPlan} plan)`,
   );
 
   try {
+    // Create AssemblyAI client with user key or environment key
+    const assemblyai = createAssemblyAIClient(userApiKey);
+
     // Submit transcription job to AssemblyAI
     // This API call blocks until transcription is complete (can take minutes for long files)
     const transcriptResponse = await assemblyai.transcripts.transcribe({

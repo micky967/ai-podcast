@@ -20,7 +20,7 @@
 import type { step as InngestStep } from "inngest";
 import type OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
-import { openai } from "../../lib/openai-client";
+import { createOpenAIClient } from "../../lib/openai-client";
 import { type Hashtags, hashtagsSchema } from "../../schemas/ai-outputs";
 import type { TranscriptWithExtras } from "../../types/assemblyai";
 
@@ -102,10 +102,14 @@ All hashtags should include the # symbol and be relevant to the actual content d
 export async function generateHashtags(
   step: typeof InngestStep,
   transcript: TranscriptWithExtras,
+  userApiKey?: string,
 ): Promise<Hashtags> {
   console.log("Generating hashtags with GPT");
 
   try {
+    // Create OpenAI client with user key or environment key
+    const openai = createOpenAIClient(userApiKey);
+
     // Bind OpenAI method to preserve `this` context for step.ai.wrap
     const createCompletion = openai.chat.completions.create.bind(
       openai.chat.completions,

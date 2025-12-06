@@ -223,6 +223,10 @@ export default defineSchema({
       }),
     ),
 
+    // Category classification - for organizing projects by medical specialty
+    categoryId: v.optional(v.id("categories")), // Main category (e.g., "Cardiology")
+    subcategoryId: v.optional(v.id("categories")), // Subcategory (e.g., "Heart disease management")
+
     // Timestamp metadata
     createdAt: v.number(), // Project creation time
     updatedAt: v.number(), // Last modification time
@@ -232,5 +236,37 @@ export default defineSchema({
     .index("by_user", ["userId"]) // List all projects for a user
     .index("by_status", ["status"]) // Filter by processing status
     .index("by_user_and_status", ["userId", "status"]) // User's active/completed projects
-    .index("by_created_at", ["createdAt"]), // Sort by newest first
+    .index("by_created_at", ["createdAt"]) // Sort by newest first
+    .index("by_category", ["categoryId"]) // Filter by category
+    .index("by_user_and_category", ["userId", "categoryId"]), // User's projects by category
+
+  // User settings - stores user-provided API keys (BYOK - Bring Your Own Key)
+  userSettings: defineTable({
+    // User ownership - links to Clerk user ID
+    userId: v.string(),
+
+    // User-provided API keys (optional - if not provided, uses environment keys)
+    // Keys are stored as-is (Convex provides encryption at rest)
+    openaiApiKey: v.optional(v.string()), // User's OpenAI API key
+    assemblyaiApiKey: v.optional(v.string()), // User's AssemblyAI API key
+
+    // Metadata
+    updatedAt: v.number(), // Last modification time
+    createdAt: v.number(), // Settings creation time
+  })
+    .index("by_user", ["userId"]), // Lookup settings by user ID
+
+  // Categories - hierarchical structure for organizing projects by medical specialty
+  categories: defineTable({
+    name: v.string(), // Category name (e.g., "Cardiology / Heart / Vascular Medicine")
+    slug: v.string(), // URL-friendly identifier (e.g., "cardiology-heart-vascular")
+    parentId: v.optional(v.id("categories")), // Parent category ID for subcategories (null for top-level)
+    order: v.number(), // Display order for sorting
+    description: v.optional(v.string()), // Optional description
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_parent", ["parentId"]) // Find all subcategories of a parent
+    .index("by_order", ["order"]) // Sort categories by display order
+    .index("by_parent_and_order", ["parentId", "order"]), // Get ordered subcategories for a parent
 });

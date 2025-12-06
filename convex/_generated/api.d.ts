@@ -8,7 +8,10 @@
  * @module
  */
 
+import type * as categories from "../categories.js";
+import type * as categoryData from "../categoryData.js";
 import type * as projects from "../projects.js";
+import type * as userSettings from "../userSettings.js";
 
 import type {
   ApiFromModules,
@@ -17,7 +20,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  categories: typeof categories;
+  categoryData: typeof categoryData;
   projects: typeof projects;
+  userSettings: typeof userSettings;
 }>;
 
 /**

@@ -27,7 +27,7 @@
 import type { step as InngestStep } from "inngest";
 import type OpenAI from "openai";
 import { formatTimestamp } from "@/lib/format";
-import { openai } from "../../lib/openai-client";
+import { createOpenAIClient } from "../../lib/openai-client";
 import type { TranscriptWithExtras } from "../../types/assemblyai";
 
 type YouTubeTimestamp = {
@@ -53,6 +53,7 @@ type YouTubeTimestamp = {
 export async function generateYouTubeTimestamps(
   step: typeof InngestStep,
   transcript: TranscriptWithExtras,
+  userApiKey?: string,
 ): Promise<YouTubeTimestamp[]> {
   console.log(
     "Generating YouTube timestamps from AssemblyAI chapters with AI-enhanced titles",
@@ -129,6 +130,9 @@ Return ONLY valid JSON in this exact format:
 }
 
 Remember: Create TITLES, not transcript excerpts!`;
+
+  // Create OpenAI client with user key or environment key
+  const openai = createOpenAIClient(userApiKey);
 
   // Bind OpenAI method to preserve `this` context for step.ai.wrap
   const createCompletion = openai.chat.completions.create.bind(

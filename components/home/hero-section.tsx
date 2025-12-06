@@ -38,14 +38,23 @@ export async function HeroSection() {
               <div className="glass-card-strong rounded-2xl p-8 hover-lift">
                 <PodcastUploader />
               </div>
-              <div className="text-center">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link href="/dashboard/projects">
                   <Button
                     variant="outline"
                     size="lg"
-                    className="hover-glow hover:cursor-pointer"
+                    className="hover-glow hover:cursor-pointer text-lg px-8 py-6 rounded-xl"
                   >
                     View All Projects
+                  </Button>
+                </Link>
+                <Link href="/dashboard/categories">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="hover-glow hover:cursor-pointer text-lg px-8 py-6 rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  >
+                    Browse Categories
                   </Button>
                 </Link>
               </div>
@@ -68,6 +77,15 @@ export async function HeroSection() {
                   className="hover-glow text-lg px-8 py-6 rounded-xl"
                 >
                   View Projects
+                </Button>
+              </Link>
+              <Link href="/dashboard/categories">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="hover-glow text-lg px-8 py-6 rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                >
+                  Browse Categories
                 </Button>
               </Link>
             </div>

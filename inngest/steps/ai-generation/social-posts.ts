@@ -24,7 +24,7 @@
 import type { step as InngestStep } from "inngest";
 import type OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
-import { openai } from "../../lib/openai-client";
+import { createOpenAIClient } from "../../lib/openai-client";
 import { type SocialPosts, socialPostsSchema } from "../../schemas/ai-outputs";
 import type { TranscriptWithExtras } from "../../types/assemblyai";
 
@@ -124,10 +124,14 @@ Make each post unique and truly optimized for that platform. No generic content.
 export async function generateSocialPosts(
   step: typeof InngestStep,
   transcript: TranscriptWithExtras,
+  userApiKey?: string,
 ): Promise<SocialPosts> {
   console.log("Generating social posts with GPT-4");
 
   try {
+    // Create OpenAI client with user key or environment key
+    const openai = createOpenAIClient(userApiKey);
+
     // Bind OpenAI method to preserve `this` context for step.ai.wrap
     const createCompletion = openai.chat.completions.create.bind(
       openai.chat.completions,

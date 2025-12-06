@@ -22,7 +22,7 @@
 import type { step as InngestStep } from "inngest";
 import type OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
-import { openai } from "../../lib/openai-client";
+import { createOpenAIClient } from "../../lib/openai-client";
 import { type Summary, summarySchema } from "../../schemas/ai-outputs";
 import type { TranscriptWithExtras } from "../../types/assemblyai";
 
@@ -96,10 +96,14 @@ Be specific, engaging, and valuable. Focus on what makes this podcast unique and
 export async function generateSummary(
   step: typeof InngestStep,
   transcript: TranscriptWithExtras,
+  userApiKey?: string,
 ): Promise<Summary> {
   console.log("Generating podcast summary with GPT-4");
 
   try {
+    // Create OpenAI client with user key or environment key
+    const openai = createOpenAIClient(userApiKey);
+
     // Bind OpenAI method to preserve `this` context (required for step.ai.wrap)
     const createCompletion = openai.chat.completions.create.bind(
       openai.chat.completions,

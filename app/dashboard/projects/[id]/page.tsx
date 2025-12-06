@@ -90,7 +90,7 @@ export default function ProjectDetailPage() {
       setIsEditing(false);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to update name",
+        error instanceof Error ? error.message : "Failed to update name"
       );
     } finally {
       setIsSaving(false);
@@ -100,7 +100,7 @@ export default function ProjectDetailPage() {
   // Handle delete
   const handleDelete = async () => {
     const confirmed = window.confirm(
-      "Are you sure you want to delete this project? This action cannot be undone.",
+      "Are you sure you want to delete this project? This action cannot be undone."
     );
 
     if (!confirmed) return;
@@ -112,7 +112,7 @@ export default function ProjectDetailPage() {
       router.push("/dashboard/projects");
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to delete project",
+        error instanceof Error ? error.message : "Failed to delete project"
       );
       setIsDeleting(false);
     }
@@ -386,7 +386,7 @@ export default function ProjectDetailPage() {
                 feature={FEATURES.ENGAGEMENT}
                 featureName="Engagement Tools"
                 jobName="engagement"
-                emptyMessage="No engagement tools available"
+                emptyMessage="Please generate the engagement tools here"
               >
                 <EngagementTab engagement={project.engagement} />
               </TabContent>

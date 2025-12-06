@@ -27,7 +27,7 @@
 import type { step as InngestStep } from "inngest";
 import type OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
-import { openai } from "../../lib/openai-client";
+import { createOpenAIClient } from "../../lib/openai-client";
 import { type Engagement, engagementSchema } from "../../schemas/ai-outputs";
 import type { TranscriptWithExtras } from "../../types/assemblyai";
 
@@ -148,10 +148,14 @@ Make everything authentic, valuable, and optimized for growth. Focus on sparking
 export async function generateEngagement(
   step: typeof InngestStep,
   transcript: TranscriptWithExtras,
+  userApiKey?: string,
 ): Promise<Engagement> {
   console.log("Generating engagement & growth tools with GPT-4");
 
   try {
+    // Create OpenAI client with user key or environment key
+    const openai = createOpenAIClient(userApiKey);
+
     // Bind OpenAI method to preserve `this` context (required for step.ai.wrap)
     const createCompletion = openai.chat.completions.create.bind(
       openai.chat.completions,

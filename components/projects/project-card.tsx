@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { deleteProjectAction } from "@/app/actions/projects";
+import { CategoryBadge } from "@/components/category-badge";
 import { CompactProgress } from "@/components/projects/compact-progress";
 import { Badge } from "@/components/ui/badge";
 import type { Doc } from "@/convex/_generated/dataModel";
@@ -18,9 +19,15 @@ import { cn } from "@/lib/utils";
 
 interface ProjectCardProps {
   project: Doc<"projects">;
+  isOnAllProjectsPage?: boolean;
+  highlightProjectId?: string;
 }
 
-export function ProjectCard({ project }: ProjectCardProps) {
+export function ProjectCard({ 
+  project, 
+  isOnAllProjectsPage = false,
+  highlightProjectId 
+}: ProjectCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const StatusIcon = getStatusIcon(project.status);
@@ -49,16 +56,35 @@ export function ProjectCard({ project }: ProjectCardProps) {
     }
   };
 
+  // Determine the link destination
+  // On all projects page: navigate to category page with project param (if category exists)
+  // On category page or if no category: navigate to project detail page
+  const getHref = () => {
+    if (isOnAllProjectsPage && project.categoryId) {
+      // Navigate to category page with project param to highlight it
+      return `/dashboard/projects?category=${project.categoryId}&project=${project._id}`;
+    }
+    // Default: navigate to project detail page
+    return `/dashboard/projects/${project._id}`;
+  };
+
+  const isHighlighted = highlightProjectId === project._id;
+
   return (
-    <Link href={`/dashboard/projects/${project._id}`} className="block">
-      <div
-        className={cn(
-          "glass-card rounded-2xl group relative hover-lift cursor-pointer overflow-hidden transition-all",
-          project.status === "processing" &&
-            "ring-2 ring-emerald-400 shadow-emerald-200 shadow-lg",
-          project.status === "failed" && "ring-2 ring-red-400",
-        )}
-      >
+    <div
+      id={isHighlighted ? `project-${project._id}` : undefined}
+      className={cn(isHighlighted && "scroll-mt-24")}
+    >
+      <Link href={getHref()} className="block">
+        <div
+          className={cn(
+            "glass-card rounded-2xl group relative hover-lift cursor-pointer overflow-hidden transition-all",
+            project.status === "processing" &&
+              "ring-2 ring-emerald-400 shadow-emerald-200 shadow-lg",
+            project.status === "failed" && "ring-2 ring-red-400",
+            isHighlighted && "ring-4 ring-blue-500 shadow-blue-300 shadow-xl animate-pulse",
+          )}
+        >
         <div className="p-6 md:p-7">
           <div className="flex items-start gap-5">
             {/* File Icon - larger, animated */}
@@ -118,6 +144,17 @@ export function ProjectCard({ project }: ProjectCardProps) {
                 </div>
               </div>
 
+              {/* Category Badge */}
+              {(project.categoryId || project.subcategoryId) && (
+                <div className="pt-1">
+                  <CategoryBadge
+                    categoryId={project.categoryId}
+                    subcategoryId={project.subcategoryId}
+                    variant="compact"
+                  />
+                </div>
+              )}
+
               {/* Metadata with badges */}
               <div className="flex items-center gap-3 flex-wrap">
                 <Badge className="text-xs font-semibold bg-emerald-100 text-emerald-700 border-emerald-200">
@@ -157,5 +194,6 @@ export function ProjectCard({ project }: ProjectCardProps) {
         </div>
       </div>
     </Link>
+    </div>
   );
 }

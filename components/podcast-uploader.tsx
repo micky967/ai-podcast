@@ -35,11 +35,13 @@ import {
   createProjectAction,
   validateUploadAction,
 } from "@/app/actions/projects";
+import { CategorySelector } from "@/components/category-selector";
 import { Button } from "@/components/ui/button";
 import { UploadDropzone } from "@/components/upload-dropzone";
 import { UploadProgress } from "@/components/upload-progress";
 import { estimateDurationFromSize, getAudioDuration } from "@/lib/audio-utils";
 import type { UploadStatus } from "@/lib/types";
+import type { Id } from "@/convex/_generated/dataModel";
 
 export function PodcastUploader() {
   const router = useRouter();
@@ -53,6 +55,12 @@ export function PodcastUploader() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+
+  // Category selection state
+  const [selectedCategoryId, setSelectedCategoryId] =
+    useState<Id<"categories"> | null>(null);
+  const [selectedSubcategoryId, setSelectedSubcategoryId] =
+    useState<Id<"categories"> | null>(null);
 
   /**
    * Handle file selection from dropzone
@@ -96,6 +104,12 @@ export function PodcastUploader() {
       return;
     }
 
+    // Validate category is selected (required)
+    if (!selectedCategoryId) {
+      toast.error("Please select a category before uploading");
+      return;
+    }
+
     try {
       setUploadStatus("uploading");
       setUploadProgress(0);
@@ -129,6 +143,8 @@ export function PodcastUploader() {
         fileSize: selectedFile.size,
         mimeType: selectedFile.type,
         fileDuration,
+        categoryId: selectedCategoryId,
+        subcategoryId: selectedSubcategoryId || undefined,
       });
 
       toast.success("Upload completed! Processing your podcast...");
@@ -159,6 +175,8 @@ export function PodcastUploader() {
     setUploadStatus("idle");
     setUploadProgress(0);
     setError(null);
+    setSelectedCategoryId(null);
+    setSelectedSubcategoryId(null);
   };
 
   return (
@@ -183,10 +201,25 @@ export function PodcastUploader() {
             error={error || undefined}
           />
 
+          {/* Category Selection (show when idle or error, before upload) */}
+          {(uploadStatus === "idle" || uploadStatus === "error") && (
+            <CategorySelector
+              selectedCategoryId={selectedCategoryId}
+              selectedSubcategoryId={selectedSubcategoryId}
+              onCategoryChange={setSelectedCategoryId}
+              onSubcategoryChange={setSelectedSubcategoryId}
+              required={true}
+            />
+          )}
+
           {/* Action buttons (show when idle or error) */}
           {(uploadStatus === "idle" || uploadStatus === "error") && (
             <div className="flex gap-3">
-              <Button onClick={handleUpload} className="flex-1">
+              <Button
+                onClick={handleUpload}
+                className="flex-1"
+                disabled={!selectedCategoryId}
+              >
                 {uploadStatus === "error" ? "Try Again" : "Start Upload"}
               </Button>
               <Button onClick={handleReset} variant="outline">

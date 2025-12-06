@@ -46,6 +46,7 @@ import { generateSocialPosts } from "../steps/ai-generation/social-posts";
 import { generateSummary } from "../steps/ai-generation/summary";
 import { generateTitles } from "../steps/ai-generation/titles";
 import { generateYouTubeTimestamps } from "../steps/ai-generation/youtube-timestamps";
+import { getUserApiKeys } from "../lib/user-api-keys";
 import { saveResultsToConvex } from "../steps/persistence/save-to-convex";
 import { transcribeWithAssemblyAI } from "../steps/transcription/assemblyai";
 
@@ -66,6 +67,41 @@ export const podcastProcessor = inngest.createFunction(
     console.log(`Processing project ${projectId} for ${plan} plan`);
 
     try {
+      // Get project to retrieve userId, then fetch user API keys (BYOK support)
+      const project = await step.run("get-project-for-user-keys", async () => {
+        return await convex.query(api.projects.getProject, { projectId });
+      });
+
+      if (!project) {
+        throw new Error(`Project ${projectId} not found`);
+      }
+
+      const userId = project.userId;
+
+      // Get and decrypt user API keys (BYOK - Bring Your Own Key)
+      // Keys are stored encrypted in Convex, decrypted server-side here
+      const userApiKeys = await step.run("get-and-decrypt-user-api-keys", async () => {
+        return await getUserApiKeys(userId);
+      });
+
+      const openaiApiKey = userApiKeys?.openaiApiKey;
+      const assemblyaiApiKey = userApiKeys?.assemblyaiApiKey;
+
+      // Validate that required API keys are present (no fallback to shared keys)
+      if (!openaiApiKey) {
+        throw new Error(
+          "OpenAI API key is required. Please add your OpenAI API key in Settings before processing podcasts.",
+        );
+      }
+
+      if (!assemblyaiApiKey) {
+        throw new Error(
+          "AssemblyAI API key is required. Please add your AssemblyAI API key in Settings before processing podcasts.",
+        );
+      }
+
+      console.log("Using user-provided API keys for processing");
+
       // Mark project as processing in Convex (UI will show "Processing..." state)
       await step.run("update-status-processing", async () => {
         await convex.mutation(api.projects.updateProjectStatus, {
@@ -85,8 +121,9 @@ export const podcastProcessor = inngest.createFunction(
       // Step 1: Transcribe audio with AssemblyAI (sequential - blocks next steps)
       // This step is durable: if it fails, Inngest retries automatically
       // Speaker diarization is always enabled; UI access is gated by plan
+      // Uses user's AssemblyAI key if provided, otherwise falls back to environment key
       const transcript = await step.run("transcribe-audio", () =>
-        transcribeWithAssemblyAI(fileUrl, projectId, plan),
+        transcribeWithAssemblyAI(fileUrl, projectId, plan, assemblyaiApiKey),
       );
 
       // Update jobStatus: transcription complete
@@ -115,18 +152,19 @@ export const podcastProcessor = inngest.createFunction(
       const jobNames: string[] = [];
 
       // Summary - available to all plans
-      jobs.push(generateSummary(step, transcript));
+      // Pass user's OpenAI key if provided (BYOK support)
+      jobs.push(generateSummary(step, transcript, openaiApiKey));
       jobNames.push("summary");
 
       // PRO and ULTRA features
       if (plan === "pro" || plan === "ultra") {
-        jobs.push(generateSocialPosts(step, transcript));
+        jobs.push(generateSocialPosts(step, transcript, openaiApiKey));
         jobNames.push("socialPosts");
 
-        jobs.push(generateTitles(step, transcript));
+        jobs.push(generateTitles(step, transcript, openaiApiKey));
         jobNames.push("titles");
 
-        jobs.push(generateHashtags(step, transcript));
+        jobs.push(generateHashtags(step, transcript, openaiApiKey));
         jobNames.push("hashtags");
       } else {
         console.log(`Skipping social posts, titles, hashtags for ${plan} plan`);
@@ -137,10 +175,12 @@ export const podcastProcessor = inngest.createFunction(
         jobs.push(generateKeyMoments(transcript));
         jobNames.push("keyMoments");
 
-        jobs.push(generateYouTubeTimestamps(step, transcript));
+        jobs.push(
+          generateYouTubeTimestamps(step, transcript, openaiApiKey),
+        );
         jobNames.push("youtubeTimestamps");
 
-        jobs.push(generateEngagement(step, transcript));
+        jobs.push(generateEngagement(step, transcript, openaiApiKey));
         jobNames.push("engagement");
       } else {
         console.log(

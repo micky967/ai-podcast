@@ -42,6 +42,8 @@ export const createProject = mutation({
     fileDuration: v.optional(v.number()),
     fileFormat: v.string(),
     mimeType: v.string(),
+    categoryId: v.optional(v.id("categories")),
+    subcategoryId: v.optional(v.id("categories")),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -56,6 +58,8 @@ export const createProject = mutation({
       fileDuration: args.fileDuration,
       fileFormat: args.fileFormat,
       mimeType: args.mimeType,
+      categoryId: args.categoryId,
+      subcategoryId: args.subcategoryId,
       status: "uploaded",
       jobStatus: {
         transcription: "pending",
@@ -572,5 +576,65 @@ export const updateProjectDisplayName = mutation({
       displayName: args.displayName.trim(),
       updatedAt: Date.now(),
     });
+  },
+});
+
+/**
+ * Lists projects for a user filtered by category/subcategory
+ *
+ * Used by: Category filtered projects page
+ *
+ * @param userId - User ID to filter projects
+ * @param categoryId - Main category ID (optional - if provided, filters by main category)
+ * @param subcategoryId - Subcategory ID (optional - if provided, filters by subcategory)
+ * @param paginationOpts - Pagination options
+ * @returns Paginated list of projects matching the category filter
+ */
+export const listUserProjectsByCategory = query({
+  args: {
+    userId: v.string(),
+    categoryId: v.optional(v.id("categories")),
+    subcategoryId: v.optional(v.id("categories")),
+    paginationOpts: v.optional(
+      v.object({
+        numItems: v.number(),
+        cursor: v.optional(v.string()),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const numItems = args.paginationOpts?.numItems ?? 20;
+
+    // Build query - filter by user first
+    let projects = await ctx.db
+      .query("projects")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("deletedAt"), undefined))
+      .collect();
+
+    // Filter by subcategory if provided (most specific)
+    if (args.subcategoryId) {
+      projects = projects.filter((p) => p.subcategoryId === args.subcategoryId);
+    }
+    // Otherwise, filter by main category if provided
+    else if (args.categoryId) {
+      projects = projects.filter((p) => p.categoryId === args.categoryId);
+    }
+
+    // Sort by newest first
+    projects.sort((a, b) => b.createdAt - a.createdAt);
+
+    // Manual pagination (since we're filtering in memory)
+    const cursor = args.paginationOpts?.cursor;
+    const startIndex = cursor ? parseInt(cursor, 10) : 0;
+    const endIndex = startIndex + numItems;
+    const paginatedProjects = projects.slice(startIndex, endIndex);
+    const hasMore = endIndex < projects.length;
+
+    return {
+      page: paginatedProjects,
+      continueCursor: hasMore ? endIndex.toString() : undefined,
+      isDone: !hasMore,
+    };
   },
 });

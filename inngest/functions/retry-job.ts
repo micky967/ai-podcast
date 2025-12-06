@@ -18,6 +18,7 @@ import { generateSocialPosts } from "../steps/ai-generation/social-posts";
 import { generateSummary } from "../steps/ai-generation/summary";
 import { generateTitles } from "../steps/ai-generation/titles";
 import { generateYouTubeTimestamps } from "../steps/ai-generation/youtube-timestamps";
+import { getUserApiKeys } from "../lib/user-api-keys";
 import type { TranscriptWithExtras } from "../types/assemblyai";
 
 export const retryJobFunction = inngest.createFunction(
@@ -53,10 +54,24 @@ export const retryJobFunction = inngest.createFunction(
       );
     }
 
-    // Get project to access transcript
+    // Get project to access transcript and userId
     const project = await convex.query(api.projects.getProject, { projectId });
     if (!project?.transcript) {
       throw new Error("Project or transcript not found");
+    }
+
+    // Get and decrypt user API keys (BYOK support)
+    // Keys are stored encrypted in Convex, decrypted server-side here
+    const userId = project.userId;
+    const userApiKeys = await getUserApiKeys(userId);
+
+    const openaiApiKey = userApiKeys?.openaiApiKey;
+
+    // Validate that required API keys are present (no fallback to shared keys)
+    if (!openaiApiKey) {
+      throw new Error(
+        "OpenAI API key is required. Please add your OpenAI API key in Settings.",
+      );
     }
 
     // Validate we have the complete transcript data needed for generation
@@ -97,7 +112,7 @@ export const retryJobFunction = inngest.createFunction(
         }
 
         case "summary": {
-          const result = await generateSummary(step, transcript);
+          const result = await generateSummary(step, transcript, openaiApiKey);
           await step.run("save-summary", () =>
             convex.mutation(api.projects.saveGeneratedContent, {
               projectId,
@@ -108,7 +123,11 @@ export const retryJobFunction = inngest.createFunction(
         }
 
         case "socialPosts": {
-          const result = await generateSocialPosts(step, transcript);
+          const result = await generateSocialPosts(
+            step,
+            transcript,
+            openaiApiKey,
+          );
           await step.run("save-social-posts", () =>
             convex.mutation(api.projects.saveGeneratedContent, {
               projectId,
@@ -119,7 +138,7 @@ export const retryJobFunction = inngest.createFunction(
         }
 
         case "titles": {
-          const result = await generateTitles(step, transcript);
+          const result = await generateTitles(step, transcript, openaiApiKey);
           await step.run("save-titles", () =>
             convex.mutation(api.projects.saveGeneratedContent, {
               projectId,
@@ -130,7 +149,7 @@ export const retryJobFunction = inngest.createFunction(
         }
 
         case "hashtags": {
-          const result = await generateHashtags(step, transcript);
+          const result = await generateHashtags(step, transcript, openaiApiKey);
           await step.run("save-hashtags", () =>
             convex.mutation(api.projects.saveGeneratedContent, {
               projectId,
@@ -141,7 +160,11 @@ export const retryJobFunction = inngest.createFunction(
         }
 
         case "youtubeTimestamps": {
-          const result = await generateYouTubeTimestamps(step, transcript);
+          const result = await generateYouTubeTimestamps(
+            step,
+            transcript,
+            openaiApiKey,
+          );
           await step.run("save-youtube-timestamps", () =>
             convex.mutation(api.projects.saveGeneratedContent, {
               projectId,
@@ -152,7 +175,11 @@ export const retryJobFunction = inngest.createFunction(
         }
 
         case "engagement": {
-          const result = await generateEngagement(step, transcript);
+          const result = await generateEngagement(
+            step,
+            transcript,
+            openaiApiKey,
+          );
           await step.run("save-engagement", () =>
             convex.mutation(api.projects.saveGeneratedContent, {
               projectId,

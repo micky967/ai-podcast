@@ -25,6 +25,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { inngest } from "@/inngest/client";
 import { convex } from "@/lib/convex-client";
 import { checkUploadLimits } from "@/lib/tier-utils";
+import { validateUserApiKeys } from "@/lib/api-key-utils";
 
 /**
  * Validate upload before starting
@@ -41,6 +42,17 @@ export async function validateUploadAction(input: {
 
   if (!userId) {
     return { success: false, error: "You must be signed in to upload files" };
+  }
+
+  // Validate that user has API keys configured (required - no fallback)
+  const apiKeyValidation = await validateUserApiKeys(userId);
+  if (!apiKeyValidation.valid) {
+    return {
+      success: false,
+      error:
+        apiKeyValidation.error ||
+        "API keys are required. Please configure them in Settings before uploading.",
+    };
   }
 
   const validation = await checkUploadLimits(
@@ -69,6 +81,8 @@ interface CreateProjectInput {
   fileSize: number; // Bytes
   mimeType: string; // MIME type
   fileDuration?: number; // Seconds (optional)
+  categoryId?: string; // Category ID (required)
+  subcategoryId?: string; // Subcategory ID (optional)
 }
 
 /**
@@ -109,11 +123,24 @@ export async function createProjectAction(input: CreateProjectInput) {
       throw new Error("Unauthorized");
     }
 
-    const { fileUrl, fileName, fileSize, mimeType, fileDuration } = input;
+    const {
+      fileUrl,
+      fileName,
+      fileSize,
+      mimeType,
+      fileDuration,
+      categoryId,
+      subcategoryId,
+    } = input;
 
     // Validate required fields
     if (!fileUrl || !fileName) {
       throw new Error("Missing required fields");
+    }
+
+    // Validate category is provided (required)
+    if (!categoryId) {
+      throw new Error("Category is required. Please select a category.");
     }
 
     // Validate limits using Clerk's has() method
@@ -138,6 +165,15 @@ export async function createProjectAction(input: CreateProjectInput) {
       throw new Error(validation.message || "Upload not allowed for your plan");
     }
 
+    // Validate API keys are configured (required - no fallback to shared keys)
+    const apiKeyValidation = await validateUserApiKeys(userId);
+    if (!apiKeyValidation.valid) {
+      throw new Error(
+        apiKeyValidation.error ||
+          "API keys are required. Please configure OpenAI and AssemblyAI keys in Settings before processing podcasts.",
+      );
+    }
+
     // Extract file extension for display
     const fileExtension = fileName.split(".").pop() || "unknown";
 
@@ -151,6 +187,10 @@ export async function createProjectAction(input: CreateProjectInput) {
       fileDuration,
       fileFormat: fileExtension,
       mimeType: mimeType,
+      categoryId: categoryId as Id<"categories">,
+      subcategoryId: subcategoryId
+        ? (subcategoryId as Id<"categories">)
+        : undefined,
     });
 
     // Trigger Inngest workflow asynchronously with user's current plan

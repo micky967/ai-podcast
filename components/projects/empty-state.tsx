@@ -4,7 +4,11 @@ import { FileAudio, Upload } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-export function EmptyState() {
+interface EmptyStateProps {
+  message?: string;
+}
+
+export function EmptyState({ message }: EmptyStateProps) {
   return (
     <div className="glass-card rounded-3xl p-12 md:p-16 text-center hover-lift">
       <div className="max-w-md mx-auto">
@@ -18,8 +22,8 @@ export function EmptyState() {
           No projects yet
         </h3>
         <p className="text-lg text-gray-600 mb-8 leading-relaxed">
-          Upload your first podcast to unlock AI-powered insights, summaries,
-          and social content
+          {message ||
+            "Upload your first podcast to unlock AI-powered insights, summaries, and social content"}
         </p>
         <Link href="/dashboard/upload">
           <Button className="gradient-emerald text-white hover-glow shadow-xl px-8 py-6 text-lg">
