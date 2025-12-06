@@ -32,7 +32,14 @@ export function ProjectsList({
   const [searchQuery, setSearchQuery] = useState("");
 
   // Use preloaded data and subscribe to real-time updates
-  const projectsResult = usePreloadedQuery(preloadedProjects);
+  // Handle both query types which return compatible result structures
+  const projectsResult = categoryId
+    ? usePreloadedQuery(
+        preloadedProjects as Preloaded<typeof api.projects.listUserProjectsByCategory>
+      )
+    : usePreloadedQuery(
+        preloadedProjects as Preloaded<typeof api.projects.listUserProjects>
+      );
   const allProjects = projectsResult.page || [];
 
   // Filter projects based on search query (case-insensitive)

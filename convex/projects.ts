@@ -633,7 +633,7 @@ export const listUserProjectsByCategory = query({
 
     return {
       page: paginatedProjects,
-      continueCursor: hasMore ? endIndex.toString() : undefined,
+      continueCursor: hasMore ? endIndex.toString() : null,
       isDone: !hasMore,
     };
   },
