@@ -240,24 +240,35 @@ export async function deleteProjectAction(projectId: Id<"projects">) {
       throw new Error("Unauthorized");
     }
 
+    console.log(`[DELETE] Attempting to delete project ${projectId} by user ${userId}`);
+
     // Delete from Convex (validates ownership, returns inputUrl)
+    // The mutation validates that the user owns the project
     const result = await convex.mutation(api.projects.deleteProject, {
       projectId,
       userId,
     });
 
+    console.log(`[DELETE] Project ${projectId} successfully soft-deleted in Convex`);
+
     // Delete file from Vercel Blob
     // If this fails, we've already deleted from DB - log but don't throw
     try {
       await del(result.inputUrl);
+      console.log(`[DELETE] File ${result.inputUrl} deleted from Blob storage`);
     } catch (blobError) {
-      console.error("Failed to delete file from Blob storage:", blobError);
+      console.error("[DELETE] Failed to delete file from Blob storage:", blobError);
       // Don't throw - project is already deleted from database
     }
 
     return { success: true };
   } catch (error) {
-    console.error("Error deleting project:", error);
+    console.error("[DELETE] Error deleting project:", error);
+    console.error("[DELETE] Error details:", {
+      projectId,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+    });
     throw error;
   }
 }

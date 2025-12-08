@@ -1,9 +1,10 @@
 "use client";
 
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Download } from "lucide-react";
 import { Accordion, AccordionItem } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { useCopyToClipboard } from "@/lib/hooks/use-copy-to-clipboard";
+import { toast } from "sonner";
 
 interface EngagementTabProps {
   engagement?: {
@@ -19,13 +20,138 @@ interface EngagementTabProps {
       long: string;
     };
   };
+  projectName?: string;
 }
 
-export function EngagementTab({ engagement }: EngagementTabProps) {
+/**
+ * Escape CSV field - handles quotes and commas properly
+ */
+function escapeCsvField(field: string): string {
+  // If field contains comma, quote, or newline, wrap in quotes and escape quotes
+  if (field.includes(",") || field.includes('"') || field.includes("\n")) {
+    return `"${field.replace(/"/g, '""')}"`;
+  }
+  return field;
+}
+
+/**
+ * Convert comment starters to CSV format (comma-separated)
+ */
+function convertToCSV(
+  commentStarters: Array<{ question: string; answer: string }>,
+): string {
+  // CSV header
+  const header = "Question,Answer\n";
+
+  // CSV rows
+  const rows = commentStarters
+    .map((item) => {
+      const question = escapeCsvField(item.question);
+      const answer = escapeCsvField(item.answer);
+      return `${question},${answer}`;
+    })
+    .join("\n");
+
+  return header + rows;
+}
+
+/**
+ * Convert comment starters to Anki-formatted CSV (tab-separated)
+ * Anki format: Tab-separated with "Front" and "Back" columns
+ */
+function convertToAnkiCSV(
+  commentStarters: Array<{ question: string; answer: string }>,
+): string {
+  // Anki format uses tab-separated values
+  // Headers: Front (question) and Back (answer)
+  const header = "Front\tBack\n";
+
+  // Anki CSV rows (tab-separated)
+  const rows = commentStarters
+    .map((item) => {
+      // Replace tabs with spaces in content to avoid breaking the format
+      const question = item.question.replace(/\t/g, " ");
+      const answer = item.answer.replace(/\t/g, " ");
+      return `${question}\t${answer}`;
+    })
+    .join("\n");
+
+  return header + rows;
+}
+
+/**
+ * Download CSV file
+ */
+function downloadCSV(csvContent: string, filename: string) {
+  // Create blob with CSV content
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  
+  // Create download link
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  
+  link.setAttribute("href", url);
+  link.setAttribute("download", filename);
+  link.style.visibility = "hidden";
+  
+  // Trigger download
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  // Clean up URL object
+  URL.revokeObjectURL(url);
+}
+
+export function EngagementTab({ engagement, projectName }: EngagementTabProps) {
   const { copy, isCopied } = useCopyToClipboard();
 
   // TabContent ensures this is never undefined at runtime
   if (!engagement) return null;
+
+  const handleExportCSV = () => {
+    try {
+      // Convert comment starters to CSV
+      const csvContent = convertToCSV(engagement.commentStarters);
+      
+      // Generate filename
+      const sanitizedProjectName = projectName
+        ? projectName.replace(/[^a-z0-9]/gi, "_").toLowerCase()
+        : "comment-starters";
+      const timestamp = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+      const filename = `${sanitizedProjectName}-comment-starters-${timestamp}.csv`;
+      
+      // Download CSV
+      downloadCSV(csvContent, filename);
+      
+      toast.success("Comment starters exported to CSV!");
+    } catch (error) {
+      console.error("Error exporting CSV:", error);
+      toast.error("Failed to export CSV. Please try again.");
+    }
+  };
+
+  const handleExportAnkiCSV = () => {
+    try {
+      // Convert comment starters to Anki-formatted CSV
+      const ankiContent = convertToAnkiCSV(engagement.commentStarters);
+      
+      // Generate filename
+      const sanitizedProjectName = projectName
+        ? projectName.replace(/[^a-z0-9]/gi, "_").toLowerCase()
+        : "comment-starters";
+      const timestamp = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+      const filename = `${sanitizedProjectName}-comment-starters-anki-${timestamp}.csv`;
+      
+      // Download Anki CSV (still uses .csv extension for Anki import)
+      downloadCSV(ankiContent, filename);
+      
+      toast.success("Comment starters exported to Anki CSV format!");
+    } catch (error) {
+      console.error("Error exporting Anki CSV:", error);
+      toast.error("Failed to export Anki CSV. Please try again.");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -74,13 +200,36 @@ export function EngagementTab({ engagement }: EngagementTabProps) {
 
       {/* Comment Starters with Answers */}
       <div className="glass-card rounded-2xl p-6 md:p-8">
-        <h3 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 gradient-emerald-text">
-          Comment Starters with Answers
-        </h3>
-        <p className="text-sm text-gray-600 mb-6">
-          Anticipated questions to prime engagement - click any question to
-          reveal your answer
-        </p>
+        <div className="flex flex-col sm:flex-row items-start justify-between mb-4 md:mb-6 gap-4">
+          <div>
+            <h3 className="text-xl md:text-2xl font-bold mb-2 gradient-emerald-text">
+              Comment Starters with Answers
+            </h3>
+            <p className="text-sm text-gray-600">
+              Anticipated questions to prime engagement - click any question to
+              reveal your answer
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <Button
+              size="sm"
+              onClick={handleExportCSV}
+              variant="outline"
+              className="border-emerald-300 hover:bg-emerald-50 gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleExportAnkiCSV}
+              className="gradient-emerald text-white hover-glow shadow-lg gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export for Anki
+            </Button>
+          </div>
+        </div>
         <Accordion className="space-y-3">
           {engagement.commentStarters.map((item, idx) => (
             <div

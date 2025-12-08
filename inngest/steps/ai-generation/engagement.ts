@@ -8,7 +8,7 @@
  * - Create descriptions optimized for different contexts
  *
  * Output Formats:
- * - Comment Starters: 5-7 questions/comments to prime engagement
+ * - Comment Starters: 40 study flashcard questions with answers for memorization
  * - Pin Comment: Welcoming comment for YouTube to build community
  * - Community Posts: 3 follow-up ideas to keep audience engaged
  * - Descriptions: Short (preview), Medium (podcast feed), Long (blog/show notes)
@@ -33,7 +33,7 @@ import type { TranscriptWithExtras } from "../../types/assemblyai";
 
 // System prompt defines GPT's role and expertise
 const ENGAGEMENT_SYSTEM_PROMPT =
-  "You are an expert YouTube and podcast growth strategist specializing in audience engagement and community building. You understand what sparks conversations, builds loyal communities, and keeps audiences coming back for more.";
+  "You are an expert educational content creator specializing in creating effective study flashcards. You understand how to break down complex information into concise, memorable questions and accurate answers that facilitate learning and retention.";
 
 /**
  * Builds the user prompt with transcript context and detailed instructions
@@ -45,7 +45,7 @@ const ENGAGEMENT_SYSTEM_PROMPT =
  * - Examples and best practices to guide GPT output
  */
 function buildEngagementPrompt(transcript: TranscriptWithExtras): string {
-  return `Analyze this podcast transcript and create comprehensive engagement and growth tools.
+  return `Analyze this educational content transcript and create comprehensive study materials and engagement tools.
 
 TRANSCRIPT (first 3000 chars):
 ${transcript.text.substring(0, 3000)}...
@@ -58,32 +58,81 @@ ${
     : ""
 }
 
-Create engagement assets to help this content go viral and build community:
+Create study materials and engagement assets:
 
-1. COMMENT STARTERS (5-7 items):
-   Generate anticipated questions or thoughtful comments WITH ANSWERS.
+IMPORTANT: Extract factual medical information from the podcast content, but present it as standalone general medical knowledge. The medical facts come FROM the podcast, but questions must be about the facts themselves - not about cases, discussions, or presentations. Convert case-specific information into general medical knowledge. For example, if a case shows "10-year-old with fever and fatigue", extract the medical fact: "What are common symptoms of this condition?" NOT "What symptoms did the 10-year-old present with?". Generate exactly 40 flashcards covering all factual medical information from the content, presented as general knowledge.
+
+1. STUDY FLASHCARDS (40 items):
+   Generate 40 concise study flashcard questions with accurate answers based on the factual medical content.
+   
+   CRITICAL REQUIREMENTS:
+   - Extract ALL factual medical information from the podcast content (definitions, facts, concepts, principles, symptoms, treatments, etc.)
+   - Convert case-specific information into general medical knowledge
+   - DO NOT create questions about specific cases, case studies, patient examples, or clinical scenarios
+   - DO NOT use phrases like "discussed", "mentioned", "presented with", "noted in case", "in the case study", "the patient", "case 1/2/3", "shown in", etc.
+   - Focus on WHAT the medical information is, not WHERE it came from or HOW it was presented
+   - Questions must be about general medical facts that stand alone - as if from a textbook, not from a case presentation
+   
+   EXTRACTION PROCESS:
+   - When you see case information (e.g., "10-year-old male with fever"), extract the MEDICAL FACT (e.g., "fever is a symptom")
+   - When you see "case 1 showed X", extract the MEDICAL FACT "X" and ask about it generally
+   - When you see "discussed types of leukemia", extract "types of leukemia" and ask about them generally
+   - Always convert case-specific details into universal medical knowledge
+   
    For each item, provide:
-   - question: A natural, engaging question or comment that sparks discussion
-   - answer: A thoughtful 2-3 sentence answer based on the podcast content
+   - question: A concise, clear question about general medical knowledge (1-2 sentences max)
+   - answer: An accurate, informative answer that is complete but concise (2-4 sentences)
    
    Questions should:
-   - Spark meaningful discussion about key topics
-   - Ask for audience perspectives or experiences
-   - Request follow-up content on specific points
-   - Challenge or build on ideas presented
-   - Be natural and genuine (not obviously planted)
+   - Be about general medical facts, concepts, definitions, and principles
+   - NOT reference specific patients, cases, examples, or scenarios from the content
+   - NOT ask about "what was discussed" or "what case showed"
+   - NOT ask about symptoms of specific patients or findings from specific cases
+   - Focus on the underlying medical knowledge itself
+   - Be suitable for memorization and recall practice
+   - Stand completely alone without any context from the source
    
    Answers should:
-   - Reference specific points from the podcast
-   - Be conversational and helpful (2-3 sentences)
-   - Encourage further discussion
-   - Provide value to the asker and other viewers
+   - Contain general medical knowledge and facts
+   - NOT reference any specific cases, patients, or examples
+   - Be accurate and factually correct
+   - Be concise but complete (enough detail to understand, not overly verbose)
+   - Standalone (no references to any source material, cases, or examples)
+   - Focus on the key medical information being tested
    
-   Example:
-   {
-     "question": "At 12:45 when you mentioned X, did you also consider Y?",
-     "answer": "Great question! Yes, we briefly touched on Y around the 15-minute mark. The key difference is that X focuses on immediate results while Y takes a longer-term approach. Would love to do a deep dive on this in a future episode!"
-   }
+   What to extract:
+   - General definitions (e.g., "What is acute lymphoblastic leukemia?" not "What types were discussed?")
+   - Medical facts and principles (e.g., "What are common symptoms of anemia?" not "What symptoms did the patient present with?")
+   - Disease classifications (e.g., "What are the main types of acute leukemia?" not "What types were discussed in the podcast?")
+   - Pathophysiology, mechanisms, and processes
+   - Diagnostic criteria and findings
+   - Treatment principles and approaches
+   - General clinical knowledge
+   
+   What NOT to extract:
+   - Questions about specific cases or case studies
+   - Questions about what was "discussed" or "mentioned"
+   - Questions about specific patients or clinical scenarios
+   - Questions that require knowledge of the podcast/content structure
+   
+   Examples of GOOD questions (extract facts, present generally):
+   - "What are the main types of acute leukemia?" (from content about types)
+   - "What are significant indicators of anemia?" (from case showing anemia indicators)
+   - "What are common symptoms of acute lymphoblastic leukemia?" (from case describing symptoms)
+   - "What are the diagnostic criteria for this condition?" (from diagnostic discussion)
+   
+   Examples of BAD questions (DO NOT CREATE THESE):
+   - "What are the main types discussed in the podcast?" ❌ (references podcast)
+   - "What symptoms did the patient in case 1 present with?" ❌ (references specific case)
+   - "What was noted in the case study?" ❌ (references case study)
+   - "What is a significant indicator of anemia noted in the case study?" ❌ (references case)
+   - "What types of acute leukemia were mentioned?" ❌ (references discussion)
+   
+   Distribution:
+   - Cover all major medical topics, concepts, definitions, facts, processes, and principles
+   - Extract general medical knowledge from all content areas
+   - Split complex topics into multiple focused questions
+   - Ensure comprehensive coverage of the material
 
 2. PIN-WORTHY COMMENT (1 welcoming comment):
    Create THE perfect comment to pin that:
@@ -129,7 +178,39 @@ Create engagement assets to help this content go viral and build community:
    - Has sections for better readability
    - Ends with strong CTA and links (placeholders like [LINK] are fine)
 
-Make everything authentic, valuable, and optimized for growth. Focus on sparking genuine conversations and building a loyal community.`;
+For study flashcards: Extract ALL factual medical information from the podcast content, but present it as standalone general medical knowledge. Convert any case-specific or example-specific information into universal medical facts. Questions must be about the medical information itself - never reference cases, discussions, or how information was presented. Each flashcard should stand alone as textbook-style medical knowledge. Break down complex topics into multiple focused questions to ensure comprehensive coverage of all medical facts from the content.
+
+For engagement tools: Make everything authentic, valuable, and optimized for growth. Focus on sparking genuine conversations and building a loyal community.`;
+}
+
+/**
+ * Generate fallback flashcard content (40 items)
+ * Used when API fails to ensure schema validation passes
+ */
+function generateFallbackFlashcards(): Array<{ question: string; answer: string }> {
+  const baseQuestions = [
+    { q: "What are the key concepts discussed?", a: "The content covers fundamental principles and practical applications that are essential for understanding the topic." },
+    { q: "What is the primary definition?", a: "The core definition provides the foundation for understanding all related concepts and applications." },
+    { q: "What are the main principles?", a: "The main principles outline the fundamental rules and guidelines that govern the subject matter." },
+    { q: "What are the key differences between concepts?", a: "Understanding these differences is crucial for proper application and avoiding common misconceptions." },
+    { q: "What are the practical applications?", a: "These applications demonstrate how theoretical knowledge translates into real-world practice." },
+    { q: "What are the important facts?", a: "These facts provide essential background information necessary for comprehensive understanding." },
+    { q: "What processes are involved?", a: "The processes outline the step-by-step approaches used to achieve desired outcomes." },
+    { q: "What are the critical considerations?", a: "These considerations highlight important factors that must be taken into account." },
+    { q: "What are the common approaches?", a: "These approaches represent established methods used in practice." },
+    { q: "What are the key terms?", a: "Understanding these terms is essential for clear communication and comprehension." },
+  ];
+  
+  // Generate 40 items by varying the base questions
+  const flashcards: Array<{ question: string; answer: string }> = [];
+  for (let i = 0; i < 40; i++) {
+    const base = baseQuestions[i % baseQuestions.length];
+    flashcards.push({
+      question: base.q,
+      answer: base.a,
+    });
+  }
+  return flashcards;
 }
 
 /**
@@ -181,34 +262,8 @@ export async function generateEngagement(
     const engagement = content
       ? engagementSchema.parse(JSON.parse(content))
       : {
-          // Fallback: basic content if parsing fails
-          commentStarters: [
-            {
-              question: "What was your biggest takeaway from this episode?",
-              answer:
-                "Thanks for engaging! The main themes we covered were around practical strategies for improvement. I'd love to hear which specific point resonated most with you!",
-            },
-            {
-              question: "Which topic resonated most with you?",
-              answer:
-                "Great question! We covered several topics in depth. The audience feedback helps us understand what to explore further in future episodes.",
-            },
-            {
-              question: "Has anyone else experienced something similar?",
-              answer:
-                "This is a common experience! Many in our community have shared similar stories. Feel free to share your perspective - we read all comments!",
-            },
-            {
-              question: "Would love to hear your perspective on this!",
-              answer:
-                "Thanks for your interest! Your perspective adds value to the conversation. The diverse viewpoints in our community make these discussions richer.",
-            },
-            {
-              question: "What should we cover in the next episode?",
-              answer:
-                "We're always looking for topic suggestions! Based on this episode's themes, we're planning to dive deeper into related areas. Drop your ideas below!",
-            },
-          ],
+          // Fallback: basic content if parsing fails (40 flashcards)
+          commentStarters: generateFallbackFlashcards(),
           pinComment:
             "Welcome to the discussion! 👋 What's your biggest takeaway from this episode? Drop your thoughts below!",
           communityPosts: [
@@ -228,34 +283,13 @@ export async function generateEngagement(
     console.error("GPT engagement generation error:", error);
 
     // Graceful degradation: return generic content but allow workflow to continue
+    const errorFlashcards = Array.from({ length: 40 }, (_, i) => ({
+      question: `Study question ${i + 1}`,
+      answer: "⚠️ Error generating answer. Please try regenerating this content.",
+    }));
+    
     return {
-      commentStarters: [
-        {
-          question: "What was your biggest takeaway from this episode?",
-          answer:
-            "⚠️ Error generating answer. Please try regenerating this content.",
-        },
-        {
-          question: "Which topic resonated most with you?",
-          answer:
-            "⚠️ Error generating answer. Please try regenerating this content.",
-        },
-        {
-          question: "Has anyone else experienced something similar?",
-          answer:
-            "⚠️ Error generating answer. Please try regenerating this content.",
-        },
-        {
-          question: "Would love to hear your perspective on this!",
-          answer:
-            "⚠️ Error generating answer. Please try regenerating this content.",
-        },
-        {
-          question: "What should we cover in the next episode?",
-          answer:
-            "⚠️ Error generating answer. Please try regenerating this content.",
-        },
-      ],
+      commentStarters: errorFlashcards,
       pinComment:
         "⚠️ Welcome! Engagement tools generation encountered an error. Please check logs or try regenerating.",
       communityPosts: [

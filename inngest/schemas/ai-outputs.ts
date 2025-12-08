@@ -140,7 +140,7 @@ export type Hashtags = z.infer<typeof hashtagsSchema>;
 /**
  * Engagement Schema - Audience engagement and growth tools
  * Helps content creators spark conversations and build community
- * - commentStarters: Questions/comments to prime engagement
+ * - commentStarters: 40 study flashcard questions with answers for memorization
  * - pinComment: Best comment to pin on YouTube (builds community)
  * - communityPosts: Follow-up content ideas to keep audience engaged
  * - descriptions: Podcast descriptions for different contexts (short/medium/long)
@@ -151,17 +151,16 @@ export const engagementSchema = z.object({
       z.object({
         question: z
           .string()
-          .describe("The comment or question to prime engagement"),
+          .describe("Concise study question for flashcards"),
         answer: z
           .string()
           .describe(
-            "A thoughtful answer to the question based on the podcast content",
+            "Accurate, concise answer suitable for study flashcards",
           ),
       }),
     )
-    .min(5)
-    .max(7)
-    .describe("5-7 anticipated questions with answers to prime engagement"),
+    .length(40)
+    .describe("40 study flashcard questions with answers for memorization"),
   pinComment: z
     .string()
     .describe(

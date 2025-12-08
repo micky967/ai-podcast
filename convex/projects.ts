@@ -517,24 +517,31 @@ export const deleteProject = mutation({
     userId: v.string(),
   },
   handler: async (ctx, args) => {
+    console.log(`[CONVEX DELETE] Starting deletion for project ${args.projectId} by user ${args.userId}`);
+    
     // Fetch project to validate ownership and get inputUrl
     const project = await ctx.db.get(args.projectId);
 
     if (!project) {
+      console.error(`[CONVEX DELETE] Project ${args.projectId} not found`);
       throw new Error("Project not found");
     }
 
     // Security check: ensure user owns this project
     if (project.userId !== args.userId) {
+      console.error(`[CONVEX DELETE] Unauthorized: User ${args.userId} does not own project ${args.projectId} (owned by ${project.userId})`);
       throw new Error("Unauthorized: You don't own this project");
     }
 
     // Soft delete: set deletedAt timestamp instead of hard delete
     // This preserves the record for FREE tier counting
+    const deletedAt = Date.now();
     await ctx.db.patch(args.projectId, {
-      deletedAt: Date.now(),
-      updatedAt: Date.now(),
+      deletedAt,
+      updatedAt: deletedAt,
     });
+
+    console.log(`[CONVEX DELETE] Successfully soft-deleted project ${args.projectId} at ${deletedAt}`);
 
     // Return inputUrl so server action can delete from Blob storage
     return { inputUrl: project.inputUrl };

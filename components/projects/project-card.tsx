@@ -48,11 +48,19 @@ export function ProjectCard({
 
     setIsDeleting(true);
     try {
-      await deleteProjectAction(project._id);
-      toast.success("Project deleted");
+      const result = await deleteProjectAction(project._id);
+      if (result?.success) {
+        toast.success("Project deleted successfully");
+      } else {
+        toast.error("Failed to delete project. Please check server logs.");
+        setIsDeleting(false);
+      }
     } catch (error) {
+      console.error("Delete error:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to delete project",
+        error instanceof Error 
+          ? `Failed to delete project: ${error.message}` 
+          : "Failed to delete project. Please check server logs and try again.",
       );
       setIsDeleting(false);
     }

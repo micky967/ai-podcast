@@ -14,7 +14,7 @@ import { MEDICAL_CATEGORIES } from "./categoryData";
  *
  * Used by: Category selector to show main categories
  *
- * @returns Array of top-level categories sorted by order
+ * @returns Array of top-level categories sorted alphabetically by name
  */
 export const getMainCategories = query({
   args: {},
@@ -28,8 +28,15 @@ export const getMainCategories = query({
       (cat) => !cat.parentId,
     );
 
-    // Sort by order field
-    return mainCategories.sort((a, b) => a.order - b.order);
+    // Sort alphabetically by name (case-insensitive)
+    // Compares character by character: A before Z, then second letter, etc.
+    return mainCategories.sort((a, b) => {
+      const nameA = a.name.toLowerCase().trim();
+      const nameB = b.name.toLowerCase().trim();
+      if (nameA < nameB) return -1;
+      if (nameA > nameB) return 1;
+      return 0;
+    });
   },
 });
 
@@ -39,7 +46,7 @@ export const getMainCategories = query({
  * Used by: Category selector to show subcategories when main category is selected
  *
  * @param parentId - ID of the parent category
- * @returns Array of subcategories sorted by order
+ * @returns Array of subcategories sorted alphabetically by name
  */
 export const getSubcategories = query({
   args: {
@@ -49,11 +56,17 @@ export const getSubcategories = query({
     const subcategories = await ctx.db
       .query("categories")
       .withIndex("by_parent", (q) => q.eq("parentId", args.parentId))
-      .order("asc")
       .collect();
 
-    // Sort by order field
-    return subcategories.sort((a, b) => a.order - b.order);
+    // Sort alphabetically by name (case-insensitive)
+    // Compares character by character: A before Z, then second letter, etc.
+    return subcategories.sort((a, b) => {
+      const nameA = a.name.toLowerCase().trim();
+      const nameB = b.name.toLowerCase().trim();
+      if (nameA < nameB) return -1;
+      if (nameA > nameB) return 1;
+      return 0;
+    });
   },
 });
 

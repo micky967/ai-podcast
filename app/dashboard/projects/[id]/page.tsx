@@ -388,7 +388,10 @@ export default function ProjectDetailPage() {
                 jobName="engagement"
                 emptyMessage="Please generate the engagement tools here"
               >
-                <EngagementTab engagement={project.engagement} />
+                <EngagementTab 
+                  engagement={project.engagement}
+                  projectName={project.displayName || project.fileName}
+                />
               </TabContent>
             </TabsContent>
 
