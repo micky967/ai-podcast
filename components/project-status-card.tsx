@@ -8,14 +8,14 @@ interface ProjectStatusCardProps {
 
 export function ProjectStatusCard({ project }: ProjectStatusCardProps) {
   return (
-    <div className="glass-card-strong rounded-2xl p-8 hover-lift">
-      <div className="flex flex-col md:flex-row md:items-start gap-6">
+    <div className="glass-card-strong rounded-2xl p-4 sm:p-6 md:p-8 hover-lift overflow-hidden">
+      <div className="flex flex-col md:flex-row md:items-start gap-4 sm:gap-6">
         {/* Project Info */}
         <div className="flex-1 min-w-0">
-          <h2 className="text-2xl font-bold wrap-break-words mb-4 text-gray-900">
+          <h2 className="text-xl sm:text-2xl font-bold break-words mb-4 text-gray-900">
             {project.fileName}
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-emerald-100">
                 <Calendar className="h-5 w-5 text-emerald-600" />

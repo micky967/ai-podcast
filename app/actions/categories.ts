@@ -121,10 +121,18 @@ export async function updateProjectCategoryAction(input: {
 }> {
   try {
     const authObj = await auth();
-    const { userId } = authObj;
+    const { userId, has } = authObj;
 
     if (!userId) {
       return { success: false, error: "You must be signed in to update project categories" };
+    }
+
+    // Check if user has Ultra plan (required for drag-and-drop)
+    if (!has?.({ plan: "ultra" })) {
+      return {
+        success: false,
+        error: "Drag-and-drop to change categories is only available for Ultra plan users. Please upgrade to use this feature.",
+      };
     }
 
     // Update category in Convex (validates ownership)

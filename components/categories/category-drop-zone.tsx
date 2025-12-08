@@ -7,6 +7,7 @@
 
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { FolderTree, Move } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -15,6 +16,7 @@ import { updateProjectCategoryAction } from "@/app/actions/categories";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Card } from "@/components/ui/card";
+import { getCurrentPlan } from "@/lib/client-tier-utils";
 import { cn } from "@/lib/utils";
 
 interface CategoryDropZoneProps {
@@ -22,10 +24,20 @@ interface CategoryDropZoneProps {
 }
 
 export function CategoryDropZone({ onDropComplete }: CategoryDropZoneProps) {
+  const { has } = useAuth();
   const [draggedOverCategoryId, setDraggedOverCategoryId] = useState<Id<"categories"> | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
+  // Check if user has Ultra plan
+  const userPlan = getCurrentPlan(has);
+  const isUltra = userPlan === "ultra";
+
   const mainCategories = useQuery(api.categories.getMainCategories);
+
+  // Don't render if user doesn't have Ultra plan
+  if (!isUltra) {
+    return null;
+  }
 
   const handleDragOver = (e: React.DragEvent, categoryId: Id<"categories">) => {
     e.preventDefault();
@@ -125,7 +137,7 @@ export function CategoryDropZone({ onDropComplete }: CategoryDropZoneProps) {
         <h3 className="font-semibold text-lg">Drag projects to categories</h3>
       </div>
       {isDragging && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {mainCategories.map((category) => (
             <div
               key={category._id}
@@ -139,9 +151,9 @@ export function CategoryDropZone({ onDropComplete }: CategoryDropZoneProps) {
                   : "border-gray-300 hover:border-emerald-300 hover:bg-emerald-50/50",
               )}
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <FolderTree className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-                <p className="text-sm font-medium text-gray-700 truncate">
+                <p className="text-sm font-medium text-gray-700 truncate min-w-0">
                   {category.name}
                 </p>
               </div>

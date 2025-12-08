@@ -5,7 +5,7 @@
  * Similar to transcription step but for documents instead of audio.
  *
  * Supported Formats:
- * - PDF: Uses pdf-parse library
+ * - PDF: Uses pdf2json library
  * - DOCX: Uses mammoth library
  * - DOC: Uses mammoth library (converts to DOCX format)
  * - TXT: Direct text reading
@@ -19,6 +19,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { convex } from "@/lib/convex-client";
 import type { TranscriptWithExtras } from "../../types/assemblyai";
+import mammoth from "mammoth";
 
 /**
  * Extracts text from a document file
@@ -51,17 +52,120 @@ export async function extractTextFromDocument(
 
     // Extract text based on file type
     if (mimeType === "application/pdf") {
-      // PDF extraction
-      const pdfParse = await import("pdf-parse");
-      const pdfData = await pdfParse.default(buffer);
-      extractedText = pdfData.text;
+      // PDF extraction - using pdf2json (simple and reliable for Node.js)
+      // Use require() inside function to avoid Next.js/Turbopack static analysis issues
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+        const PDFParser = require("pdf2json");
+        const pdfParser = new PDFParser(null, 1);
+        
+        // Extract text from PDF using promise-based approach
+        const pdfText = await new Promise<string>((resolve, reject) => {
+          const textParts: string[] = [];
+          
+          pdfParser.on("pdfParser_dataError", (errData: any) => {
+            reject(new Error(`PDF parsing error: ${errData.parserError}`));
+          });
+          
+          pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
+            try {
+              // Extract text from all pages - improved to capture all text elements
+              if (pdfData.Pages && Array.isArray(pdfData.Pages)) {
+                for (const page of pdfData.Pages) {
+                  const pageTextParts: string[] = [];
+                  
+                  // Extract text from Texts array (main text content)
+                  if (page.Texts && Array.isArray(page.Texts)) {
+                    const texts = page.Texts.map((textItem: any) => {
+                      // Decode URI-encoded text
+                      if (textItem.R && Array.isArray(textItem.R)) {
+                        return textItem.R.map((r: any) => {
+                          if (r.T) {
+                            return decodeURIComponent(r.T);
+                          }
+                          return "";
+                        }).join("");
+                      }
+                      // Also check for direct text property
+                      if (textItem.T) {
+                        return decodeURIComponent(textItem.T);
+                      }
+                      return "";
+                    }).filter(text => text.trim().length > 0);
+                    
+                    if (texts.length > 0) {
+                      pageTextParts.push(texts.join(" "));
+                    }
+                  }
+                  
+                  // Extract text from FillText array (filled text, often in forms/tables)
+                  if (page.FillText && Array.isArray(page.FillText)) {
+                    const fillTexts = page.FillText.map((fillItem: any) => {
+                      if (fillItem.R && Array.isArray(fillItem.R)) {
+                        return fillItem.R.map((r: any) => {
+                          if (r.T) {
+                            return decodeURIComponent(r.T);
+                          }
+                          return "";
+                        }).join("");
+                      }
+                      if (fillItem.T) {
+                        return decodeURIComponent(fillItem.T);
+                      }
+                      return "";
+                    }).filter(text => text.trim().length > 0);
+                    
+                    if (fillTexts.length > 0) {
+                      pageTextParts.push(fillTexts.join(" "));
+                    }
+                  }
+                  
+                  // Combine all text from this page
+                  if (pageTextParts.length > 0) {
+                    textParts.push(pageTextParts.join("\n"));
+                  }
+                }
+              }
+              
+              // Join all pages with double newline for better separation
+              const fullText = textParts.join("\n\n").trim();
+              
+              // Log extraction stats for debugging
+              console.log(`PDF text extraction: ${pdfData.Pages?.length || 0} pages, ${fullText.length} characters extracted`);
+              
+              resolve(fullText);
+            } catch (extractError) {
+              reject(new Error(`Failed to extract text from PDF: ${extractError instanceof Error ? extractError.message : "Unknown error"}`));
+            }
+          });
+          
+          // Parse the PDF buffer
+          pdfParser.parseBuffer(buffer);
+        });
+        
+        extractedText = pdfText;
+        
+        if (!extractedText || extractedText.length === 0) {
+          throw new Error(
+            "This PDF appears to be image-based (scanned) and contains no extractable text. Please use a PDF with selectable text, or convert your scanned PDF to text using OCR software first."
+          );
+        }
+      } catch (parseError) {
+        if (parseError instanceof Error && parseError.message.includes("image-based")) {
+          throw parseError;
+        }
+        
+        console.error("PDF parsing error with pdf2json:", parseError);
+        throw new Error(
+          `PDF parsing failed: ${parseError instanceof Error ? parseError.message : "Unknown error"}. The PDF file may be corrupted, encrypted, or in an unsupported format.`
+        );
+      }
     } else if (
       mimeType ===
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
       mimeType === "application/msword"
     ) {
       // DOCX or DOC extraction
-      const mammoth = await import("mammoth");
       const result = await mammoth.extractRawText({ buffer });
       extractedText = result.value;
     } else if (mimeType === "text/plain") {
@@ -71,8 +175,24 @@ export async function extractTextFromDocument(
       throw new Error(`Unsupported document type: ${mimeType}`);
     }
 
-    if (!extractedText || extractedText.trim().length === 0) {
-      throw new Error("No text could be extracted from the document");
+    // Check if text was extracted
+    const trimmedText = extractedText?.trim() || "";
+    if (trimmedText.length === 0) {
+      // Provide more helpful error message
+      const errorDetails = {
+        mimeType,
+        extractedLength: extractedText?.length || 0,
+        hasText: !!extractedText,
+        isWhitespaceOnly: extractedText && extractedText.trim().length === 0,
+      };
+      console.error("Text extraction failed - no text found:", errorDetails);
+      throw new Error(
+        `No text could be extracted from the document. This may be because:\n` +
+        `1. The PDF is image-based (scanned) and requires OCR\n` +
+        `2. The PDF is encrypted or password-protected\n` +
+        `3. The PDF contains only images/diagrams without text layers\n` +
+        `Please ensure your PDF has selectable text.`
+      );
     }
 
     console.log(

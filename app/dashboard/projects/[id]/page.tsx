@@ -120,7 +120,7 @@ export default function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <div className="container max-w-6xl mx-auto py-10 px-4">
+      <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0 overflow-x-hidden">
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -130,7 +130,7 @@ export default function ProjectDetailPage() {
 
   if (project.userId !== userId) {
     return (
-      <div className="container max-w-6xl mx-auto py-10 px-4">
+      <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0 overflow-x-hidden">
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">
@@ -167,78 +167,78 @@ export default function ProjectDetailPage() {
   });
 
   return (
-    <div className="container max-w-6xl mx-auto py-10 px-4 ">
+    <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0 overflow-x-hidden">
       {/* Header with title and actions */}
-      <div className="mb-8 flex items-start justify-between gap-4">
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex-1 min-w-0">
           {isEditing ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <Input
                 value={editedName}
                 onChange={(e) => setEditedName(e.target.value)}
-                className="text-2xl font-bold h-auto py-2"
+                className="text-xl sm:text-2xl font-bold h-auto py-2 flex-1"
                 placeholder="Project name"
                 autoFocus
                 disabled={isSaving}
               />
-              <Button
-                size="lg"
-                onClick={handleSaveEdit}
-                disabled={isSaving}
-                className="gradient-emerald text-white hover-glow px-6 transition-all"
-              >
-                {isSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    <p className="hidden md:block text-sm font-medium gradient-emerald text-white hover-glow px-6 transition-all">
-                      Save
-                    </p>
-                    <Save className="h-4 w-4" />
-                  </>
-                )}
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={handleCancelEdit}
-                disabled={isSaving}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="lg"
+                  onClick={handleSaveEdit}
+                  disabled={isSaving}
+                  className="gradient-emerald text-white hover-glow px-4 sm:px-6 transition-all"
+                >
+                  {isSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <span className="hidden sm:inline mr-2">Save</span>
+                      <Save className="h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={handleCancelEdit}
+                  disabled={isSaving}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold wrap-break-word">
+              <h1 className="text-2xl sm:text-3xl font-bold break-words">
                 {project.displayName || project.fileName}
               </h1>
             </div>
           )}
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {!isEditing && (
             <Button
               variant="outline"
               size="lg"
               onClick={handleStartEdit}
-              className="glass-card hover-lift border-2 border-emerald-200 hover:border-emerald-400 px-6 bg-white"
+              className="glass-card hover-lift border-2 border-emerald-200 hover:border-emerald-400 px-4 sm:px-6 bg-white"
             >
-              <Edit2 className="h-4 w-4 mr-2 text-emerald-600" />
-              <span className="font-semibold text-emerald-700">Edit</span>
+              <Edit2 className="h-4 w-4 sm:mr-2 text-emerald-600" />
+              <span className="hidden sm:inline font-semibold text-emerald-700">Edit</span>
             </Button>
           )}
           <Button
             size="lg"
             onClick={handleDelete}
             disabled={isDeleting}
-            className="gradient-emerald text-white hover-glow px-6 transition-all"
+            className="gradient-emerald text-white hover-glow px-4 sm:px-6 transition-all"
           >
             {isDeleting ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />
             ) : (
-              <Trash2 className="h-4 w-4 mr-2" />
+              <Trash2 className="h-4 w-4 sm:mr-2" />
             )}
-            <span className="">Delete</span>
+            <span className="hidden sm:inline">Delete</span>
           </Button>
         </div>
       </div>
@@ -297,8 +297,8 @@ export default function ProjectDetailPage() {
             </div>
 
             {/* Desktop Tabs */}
-            <div className="glass-card rounded-2xl p-2 mb-6 hidden lg:block">
-              <TabsList className="flex flex-wrap gap-2 bg-transparent min-w-max w-full">
+            <div className="glass-card rounded-2xl p-2 mb-6 hidden lg:block overflow-x-auto">
+              <TabsList className="flex flex-wrap gap-2 bg-transparent w-full">
                 {visibleTabs.map((tab) => (
                   <DesktopTabTrigger
                     key={tab.value}

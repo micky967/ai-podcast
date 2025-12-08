@@ -54,14 +54,14 @@ export function DesktopTabTrigger({ tab, project }: TabTriggerItemProps) {
   return (
     <TabsTrigger
       value={tab.value}
-      className="flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-400 data-[state=active]:text-white transition-all font-semibold whitespace-nowrap cursor-pointer"
+      className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 md:px-6 py-2 sm:py-3 rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-400 data-[state=active]:text-white transition-all font-semibold whitespace-nowrap cursor-pointer text-sm sm:text-base shrink-0"
     >
       {tab.label}
-      {hasError && <AlertCircle className="h-4 w-4 text-destructive" />}
+      {hasError && <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-destructive shrink-0" />}
       {tab.feature && (
         <Protect
           feature={tab.feature}
-          fallback={<Lock className="h-3 w-3 text-red-500 cursor-pointer" />}
+          fallback={<Lock className="h-3 w-3 text-red-500 cursor-pointer shrink-0" />}
         />
       )}
     </TabsTrigger>

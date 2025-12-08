@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import { FileAudio, Loader2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -17,6 +18,7 @@ import {
   getStatusIcon,
   getStatusVariant,
 } from "@/lib/status-utils";
+import { getCurrentPlan } from "@/lib/client-tier-utils";
 import { cn } from "@/lib/utils";
 
 interface ProjectCardProps {
@@ -30,9 +32,14 @@ export function ProjectCard({
   isOnAllProjectsPage = false,
   highlightProjectId 
 }: ProjectCardProps) {
+  const { has } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const router = useRouter();
+
+  // Check if user has Ultra plan (required for drag-and-drop)
+  const userPlan = getCurrentPlan(has);
+  const isUltra = userPlan === "ultra";
 
   const handleDragStart = (e: React.DragEvent) => {
     setIsDragging(true);
@@ -115,11 +122,12 @@ export function ProjectCard({
       className={cn(isHighlighted && "scroll-mt-24")}
     >
       <div
-        draggable
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
+        draggable={isUltra}
+        onDragStart={isUltra ? handleDragStart : undefined}
+        onDragEnd={isUltra ? handleDragEnd : undefined}
         className={cn(
-          "glass-card rounded-2xl group relative hover-lift cursor-move overflow-hidden transition-all",
+          "glass-card rounded-2xl group relative hover-lift overflow-hidden transition-all w-full max-w-full",
+          isUltra ? "cursor-move" : "cursor-pointer",
           project.status === "processing" &&
             "ring-2 ring-emerald-400 shadow-emerald-200 shadow-lg",
           project.status === "failed" && "ring-2 ring-red-400",
@@ -139,42 +147,42 @@ export function ProjectCard({
             }
           }}
         >
-        <div className="p-6 md:p-7">
-          <div className="flex items-start gap-5">
+        <div className="p-4 sm:p-5 md:p-6 lg:p-7">
+          <div className="flex items-start gap-3 sm:gap-4 md:gap-5">
             {/* File Icon - larger, animated */}
-            <div className="rounded-2xl gradient-emerald p-4 md:p-5 shrink-0 group-hover:scale-110 transition-transform shadow-lg">
-              <FileAudio className="h-10 w-10 md:h-12 md:w-12 text-white" />
+            <div className="rounded-2xl gradient-emerald p-3 sm:p-4 md:p-5 shrink-0 group-hover:scale-110 transition-transform shadow-lg">
+              <FileAudio className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-white" />
             </div>
 
             {/* Project Info */}
             <div className="flex-1 min-w-0 overflow-hidden space-y-3">
               {/* Title + Status + Delete */}
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-2 sm:gap-3 md:gap-4">
                 <div className="flex-1 min-w-0 overflow-hidden">
-                  <h3 className="font-extrabold text-lg md:text-xl lg:text-2xl wrap-break-word hyphens-auto group-hover:text-emerald-600 transition-colors leading-snug">
+                  <h3 className="font-extrabold text-lg md:text-xl lg:text-2xl wrap-break-word hyphens-auto group-hover:text-emerald-600 transition-colors leading-snug break-words">
                     {project.displayName || project.fileName}
                   </h3>
                   <p className="text-sm text-gray-600 mt-2 font-medium">
                     {formatSmartDate(project.createdAt)}
                   </p>
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   {project.status !== "completed" && (
                     <Badge
                       variant={getStatusVariant(project.status)}
                       className={cn(
-                        "flex items-center gap-2 h-9 md:h-10 text-sm md:text-base px-4 whitespace-nowrap font-bold shadow-md",
+                        "flex items-center gap-1 sm:gap-2 h-9 md:h-10 text-xs sm:text-sm md:text-base px-2 sm:px-3 md:px-4 whitespace-nowrap font-bold shadow-md",
                         project.status === "processing" &&
                           "gradient-emerald text-white animate-pulse-emerald",
                       )}
                     >
                       <StatusIcon
-                        className={`h-4 w-4 md:h-5 md:w-5 ${project.status === "processing" ? "animate-spin" : ""}`}
+                        className={`h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 flex-shrink-0 ${project.status === "processing" ? "animate-spin" : ""}`}
                       />
                       <span className="hidden md:inline">
                         {processingPhase}
                       </span>
-                      <span className="md:hidden">
+                      <span className="md:hidden text-xs sm:text-sm">
                         {project.status === "processing"
                           ? project.jobStatus?.transcription === "running"
                             ? "Trans"
@@ -210,7 +218,7 @@ export function ProjectCard({
               )}
 
               {/* Metadata with badges */}
-              <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                 <Badge className="text-xs font-semibold bg-emerald-100 text-emerald-700 border-emerald-200">
                   {formatFileSize(project.fileSize)}
                 </Badge>

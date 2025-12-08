@@ -15,8 +15,8 @@ import {
   Youtube,
 } from "lucide-react";
 
-// File upload constraints
-export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB limit
+// File upload constraints (default max - actual limit depends on plan)
+export const MAX_FILE_SIZE = 300 * 1024 * 1024; // 300MB (Ultra plan limit)
 
 /**
  * Allowed audio MIME types for upload validation

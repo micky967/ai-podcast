@@ -27,7 +27,7 @@
 import type { step as InngestStep } from "inngest";
 import type OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
-import { createOpenAIClient } from "../../lib/openai-client";
+import { createBoundCompletion } from "../../lib/openai-client";
 import { type Engagement, engagementSchema } from "../../schemas/ai-outputs";
 import type { TranscriptWithExtras } from "../../types/assemblyai";
 
@@ -48,20 +48,32 @@ function buildEngagementPrompt(transcript: TranscriptWithExtras): string {
   // Check if this is from a document (no chapters/timestamps) or audio (has chapters)
   const isDocument = !transcript.chapters || transcript.chapters.length === 0;
   const contentType = isDocument ? "document" : "podcast/audio content";
+  
+  // Determine content length to decide how many flashcards to generate
+  const contentLength = transcript.text.length;
+  const isLongDocument = isDocument && contentLength > 15000; // Long documents with lots of content
+  
   const flashcardCount = isDocument 
-    ? "10-40 flashcards based on content length (generate fewer for short documents, up to 40 for comprehensive documents)"
-    : "EXACTLY 40 flashcards - this is REQUIRED for podcasts/audio files. You MUST generate exactly 40 flashcards, no more, no less.";
+    ? isLongDocument 
+      ? "40-50 flashcards - this document has extensive content including tables, spreadsheets, and detailed information. Generate 40-50 comprehensive flashcards to cover all the material."
+      : contentLength > 8000
+        ? "30-40 flashcards - this document has substantial content. Generate 30-40 flashcards to comprehensively cover the material."
+        : "20-30 flashcards based on content length"
+    : "EXACTLY 50 flashcards - this is REQUIRED for podcasts/audio files. You MUST generate exactly 50 flashcards, no more, no less.";
   
   // For documents, send more content to ensure questions are based on actual document content
+  // For long documents with tables/spreadsheets, send even more content
   // For audio, 3000 chars is usually enough since podcasts are more conversational
   const contentPreview = isDocument
-    ? transcript.text.substring(0, 8000) // Send more content for documents
+    ? isLongDocument
+      ? transcript.text.substring(0, 20000) // Very long preview for documents with tables/spreadsheets
+      : transcript.text.substring(0, 12000) // Extended preview for documents
     : transcript.text.substring(0, 3000); // Standard preview for audio
 
   return `Analyze this content and create comprehensive study materials and engagement tools.
 
-${isDocument ? "DOCUMENT CONTENT" : "CONTENT"} (${isDocument ? "first 8000 chars" : "first 3000 chars"}):
-${contentPreview}${transcript.text.length > (isDocument ? 8000 : 3000) ? "..." : ""}
+${isDocument ? "DOCUMENT CONTENT" : "CONTENT"} (${isDocument ? (isLongDocument ? "first 20000 chars" : "first 12000 chars") : "first 3000 chars"}):
+${contentPreview}${transcript.text.length > (isDocument ? (isLongDocument ? 20000 : 12000) : 3000) ? "..." : ""}
 
 ${
   transcript.chapters && transcript.chapters.length > 0
@@ -77,20 +89,30 @@ ${isDocument
     ? `CRITICAL FOR DOCUMENTS: All questions and answers MUST be extracted directly from the document content provided above. Every flashcard question must be about what the document is talking about. DO NOT generate generic questions - all questions must relate to the specific topics, concepts, and information covered in THIS document. If the document is about medicine, all questions must be about the medical topics in the document. If the document is about business, all questions must be about the business topics in the document. Generate ${flashcardCount} based on the document's content.`
     : `IMPORTANT: Extract factual information from the ${contentType}, but present it as standalone general knowledge. The facts come FROM the ${contentType}, but questions must be about the facts themselves - not about cases, discussions, or presentations. Generate ${flashcardCount}. The goal is comprehensive coverage of all factual information.`}
 
-1. STUDY FLASHCARDS (${isDocument ? "10-40 items" : "40 items"}):
+1. STUDY FLASHCARDS (${isDocument ? (isLongDocument ? "40-50 items" : "20-40 items") : "50 items"}):
    Generate concise study flashcard questions with accurate answers based on the factual content.
    ${isDocument 
-     ? `- For short documents: Generate 10-20 flashcards covering all key information
-   - For medium documents: Generate 20-30 flashcards for comprehensive coverage
-   - For long/comprehensive documents: Generate up to 40 flashcards to cover all major topics
-   - Always aim to cover ALL factual information from the content, but don't pad with repetitive questions
+     ? isLongDocument
+       ? `- CRITICAL: This document contains extensive content including tables, spreadsheets, and detailed information
+   - Generate 40-50 comprehensive flashcards to cover ALL the material
+   - Extract questions from ALL sections: text content, tables, spreadsheets, data points, lists, and any embedded content
+   - Each table row, spreadsheet cell, data point, and fact should be considered for flashcard generation
+   - Break down complex tables and spreadsheets into multiple focused questions
+   - Cover every major topic, concept, definition, fact, and data point in the document
+   - Quality AND quantity - ensure comprehensive coverage of all information
+   - Don't skip any sections - tables and spreadsheets often contain critical information`
+       : `- For short documents (< 5000 chars): Generate 20-25 flashcards covering all key information
+   - For medium documents (5000-15000 chars): Generate 30-40 flashcards for comprehensive coverage
+   - For long documents (> 15000 chars): Generate 40-50 flashcards to cover all major topics, tables, and data
+   - Always aim to cover ALL factual information from the content including tables and spreadsheets
+   - Extract questions from text, tables, lists, and any structured data
    - Quality over quantity - each flashcard should test distinct, valuable information`
-     : `- CRITICAL: Generate EXACTLY 40 flashcards - this is REQUIRED, not optional
-   - You MUST return exactly 40 flashcards for podcasts/audio files
+     : `- CRITICAL: Generate EXACTLY 50 flashcards - this is REQUIRED, not optional
+   - You MUST return exactly 50 flashcards for podcasts/audio files
    - Cover all factual information from the podcast/audio content
    - Ensure comprehensive coverage of all major topics, concepts, and key information
    - Each flashcard should test distinct, valuable information
-   - If you run out of unique topics, create variations or deeper questions on covered topics to reach exactly 40`}
+   - If you run out of unique topics, create variations or deeper questions on covered topics to reach exactly 50`}
    
    ${isDocument 
      ? `CRITICAL REQUIREMENTS FOR DOCUMENTS:
@@ -307,13 +329,8 @@ export async function generateEngagement(
   console.log("Generating engagement & growth tools with GPT-4");
 
   try {
-    // Create OpenAI client with user key or environment key
-    const openai = createOpenAIClient(userApiKey);
-
-    // Bind OpenAI method to preserve `this` context (required for step.ai.wrap)
-    const createCompletion = openai.chat.completions.create.bind(
-      openai.chat.completions,
-    );
+    // Create bound completion function for step.ai.wrap()
+    const createCompletion = createBoundCompletion(userApiKey);
 
     // Call OpenAI with Structured Outputs for type-safe response
     const response = (await step.ai.wrap(
@@ -342,7 +359,7 @@ export async function generateEngagement(
           // Fallback: basic content if parsing fails
           commentStarters: isDocument 
             ? generateFallbackFlashcards() // 10 for documents
-            : Array.from({ length: 40 }, (_, i) => ({ // 40 for audio
+            : Array.from({ length: 50 }, (_, i) => ({ // 50 for audio
                 question: `Study question ${i + 1}`,
                 answer: "Content generation failed. Please try regenerating.",
               })),
@@ -360,25 +377,44 @@ export async function generateEngagement(
           },
         };
 
-    // CRITICAL: For audio files (MP3/podcasts), ensure exactly 40 flashcards
-    // The schema allows 10-40, but audio files must always have 40
-    if (!isDocument && engagement.commentStarters.length !== 40) {
+    // Determine expected flashcard count based on content type and length
+    const contentLength = transcript.text.length;
+    const isLongDocument = isDocument && contentLength > 15000;
+    const expectedCount = isDocument 
+      ? isLongDocument 
+        ? 45 // Target 40-50, aim for middle
+        : contentLength > 8000
+          ? 35 // Target 30-40
+          : 25 // Target 20-30
+      : 50; // Audio files always 50
+    
+    // For audio files (MP3/podcasts), ensure exactly 50 flashcards
+    if (!isDocument && engagement.commentStarters.length !== 50) {
       console.warn(
-        `Audio file generated ${engagement.commentStarters.length} flashcards, expected 40. Padding to 40.`,
+        `Audio file generated ${engagement.commentStarters.length} flashcards, expected 50. Padding to 50.`,
       );
       
-      // If we got fewer than 40, pad with generic questions
-      while (engagement.commentStarters.length < 40) {
+      // If we got fewer than 50, pad with generic questions
+      while (engagement.commentStarters.length < 50) {
         engagement.commentStarters.push({
           question: `Additional study question ${engagement.commentStarters.length + 1}`,
-          answer: "Please regenerate engagement tools to get a complete set of 40 flashcards.",
+          answer: "Please regenerate engagement tools to get a complete set of 50 flashcards.",
         });
       }
       
-      // If we got more than 40 (shouldn't happen due to schema max), trim to 40
-      if (engagement.commentStarters.length > 40) {
-        engagement.commentStarters = engagement.commentStarters.slice(0, 40);
+      // If we got more than 50 (shouldn't happen due to schema max), trim to 50
+      if (engagement.commentStarters.length > 50) {
+        engagement.commentStarters = engagement.commentStarters.slice(0, 50);
       }
+    }
+    
+    // For long documents, ensure we have enough flashcards (40-50)
+    if (isLongDocument && engagement.commentStarters.length < 40) {
+      console.warn(
+        `Long document generated only ${engagement.commentStarters.length} flashcards, expected 40-50. The document may have tables/spreadsheets that need more questions.`,
+      );
+      // Note: We don't pad here because the AI should generate more based on the improved prompt
+      // But we log a warning so the user knows to regenerate if needed
     }
 
     return engagement;
@@ -386,7 +422,7 @@ export async function generateEngagement(
     console.error("GPT engagement generation error:", error);
 
     // Graceful degradation: return generic content but allow workflow to continue
-    const errorFlashcards = Array.from({ length: 40 }, (_, i) => ({
+    const errorFlashcards = Array.from({ length: 50 }, (_, i) => ({
       question: `Study question ${i + 1}`,
       answer: "⚠️ Error generating answer. Please try regenerating this content.",
     }));

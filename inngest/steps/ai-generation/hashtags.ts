@@ -20,7 +20,7 @@
 import type { step as InngestStep } from "inngest";
 import type OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
-import { createOpenAIClient } from "../../lib/openai-client";
+import { createBoundCompletion } from "../../lib/openai-client";
 import { type Hashtags, hashtagsSchema } from "../../schemas/ai-outputs";
 import type { TranscriptWithExtras } from "../../types/assemblyai";
 
@@ -107,13 +107,8 @@ export async function generateHashtags(
   console.log("Generating hashtags with GPT");
 
   try {
-    // Create OpenAI client with user key or environment key
-    const openai = createOpenAIClient(userApiKey);
-
-    // Bind OpenAI method to preserve `this` context for step.ai.wrap
-    const createCompletion = openai.chat.completions.create.bind(
-      openai.chat.completions,
-    );
+    // Create bound completion function for step.ai.wrap()
+    const createCompletion = createBoundCompletion(userApiKey);
 
     // Call OpenAI with Structured Outputs for validated response
     const response = (await step.ai.wrap(

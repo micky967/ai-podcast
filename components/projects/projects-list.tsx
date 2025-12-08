@@ -87,7 +87,7 @@ export function ProjectsList({
   }, [highlightProjectId]);
 
   return (
-    <div className="container max-w-6xl mx-auto py-10 px-12 xl:px-0">
+    <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0 overflow-x-hidden">
       {categoryId ? (
         <CategoryHeader
           categoryId={categoryId}

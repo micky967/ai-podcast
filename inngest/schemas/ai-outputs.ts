@@ -140,7 +140,7 @@ export type Hashtags = z.infer<typeof hashtagsSchema>;
 /**
  * Engagement Schema - Audience engagement and growth tools
  * Helps content creators spark conversations and build community
- * - commentStarters: 10-40 study flashcard questions with answers for memorization (based on content length)
+ * - commentStarters: 10-50 study flashcard questions with answers for memorization (based on content length - up to 50 for long documents with tables/spreadsheets)
  * - pinComment: Best comment to pin on YouTube (builds community)
  * - communityPosts: Follow-up content ideas to keep audience engaged
  * - descriptions: Podcast descriptions for different contexts (short/medium/long)
@@ -149,19 +149,17 @@ export const engagementSchema = z.object({
   commentStarters: z
     .array(
       z.object({
-        question: z
-          .string()
-          .describe("Concise study question for flashcards"),
+        question: z.string().describe("Concise study question for flashcards"),
         answer: z
           .string()
-          .describe(
-            "Accurate, concise answer suitable for study flashcards",
-          ),
+          .describe("Accurate, concise answer suitable for study flashcards"),
       }),
     )
     .min(10)
-    .max(40)
-    .describe("10-40 study flashcard questions with answers for memorization (generate based on available content)"),
+    .max(50)
+    .describe(
+      "10-50 study flashcard questions with answers for memorization (generate 20-30 for short documents, 30-40 for medium documents, 40-50 for long documents with tables/spreadsheets, 50 for audio/MP3 files)",
+    ),
   pinComment: z
     .string()
     .describe(

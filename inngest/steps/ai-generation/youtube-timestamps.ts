@@ -27,7 +27,7 @@
 import type { step as InngestStep } from "inngest";
 import type OpenAI from "openai";
 import { formatTimestamp } from "@/lib/format";
-import { createOpenAIClient } from "../../lib/openai-client";
+import { createBoundCompletion } from "../../lib/openai-client";
 import type { TranscriptWithExtras } from "../../types/assemblyai";
 
 type YouTubeTimestamp = {
@@ -131,13 +131,8 @@ Return ONLY valid JSON in this exact format:
 
 Remember: Create TITLES, not transcript excerpts!`;
 
-  // Create OpenAI client with user key or environment key
-  const openai = createOpenAIClient(userApiKey);
-
-  // Bind OpenAI method to preserve `this` context for step.ai.wrap
-  const createCompletion = openai.chat.completions.create.bind(
-    openai.chat.completions,
-  );
+  // Create bound completion function for step.ai.wrap()
+  const createCompletion = createBoundCompletion(userApiKey);
 
   // Call GPT to enhance chapter titles
   const response = (await step.ai.wrap(

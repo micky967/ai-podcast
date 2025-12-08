@@ -26,20 +26,34 @@ export const openai = new OpenAI({
 });
 
 /**
- * Create an OpenAI client instance with user API key (REQUIRED)
+ * Create an OpenAI client instance with user API key or fallback to environment key
  *
- * @param userApiKey - User-provided API key (required - no fallback)
- * @returns OpenAI client instance using user key
- * @throws Error if userApiKey is not provided
+ * @param userApiKey - Optional user-provided API key (falls back to environment key if not provided)
+ * @returns OpenAI client instance using user key or environment key
  */
 export function createOpenAIClient(userApiKey?: string): OpenAI {
-  if (!userApiKey) {
+  // Use user key if provided, otherwise fall back to environment key
+  const apiKey = userApiKey || process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
     throw new Error(
-      "OpenAI API key is required. Please add your OpenAI API key in Settings.",
+      "OpenAI API key is required. Please add your OpenAI API key in Settings or configure OPENAI_API_KEY environment variable.",
     );
   }
 
   return new OpenAI({
-    apiKey: userApiKey,
+    apiKey,
   });
+}
+
+/**
+ * Create a bound OpenAI completion function for use with step.ai.wrap()
+ * This reduces code duplication across AI generation functions
+ *
+ * @param userApiKey - Optional user-provided API key
+ * @returns Bound createCompletion function ready for step.ai.wrap()
+ */
+export function createBoundCompletion(userApiKey?: string) {
+  const openai = createOpenAIClient(userApiKey);
+  return openai.chat.completions.create.bind(openai.chat.completions);
 }

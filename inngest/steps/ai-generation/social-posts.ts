@@ -24,7 +24,7 @@
 import type { step as InngestStep } from "inngest";
 import type OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
-import { createOpenAIClient } from "../../lib/openai-client";
+import { createBoundCompletion } from "../../lib/openai-client";
 import { type SocialPosts, socialPostsSchema } from "../../schemas/ai-outputs";
 import type { TranscriptWithExtras } from "../../types/assemblyai";
 
@@ -129,13 +129,8 @@ export async function generateSocialPosts(
   console.log("Generating social posts with GPT-4");
 
   try {
-    // Create OpenAI client with user key or environment key
-    const openai = createOpenAIClient(userApiKey);
-
-    // Bind OpenAI method to preserve `this` context for step.ai.wrap
-    const createCompletion = openai.chat.completions.create.bind(
-      openai.chat.completions,
-    );
+    // Create bound completion function for step.ai.wrap()
+    const createCompletion = createBoundCompletion(userApiKey);
 
     // Call OpenAI with Structured Outputs for type-safe, validated response
     const response = (await step.ai.wrap(

@@ -34,16 +34,16 @@ function getUpgradeMessage(reason?: string, feature?: string) {
   switch (reason) {
     case "file_size":
       return {
-        title: "Upgrade for Larger Files",
+        title: "File Size",
         description:
-          "Your file exceeds your plan's size limit. Upgrade to Pro for 200MB uploads or Ultra for 3GB uploads.",
+          "All plans support files of any size. If you're seeing this message, please contact support.",
         icon: Zap,
       };
     case "duration":
       return {
-        title: "Upgrade for Longer Podcasts",
+        title: "Duration",
         description:
-          "Your podcast exceeds your plan's duration limit. Upgrade to Pro for 2-hour podcasts or Ultra for unlimited duration.",
+          "All plans support unlimited duration. If you're seeing this message, please contact support.",
         icon: Zap,
       };
     case "projects":
