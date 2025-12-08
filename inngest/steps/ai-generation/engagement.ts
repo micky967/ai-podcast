@@ -45,13 +45,26 @@ const ENGAGEMENT_SYSTEM_PROMPT =
  * - Examples and best practices to guide GPT output
  */
 function buildEngagementPrompt(transcript: TranscriptWithExtras): string {
-  return `Analyze this educational content transcript and create comprehensive study materials and engagement tools.
+  // Check if this is from a document (no chapters/timestamps) or audio (has chapters)
+  const isDocument = !transcript.chapters || transcript.chapters.length === 0;
+  const contentType = isDocument ? "document" : "podcast/audio content";
+  const flashcardCount = isDocument 
+    ? "10-40 flashcards based on content length (generate fewer for short documents, up to 40 for comprehensive documents)"
+    : "EXACTLY 40 flashcards - this is REQUIRED for podcasts/audio files. You MUST generate exactly 40 flashcards, no more, no less.";
+  
+  // For documents, send more content to ensure questions are based on actual document content
+  // For audio, 3000 chars is usually enough since podcasts are more conversational
+  const contentPreview = isDocument
+    ? transcript.text.substring(0, 8000) // Send more content for documents
+    : transcript.text.substring(0, 3000); // Standard preview for audio
 
-TRANSCRIPT (first 3000 chars):
-${transcript.text.substring(0, 3000)}...
+  return `Analyze this content and create comprehensive study materials and engagement tools.
+
+${isDocument ? "DOCUMENT CONTENT" : "CONTENT"} (${isDocument ? "first 8000 chars" : "first 3000 chars"}):
+${contentPreview}${transcript.text.length > (isDocument ? 8000 : 3000) ? "..." : ""}
 
 ${
-  transcript.chapters.length > 0
+  transcript.chapters && transcript.chapters.length > 0
     ? `\nAUTO-DETECTED CHAPTERS:\n${transcript.chapters
         .map((ch, idx) => `${idx + 1}. ${ch.headline} - ${ch.summary}`)
         .join("\n")}`
@@ -60,31 +73,94 @@ ${
 
 Create study materials and engagement assets:
 
-IMPORTANT: Extract factual medical information from the podcast content, but present it as standalone general medical knowledge. The medical facts come FROM the podcast, but questions must be about the facts themselves - not about cases, discussions, or presentations. Convert case-specific information into general medical knowledge. For example, if a case shows "10-year-old with fever and fatigue", extract the medical fact: "What are common symptoms of this condition?" NOT "What symptoms did the 10-year-old present with?". Generate exactly 40 flashcards covering all factual medical information from the content, presented as general knowledge.
+${isDocument 
+    ? `CRITICAL FOR DOCUMENTS: All questions and answers MUST be extracted directly from the document content provided above. Every flashcard question must be about what the document is talking about. DO NOT generate generic questions - all questions must relate to the specific topics, concepts, and information covered in THIS document. If the document is about medicine, all questions must be about the medical topics in the document. If the document is about business, all questions must be about the business topics in the document. Generate ${flashcardCount} based on the document's content.`
+    : `IMPORTANT: Extract factual information from the ${contentType}, but present it as standalone general knowledge. The facts come FROM the ${contentType}, but questions must be about the facts themselves - not about cases, discussions, or presentations. Generate ${flashcardCount}. The goal is comprehensive coverage of all factual information.`}
 
-1. STUDY FLASHCARDS (40 items):
-   Generate 40 concise study flashcard questions with accurate answers based on the factual medical content.
+1. STUDY FLASHCARDS (${isDocument ? "10-40 items" : "40 items"}):
+   Generate concise study flashcard questions with accurate answers based on the factual content.
+   ${isDocument 
+     ? `- For short documents: Generate 10-20 flashcards covering all key information
+   - For medium documents: Generate 20-30 flashcards for comprehensive coverage
+   - For long/comprehensive documents: Generate up to 40 flashcards to cover all major topics
+   - Always aim to cover ALL factual information from the content, but don't pad with repetitive questions
+   - Quality over quantity - each flashcard should test distinct, valuable information`
+     : `- CRITICAL: Generate EXACTLY 40 flashcards - this is REQUIRED, not optional
+   - You MUST return exactly 40 flashcards for podcasts/audio files
+   - Cover all factual information from the podcast/audio content
+   - Ensure comprehensive coverage of all major topics, concepts, and key information
+   - Each flashcard should test distinct, valuable information
+   - If you run out of unique topics, create variations or deeper questions on covered topics to reach exactly 40`}
    
-   CRITICAL REQUIREMENTS:
-   - Extract ALL factual medical information from the podcast content (definitions, facts, concepts, principles, symptoms, treatments, etc.)
-   - Convert case-specific information into general medical knowledge
-   - DO NOT create questions about specific cases, case studies, patient examples, or clinical scenarios
+   ${isDocument 
+     ? `CRITICAL REQUIREMENTS FOR DOCUMENTS:
+   - Extract ALL factual information DIRECTLY from the document content provided above
+   - Every question MUST be about what the document is talking about
+   - Questions must relate to the specific topics, subjects, and information in THIS document
+   - DO NOT create generic questions that could apply to any document
+   - DO NOT create questions about topics not covered in this document
+   - If the document is about medicine, create questions about the medical topics in the document
+   - If the document is about business, create questions about the business topics in the document
+   - If the document is about history, create questions about the historical topics in the document
+   - Questions must be specific to what THIS document covers
+   - Convert specific examples into general knowledge questions, but the underlying facts must come from this document
    - DO NOT use phrases like "discussed", "mentioned", "presented with", "noted in case", "in the case study", "the patient", "case 1/2/3", "shown in", etc.
-   - Focus on WHAT the medical information is, not WHERE it came from or HOW it was presented
-   - Questions must be about general medical facts that stand alone - as if from a textbook, not from a case presentation
+   - Focus on WHAT the document is talking about, not WHERE it came from or HOW it was presented
+   
+   EXTRACTION PROCESS FOR DOCUMENTS:
+   - Read through the entire document content provided
+   - Identify what topics, subjects, and themes the document is about
+   - Identify all key facts, concepts, definitions, principles, and information in the document
+   - For each piece of information, create a question that tests understanding of that specific fact FROM THE DOCUMENT
+   - If the document mentions specific examples, extract the underlying concept and create a general question about that concept (but based on what the document says)
+   - Ensure questions cover different aspects of the document (not all from one section)
+   - Questions should test understanding of what the document is talking about`
+     : `CRITICAL REQUIREMENTS:
+   - Extract ALL factual information from the ${contentType} (definitions, facts, concepts, principles, symptoms, treatments, etc.)
+   - Convert case-specific information into general knowledge
+   - DO NOT create questions about specific cases, case studies, examples, or scenarios
+   - DO NOT use phrases like "discussed", "mentioned", "presented with", "noted in case", "in the case study", "the patient", "case 1/2/3", "shown in", etc.
+   - Focus on WHAT the information is, not WHERE it came from or HOW it was presented
+   - Questions must be about general facts that stand alone - as if from a textbook, not from a case presentation
    
    EXTRACTION PROCESS:
    - When you see case information (e.g., "10-year-old male with fever"), extract the MEDICAL FACT (e.g., "fever is a symptom")
    - When you see "case 1 showed X", extract the MEDICAL FACT "X" and ask about it generally
    - When you see "discussed types of leukemia", extract "types of leukemia" and ask about them generally
-   - Always convert case-specific details into universal medical knowledge
+   - Always convert case-specific details into universal medical knowledge`}
    
    For each item, provide:
-   - question: A concise, clear question about general medical knowledge (1-2 sentences max)
+   - question: A concise, clear question${isDocument ? " about what the document is talking about" : " about general medical knowledge"} (1-2 sentences max)
    - answer: An accurate, informative answer that is complete but concise (2-4 sentences)
    
    Questions should:
-   - Be about general medical facts, concepts, definitions, and principles
+   ${isDocument 
+     ? `- Be about what the document is talking about - the specific topics, concepts, and information in the document
+   - Test understanding of information that appears in the document
+   - Cover different topics and sections from the document (not all from one area)
+   - Relate to the subject matter of the document (if document is about medicine, questions are about medicine; if about business, questions are about business, etc.)
+   - NOT reference specific examples, cases, or scenarios from the document (extract the underlying concept)
+   - NOT ask about "what was discussed" or "what the document said"
+   - Focus on the knowledge that can be extracted from what the document is talking about
+   - Be suitable for memorization and recall practice
+   - Stand alone as testable knowledge, but must be about what the document covers
+   
+   Answers should:
+   - Contain information that appears in or can be inferred from the document
+   - Be accurate and factually correct based on what the document says
+   - Be concise but complete (enough detail to understand, not overly verbose)
+   - Standalone (no references to source material)
+   - Focus on the key information from the document being tested
+   
+   What to extract FROM THE DOCUMENT:
+   - Definitions of terms and concepts the document talks about
+   - Facts and principles the document describes
+   - Classifications and categories the document explains
+   - Mechanisms, processes, and how things work as the document describes
+   - Criteria, standards, and findings the document mentions
+   - Principles, approaches, and methodologies the document covers
+   - Key concepts and knowledge areas the document discusses`
+     : `- Be about general medical facts, concepts, definitions, and principles
    - NOT reference specific patients, cases, examples, or scenarios from the content
    - NOT ask about "what was discussed" or "what case showed"
    - NOT ask about symptoms of specific patients or findings from specific cases
@@ -101,13 +177,13 @@ IMPORTANT: Extract factual medical information from the podcast content, but pre
    - Focus on the key medical information being tested
    
    What to extract:
-   - General definitions (e.g., "What is acute lymphoblastic leukemia?" not "What types were discussed?")
-   - Medical facts and principles (e.g., "What are common symptoms of anemia?" not "What symptoms did the patient present with?")
-   - Disease classifications (e.g., "What are the main types of acute leukemia?" not "What types were discussed in the podcast?")
+   - General definitions (e.g., "What is [concept]?" not "What types were discussed?")
+   - Medical facts and principles (e.g., "What are common symptoms of [condition]?" not "What symptoms did the patient present with?")
+   - Disease classifications (e.g., "What are the main types of [category]?" not "What types were discussed in the ${contentType}?")
    - Pathophysiology, mechanisms, and processes
    - Diagnostic criteria and findings
    - Treatment principles and approaches
-   - General clinical knowledge
+   - General clinical knowledge`}
    
    What NOT to extract:
    - Questions about specific cases or case studies
@@ -116,21 +192,21 @@ IMPORTANT: Extract factual medical information from the podcast content, but pre
    - Questions that require knowledge of the podcast/content structure
    
    Examples of GOOD questions (extract facts, present generally):
-   - "What are the main types of acute leukemia?" (from content about types)
-   - "What are significant indicators of anemia?" (from case showing anemia indicators)
-   - "What are common symptoms of acute lymphoblastic leukemia?" (from case describing symptoms)
+   - "What are the main types of [concept]?" (from content about types)
+   - "What are significant indicators of [condition]?" (from examples showing indicators)
+   - "What are common symptoms of [condition]?" (from examples describing symptoms)
    - "What are the diagnostic criteria for this condition?" (from diagnostic discussion)
    
    Examples of BAD questions (DO NOT CREATE THESE):
-   - "What are the main types discussed in the podcast?" ❌ (references podcast)
+   - "What are the main types discussed in the ${contentType}?" ❌ (references source)
    - "What symptoms did the patient in case 1 present with?" ❌ (references specific case)
    - "What was noted in the case study?" ❌ (references case study)
-   - "What is a significant indicator of anemia noted in the case study?" ❌ (references case)
-   - "What types of acute leukemia were mentioned?" ❌ (references discussion)
+   - "What is a significant indicator noted in the case study?" ❌ (references case)
+   - "What types were mentioned?" ❌ (references discussion)
    
    Distribution:
-   - Cover all major medical topics, concepts, definitions, facts, processes, and principles
-   - Extract general medical knowledge from all content areas
+   - Cover all major topics, concepts, definitions, facts, processes, and principles
+   - Extract general knowledge from all content areas
    - Split complex topics into multiple focused questions
    - Ensure comprehensive coverage of the material
 
@@ -142,22 +218,22 @@ IMPORTANT: Extract factual medical information from the podcast content, but pre
    - Feels authentic and community-focused (not salesy)
    - Is 2-4 sentences long
    
-   Example tone: "Welcome everyone! 👋 The discussion about [key topic] at [timestamp] really resonated with me. What's your biggest takeaway from this episode? Drop your thoughts below - I read every comment!"
+   Example tone: "Welcome everyone! 👋 The discussion about [key topic]${isDocument ? "" : " at [timestamp]"} really resonated with me. What's your biggest takeaway from this ${isDocument ? "content" : "episode"}? Drop your thoughts below - I read every comment!"
 
 3. COMMUNITY POST IDEAS (3 follow-up posts):
-   Generate 3 post ideas to maintain momentum between episodes:
+   Generate 3 post ideas to maintain momentum${isDocument ? "" : " between episodes"}:
    - Behind-the-scenes insights mentioned but not fully explored
    - Poll questions about topics discussed (A vs B, preferences)
-   - Teaser for related upcoming content or episodes
+   - Teaser for related upcoming content${isDocument ? "" : " or episodes"}
    - Quick tips or resources related to main topics
    - Each should be 1-2 sentences describing the post idea
    
    Examples:
    - "Poll: Ask audience to vote on which topic to deep-dive next"
-   - "Share a carousel of the 5 key frameworks discussed in this episode"
-   - "Behind-the-scenes: How this episode changed my perspective on [topic]"
+   - "Share a carousel of the 5 key frameworks${isDocument ? " from this content" : " discussed in this episode"}"
+   - "Behind-the-scenes: How this ${isDocument ? "content" : "episode"} changed my perspective on [topic]"
 
-4. PODCAST DESCRIPTIONS (3 lengths):
+4. ${isDocument ? "CONTENT" : "PODCAST"} DESCRIPTIONS (3 lengths):
    
    SHORT (150-200 chars):
    - One-sentence hook for social media previews
@@ -165,26 +241,28 @@ IMPORTANT: Extract factual medical information from the podcast content, but pre
    - Includes biggest value proposition
    
    MEDIUM (300-500 chars):
-   - Perfect for podcast feed descriptions
-   - Covers main topics and guest (if applicable)
+   - Perfect for ${isDocument ? "content" : "podcast feed"} descriptions
+   - Covers main topics${isDocument ? "" : " and guest (if applicable)"}
    - Includes 2-3 key takeaways
-   - Ends with subtle CTA (listen, subscribe, etc.)
+   - Ends with subtle CTA${isDocument ? "" : " (listen, subscribe, etc.)"}
    
    LONG (800-1000 words):
-   - Comprehensive show notes for blog or YouTube description
-   - Detailed overview of all topics and chapters
-   - Includes timestamps if relevant
+   - Comprehensive ${isDocument ? "content summary" : "show notes"} for blog or YouTube description
+   - Detailed overview of all topics${transcript.chapters && transcript.chapters.length > 0 ? " and chapters" : ""}
+   ${isDocument ? "" : "- Includes timestamps if relevant"}
    - Rich with keywords for SEO
    - Has sections for better readability
    - Ends with strong CTA and links (placeholders like [LINK] are fine)
 
-For study flashcards: Extract ALL factual medical information from the podcast content, but present it as standalone general medical knowledge. Convert any case-specific or example-specific information into universal medical facts. Questions must be about the medical information itself - never reference cases, discussions, or how information was presented. Each flashcard should stand alone as textbook-style medical knowledge. Break down complex topics into multiple focused questions to ensure comprehensive coverage of all medical facts from the content.
+For study flashcards: ${isDocument 
+    ? `Extract ALL factual information DIRECTLY from the document content. Every question must be about what the document is talking about. Questions must relate to the specific topics, subjects, and information covered in the document. Convert any case-specific or example-specific information into general knowledge questions, but the underlying facts must come from what the document says. Questions must be about the information itself - never reference cases, discussions, or how information was presented. Each flashcard should stand alone as textbook-style knowledge, but must be based on what the document covers. Break down complex topics into multiple focused questions to ensure comprehensive coverage of all facts from the document.`
+    : `Extract ALL factual information from the ${contentType}, but present it as standalone general knowledge. Convert any case-specific or example-specific information into universal facts. Questions must be about the information itself - never reference cases, discussions, or how information was presented. Each flashcard should stand alone as textbook-style knowledge. Break down complex topics into multiple focused questions to ensure comprehensive coverage of all facts from the content.`}
 
 For engagement tools: Make everything authentic, valuable, and optimized for growth. Focus on sparking genuine conversations and building a loyal community.`;
 }
 
 /**
- * Generate fallback flashcard content (40 items)
+ * Generate fallback flashcard content (minimum 10 items)
  * Used when API fails to ensure schema validation passes
  */
 function generateFallbackFlashcards(): Array<{ question: string; answer: string }> {
@@ -201,16 +279,11 @@ function generateFallbackFlashcards(): Array<{ question: string; answer: string 
     { q: "What are the key terms?", a: "Understanding these terms is essential for clear communication and comprehension." },
   ];
   
-  // Generate 40 items by varying the base questions
-  const flashcards: Array<{ question: string; answer: string }> = [];
-  for (let i = 0; i < 40; i++) {
-    const base = baseQuestions[i % baseQuestions.length];
-    flashcards.push({
-      question: base.q,
-      answer: base.a,
-    });
-  }
-  return flashcards;
+  // Return minimum 10 items (schema requirement)
+  return baseQuestions.map(({ q, a }) => ({
+    question: q,
+    answer: a,
+  }));
 }
 
 /**
@@ -258,12 +331,21 @@ export async function generateEngagement(
     )) as OpenAI.Chat.Completions.ChatCompletion;
 
     const content = response.choices[0]?.message?.content;
+    
+    // Check if this is from a document (no chapters) or audio (has chapters)
+    const isDocument = !transcript.chapters || transcript.chapters.length === 0;
+    
     // Parse and validate response against schema
-    const engagement = content
+    let engagement = content
       ? engagementSchema.parse(JSON.parse(content))
       : {
-          // Fallback: basic content if parsing fails (40 flashcards)
-          commentStarters: generateFallbackFlashcards(),
+          // Fallback: basic content if parsing fails
+          commentStarters: isDocument 
+            ? generateFallbackFlashcards() // 10 for documents
+            : Array.from({ length: 40 }, (_, i) => ({ // 40 for audio
+                question: `Study question ${i + 1}`,
+                answer: "Content generation failed. Please try regenerating.",
+              })),
           pinComment:
             "Welcome to the discussion! 👋 What's your biggest takeaway from this episode? Drop your thoughts below!",
           communityPosts: [
@@ -277,6 +359,27 @@ export async function generateEngagement(
             long: transcript.text.substring(0, 900),
           },
         };
+
+    // CRITICAL: For audio files (MP3/podcasts), ensure exactly 40 flashcards
+    // The schema allows 10-40, but audio files must always have 40
+    if (!isDocument && engagement.commentStarters.length !== 40) {
+      console.warn(
+        `Audio file generated ${engagement.commentStarters.length} flashcards, expected 40. Padding to 40.`,
+      );
+      
+      // If we got fewer than 40, pad with generic questions
+      while (engagement.commentStarters.length < 40) {
+        engagement.commentStarters.push({
+          question: `Additional study question ${engagement.commentStarters.length + 1}`,
+          answer: "Please regenerate engagement tools to get a complete set of 40 flashcards.",
+        });
+      }
+      
+      // If we got more than 40 (shouldn't happen due to schema max), trim to 40
+      if (engagement.commentStarters.length > 40) {
+        engagement.commentStarters = engagement.commentStarters.slice(0, 40);
+      }
+    }
 
     return engagement;
   } catch (error) {

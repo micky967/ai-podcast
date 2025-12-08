@@ -587,6 +587,67 @@ export const updateProjectDisplayName = mutation({
 });
 
 /**
+ * Updates the category of a project (for drag-and-drop)
+ *
+ * Called by: Server action when user drags project to different category
+ *
+ * Security:
+ * - Validates that the requesting user owns the project
+ *
+ * Real-time Impact:
+ * - All UI components displaying this project instantly update
+ * - Project moves to new category in real-time
+ */
+export const updateProjectCategory = mutation({
+  args: {
+    projectId: v.id("projects"),
+    userId: v.string(),
+    categoryId: v.optional(v.id("categories")),
+    subcategoryId: v.optional(v.id("categories")),
+  },
+  handler: async (ctx, args) => {
+    // Fetch project to validate ownership
+    const project = await ctx.db.get(args.projectId);
+
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    // Security check: ensure user owns this project
+    if (project.userId !== args.userId) {
+      throw new Error("Unauthorized: You don't own this project");
+    }
+
+    // Validate category exists if provided
+    if (args.categoryId) {
+      const category = await ctx.db.get(args.categoryId);
+      if (!category) {
+        throw new Error("Category not found");
+      }
+    }
+
+    // Validate subcategory exists if provided
+    if (args.subcategoryId) {
+      const subcategory = await ctx.db.get(args.subcategoryId);
+      if (!subcategory) {
+        throw new Error("Subcategory not found");
+      }
+      // Ensure subcategory belongs to the main category if both are provided
+      if (args.categoryId && subcategory.parentId !== args.categoryId) {
+        throw new Error("Subcategory does not belong to the selected category");
+      }
+    }
+
+    // Update category
+    await ctx.db.patch(args.projectId, {
+      categoryId: args.categoryId,
+      subcategoryId: args.subcategoryId,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/**
  * Lists projects for a user filtered by category/subcategory
  *
  * Used by: Category filtered projects page

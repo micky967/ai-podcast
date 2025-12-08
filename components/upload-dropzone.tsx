@@ -7,14 +7,14 @@
  * Features:
  * - Drag and drop support
  * - Click to browse files
- * - File type validation (audio formats only)
+ * - File type validation (audio and document formats)
  * - File size validation
  * - Visual feedback (drag state, errors)
  * - Accessible file input
  *
- * Supported Audio Formats:
- * - MP3, M4A, WAV, AAC, FLAC, OGG, Opus, WebM
- * - 3GP, 3G2 (mobile formats)
+ * Supported Formats:
+ * Audio: MP3, M4A, WAV, AAC, FLAC, OGG, Opus, WebM, 3GP, 3G2
+ * Documents: PDF, DOC, DOCX, TXT
  * - Multiple MIME type variants for cross-browser support
  *
  * Design Decision: Why so many MIME types?
@@ -24,7 +24,7 @@
  */
 "use client";
 
-import { FileAudio, Upload } from "lucide-react";
+import { FileAudio, FileText, Upload } from "lucide-react";
 import { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { MAX_FILE_SIZE } from "@/lib/constants";
@@ -62,6 +62,7 @@ export function UploadDropzone({
       onDrop,
       // Accept configuration: Exhaustive list for cross-browser compatibility
       accept: {
+        // Audio formats
         "audio/mpeg": [".mp3"], // MP3
         "audio/x-m4a": [".m4a"], // M4A (iOS/Apple)
         "audio/wav": [".wav", ".wave"], // WAV
@@ -74,6 +75,11 @@ export function UploadDropzone({
         "audio/x-flac": [".flac"], // FLAC (alternate MIME)
         "audio/3gpp": [".3gp"], // 3GP
         "audio/3gpp2": [".3g2"], // 3G2
+        // Document formats
+        "application/pdf": [".pdf"], // PDF
+        "application/msword": [".doc"], // DOC (Word 97-2003)
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"], // DOCX
+        "text/plain": [".txt"], // TXT
       },
       maxSize, // File size limit (validates before upload)
       maxFiles: 1, // Only allow single file selection
@@ -118,7 +124,7 @@ export function UploadDropzone({
             {isDragActive ? (
               <Upload className="h-16 w-16 text-white animate-bounce" />
             ) : (
-              <FileAudio className="h-16 w-16 text-emerald-600" />
+              <FileText className="h-16 w-16 text-emerald-600" />
             )}
           </div>
 
@@ -126,13 +132,13 @@ export function UploadDropzone({
           <div className="space-y-3">
             <p className="text-2xl font-bold text-gray-900">
               {isDragActive
-                ? "Drop your podcast file here"
-                : "Drag & drop your podcast file"}
+                ? "Drop your file here"
+                : "Drag & drop your file"}
             </p>
             <p className="text-base text-gray-600">or click to browse files</p>
             <div className="pt-2 space-y-1">
               <p className="text-sm text-gray-500 font-medium">
-                Supports: MP3, WAV, M4A, FLAC, OGG, AAC, and more
+                Supports: MP3, WAV, M4A, FLAC, OGG, AAC, PDF, DOC, DOCX, TXT
               </p>
               <p className="text-sm text-gray-500 font-semibold">
                 Maximum file size: {Math.round(maxSize / (1024 * 1024))}MB

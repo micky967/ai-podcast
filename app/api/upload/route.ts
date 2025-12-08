@@ -17,7 +17,7 @@ import { auth } from "@clerk/nextjs/server";
 import { type HandleUploadBody, handleUpload } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api-utils";
-import { ALLOWED_AUDIO_TYPES } from "@/lib/constants";
+import { ALLOWED_FILE_TYPES } from "@/lib/constants";
 import { PLAN_LIMITS } from "@/lib/tier-config";
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -41,19 +41,19 @@ export async function POST(request: Request): Promise<NextResponse> {
       maxFileSize = PLAN_LIMITS.pro.maxFileSize;
     }
 
-    // Generate pre-signed upload URL with plan-based constraints
-    const jsonResponse = await handleUpload({
-      body,
-      request,
-      onBeforeGenerateToken: async () => ({
-        allowedContentTypes: ALLOWED_AUDIO_TYPES,
-        addRandomSuffix: true,
-        maximumSizeInBytes: maxFileSize,
-      }),
-      onUploadCompleted: async ({ blob }) => {
-        console.log("Upload completed:", blob.url);
-      },
-    });
+      // Generate pre-signed upload URL with plan-based constraints
+      const jsonResponse = await handleUpload({
+        body,
+        request,
+        onBeforeGenerateToken: async () => ({
+          allowedContentTypes: ALLOWED_FILE_TYPES,
+          addRandomSuffix: true,
+          maximumSizeInBytes: maxFileSize,
+        }),
+        onUploadCompleted: async ({ blob }) => {
+          console.log("Upload completed:", blob.url);
+        },
+      });
 
     return NextResponse.json(jsonResponse);
   } catch (error) {

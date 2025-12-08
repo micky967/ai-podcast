@@ -130,9 +130,9 @@ export const getAllCategories = query({
 });
 
 /**
- * Create a category (for seeding)
+ * Create a category (for seeding or Ultra plan users)
  *
- * Used by: Seed script to populate initial categories
+ * Used by: Seed script to populate initial categories, or Ultra plan users to create custom categories
  *
  * @param name - Category name
  * @param slug - URL-friendly slug
@@ -157,6 +157,72 @@ export const createCategory = mutation({
       slug: args.slug,
       parentId: args.parentId,
       order: args.order,
+      description: args.description,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return categoryId;
+  },
+});
+
+/**
+ * Create a new category (Ultra plan users only)
+ * 
+ * Used by: Ultra plan users to create custom categories
+ * 
+ * @param userId - User ID (for plan verification)
+ * @param name - Category name
+ * @param parentId - Optional parent category ID (for subcategories)
+ * @param description - Optional description
+ * @returns Created category ID
+ */
+export const createUserCategory = mutation({
+  args: {
+    userId: v.string(),
+    name: v.string(),
+    parentId: v.optional(v.id("categories")),
+    description: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Note: Plan verification should be done client-side or via server action
+    // This mutation assumes the caller has verified Ultra plan access
+    
+    // Generate slug from name
+    const slug = args.name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .trim();
+
+    // Check if category with same slug already exists
+    const existing = await ctx.db
+      .query("categories")
+      .filter((q) => q.eq(q.field("slug"), slug))
+      .filter((q) => q.eq(q.field("parentId"), args.parentId || undefined))
+      .first();
+
+    if (existing) {
+      throw new Error(`A category with the name "${args.name}" already exists`);
+    }
+
+    // Get max order for categories at this level
+    const allCategories = await ctx.db.query("categories").collect();
+    const sameLevelCategories = allCategories.filter(
+      (cat) => (cat.parentId || null) === (args.parentId || null)
+    );
+    const maxOrder = sameLevelCategories.length > 0
+      ? Math.max(...sameLevelCategories.map((cat) => cat.order))
+      : 0;
+
+    const now = Date.now();
+
+    const categoryId = await ctx.db.insert("categories", {
+      name: args.name,
+      slug: slug,
+      parentId: args.parentId,
+      order: maxOrder + 1,
       description: args.description,
       createdAt: now,
       updatedAt: now,

@@ -55,6 +55,14 @@ export async function generateMissingFeatures(projectId: Id<"projects">) {
     throw new Error("Unauthorized - not your project");
   }
 
+  // Check if this is a document file (not audio)
+  const isDocument =
+    project.mimeType === "application/pdf" ||
+    project.mimeType === "application/msword" ||
+    project.mimeType ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    project.mimeType === "text/plain";
+
   // Infer what plan was used during processing based on generated features
   let originalPlan: "free" | "pro" | "ultra" = "free";
   if (project.keyMoments || project.youtubeTimestamps) {
@@ -73,6 +81,22 @@ export async function generateMissingFeatures(projectId: Id<"projects">) {
     const jobName =
       FEATURE_TO_JOB_MAP[feature as keyof typeof FEATURE_TO_JOB_MAP];
     if (!jobName) continue; // Skip transcription and summary (always present)
+
+    // For documents, skip features that don't apply:
+    // - keyMoments (requires timestamps/chapters)
+    // - youtubeTimestamps (requires timestamps)
+    // - socialPosts (not generated for documents)
+    // - hashtags (not generated for documents)
+    if (isDocument) {
+      if (
+        jobName === "keyMoments" ||
+        jobName === "youtubeTimestamps" ||
+        jobName === "socialPosts" ||
+        jobName === "hashtags"
+      ) {
+        continue; // Skip these for documents
+      }
+    }
 
     // Check if this data exists in the project
     const hasData = Boolean(project[jobName as keyof typeof project]);

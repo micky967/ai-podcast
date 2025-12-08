@@ -65,7 +65,7 @@ export async function generateYouTubeTimestamps(
   // Validation: Timestamps require chapter timing data
   if (!chapters || chapters.length === 0) {
     throw new Error(
-      "No chapters available from AssemblyAI. Cannot generate YouTube timestamps.",
+      "No chapters detected in this audio. YouTube timestamps require distinct topics or sections. This may happen if the audio is very short or doesn't have clear topic changes. Try uploading a longer podcast with multiple discussion topics.",
     );
   }
 

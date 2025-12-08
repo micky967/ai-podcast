@@ -47,6 +47,26 @@ export const ALLOWED_AUDIO_TYPES = [
 ];
 
 /**
+ * Allowed document MIME types for upload validation
+ *
+ * Supports PDF, Word, and text files for document processing.
+ */
+export const ALLOWED_DOCUMENT_TYPES = [
+  "application/pdf", // PDF
+  "application/msword", // DOC (Word 97-2003)
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // DOCX
+  "text/plain", // TXT
+];
+
+/**
+ * Combined allowed file types (audio + documents)
+ */
+export const ALLOWED_FILE_TYPES = [
+  ...ALLOWED_AUDIO_TYPES,
+  ...ALLOWED_DOCUMENT_TYPES,
+];
+
+/**
  * Progress animation constants
  *
  * Used in processing flow for smooth progress indication:

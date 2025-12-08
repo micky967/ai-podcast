@@ -56,8 +56,39 @@ export const retryJobFunction = inngest.createFunction(
 
     // Get project to access transcript and userId
     const project = await convex.query(api.projects.getProject, { projectId });
-    if (!project?.transcript) {
-      throw new Error("Project or transcript not found");
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    // Check if this is a document file (not audio)
+    const isDocument =
+      project.mimeType === "application/pdf" ||
+      project.mimeType === "application/msword" ||
+      project.mimeType ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      project.mimeType === "text/plain";
+
+    // Check for transcript - required for all jobs
+    if (!project.transcript) {
+      throw new Error(
+        isDocument
+          ? "Document text not found. Please re-upload the document file to extract the text."
+          : "Transcript not found. Please re-upload the audio file to generate the transcript.",
+      );
+    }
+
+    // For documents, certain jobs are not applicable
+    if (isDocument) {
+      if (
+        job === "keyMoments" ||
+        job === "youtubeTimestamps" ||
+        job === "socialPosts" ||
+        job === "hashtags"
+      ) {
+        throw new Error(
+          `${job} is not available for document files. This feature requires audio content with timestamps.`,
+        );
+      }
     }
 
     // Get and decrypt user API keys (BYOK support)
@@ -77,20 +108,42 @@ export const retryJobFunction = inngest.createFunction(
     // Validate we have the complete transcript data needed for generation
     const transcript = project.transcript as TranscriptWithExtras;
 
+    // Debug logging for transcript structure
+    console.log(
+      `[RETRY JOB] Transcript check for job ${job}:`,
+      {
+        hasTranscript: !!project.transcript,
+        transcriptType: typeof project.transcript,
+        hasText: !!(project.transcript as any)?.text,
+        textLength: (project.transcript as any)?.text?.length || 0,
+        transcriptKeys: project.transcript ? Object.keys(project.transcript) : [],
+      },
+    );
+
     // Basic validation: All jobs need transcript text
-    if (!transcript.text || transcript.text.length === 0) {
-      throw new Error(
-        "Cannot generate content: transcript text is empty. Please re-upload the file.",
-      );
+    if (!transcript || !transcript.text || transcript.text.trim().length === 0) {
+      const errorMessage = isDocument
+        ? "Document text is empty or missing. Please re-upload the document file to extract the text."
+        : "Transcript text is empty or missing. Please re-upload the audio file to generate the transcript.";
+      console.error(`[RETRY JOB] ${errorMessage}`, {
+        projectId,
+        job,
+        hasTranscript: !!project.transcript,
+        transcriptStructure: project.transcript,
+      });
+      throw new Error(errorMessage);
     }
 
     // Job-specific validation for jobs that require chapters
-    const jobsRequiringChapters = ["keyMoments", "youtubeTimestamps"];
-    if (jobsRequiringChapters.includes(job)) {
-      if (!transcript.chapters || transcript.chapters.length === 0) {
-        throw new Error(
-          `Cannot generate ${job}: transcript has no chapters. This podcast may be too short or lack distinct topics for chapter detection.`,
-        );
+    // Documents don't have chapters, so skip this validation for documents
+    if (!isDocument) {
+      const jobsRequiringChapters = ["keyMoments", "youtubeTimestamps"];
+      if (jobsRequiringChapters.includes(job)) {
+        if (!transcript.chapters || transcript.chapters.length === 0) {
+          throw new Error(
+            `Cannot generate ${job}: transcript has no chapters. This podcast may be too short or lack distinct topics for chapter detection.`,
+          );
+        }
       }
     }
 

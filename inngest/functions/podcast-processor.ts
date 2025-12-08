@@ -49,6 +49,7 @@ import { generateYouTubeTimestamps } from "../steps/ai-generation/youtube-timest
 import { getUserApiKeys } from "../lib/user-api-keys";
 import { saveResultsToConvex } from "../steps/persistence/save-to-convex";
 import { transcribeWithAssemblyAI } from "../steps/transcription/assemblyai";
+import { extractTextFromDocument } from "../steps/document-extraction/text-extractor";
 
 export const podcastProcessor = inngest.createFunction(
   {
@@ -61,7 +62,7 @@ export const podcastProcessor = inngest.createFunction(
   // Event trigger: sent by server action after upload
   { event: "podcast/uploaded" },
   async ({ event, step }) => {
-    const { projectId, fileUrl, plan: userPlan } = event.data;
+    const { projectId, fileUrl, plan: userPlan, mimeType } = event.data;
     const plan = (userPlan as PlanName) || "free"; // Default to free if not provided
 
     console.log(`Processing project ${projectId} for ${plan} plan`);
@@ -78,6 +79,18 @@ export const podcastProcessor = inngest.createFunction(
 
       const userId = project.userId;
 
+      // Determine if this is a document file
+      const isDocument =
+        mimeType === "application/pdf" ||
+        mimeType === "application/msword" ||
+        mimeType ===
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+        mimeType === "text/plain";
+
+      console.log(
+        `[FILE TYPE] mimeType="${mimeType}", isDocument=${isDocument}, plan=${plan}`,
+      );
+
       // Get and decrypt user API keys (BYOK - Bring Your Own Key)
       // Keys are stored encrypted in Convex, decrypted server-side here
       const userApiKeys = await step.run("get-and-decrypt-user-api-keys", async () => {
@@ -90,13 +103,14 @@ export const podcastProcessor = inngest.createFunction(
       // Validate that required API keys are present (no fallback to shared keys)
       if (!openaiApiKey) {
         throw new Error(
-          "OpenAI API key is required. Please add your OpenAI API key in Settings before processing podcasts.",
+          "OpenAI API key is required. Please add your OpenAI API key in Settings before processing files.",
         );
       }
 
-      if (!assemblyaiApiKey) {
+      // AssemblyAI is only required for audio files
+      if (!isDocument && !assemblyaiApiKey) {
         throw new Error(
-          "AssemblyAI API key is required. Please add your AssemblyAI API key in Settings before processing podcasts.",
+          "AssemblyAI API key is required. Please add your AssemblyAI API key in Settings before processing audio files.",
         );
       }
 
@@ -110,7 +124,7 @@ export const podcastProcessor = inngest.createFunction(
         });
       });
 
-      // Update jobStatus: transcription starting
+      // Update jobStatus: transcription/text extraction starting
       await step.run("update-job-status-transcription-running", async () => {
         await convex.mutation(api.projects.updateJobStatus, {
           projectId,
@@ -118,15 +132,26 @@ export const podcastProcessor = inngest.createFunction(
         });
       });
 
-      // Step 1: Transcribe audio with AssemblyAI (sequential - blocks next steps)
-      // This step is durable: if it fails, Inngest retries automatically
-      // Speaker diarization is always enabled; UI access is gated by plan
-      // Uses user's AssemblyAI key if provided, otherwise falls back to environment key
-      const transcript = await step.run("transcribe-audio", () =>
-        transcribeWithAssemblyAI(fileUrl, projectId, plan, assemblyaiApiKey),
+      // Step 1: Extract text from file
+      // For audio: Transcribe with AssemblyAI
+      // For documents: Extract text directly
+      const transcript = await step.run(
+        isDocument ? "extract-text-from-document" : "transcribe-audio",
+        () => {
+          if (isDocument) {
+            return extractTextFromDocument(fileUrl, projectId, mimeType);
+          } else {
+            return transcribeWithAssemblyAI(
+              fileUrl,
+              projectId,
+              plan,
+              assemblyaiApiKey,
+            );
+          }
+        },
       );
 
-      // Update jobStatus: transcription complete
+      // Update jobStatus: transcription/text extraction complete
       await step.run("update-job-status-transcription-completed", async () => {
         await convex.mutation(api.projects.updateJobStatus, {
           projectId,
@@ -156,36 +181,83 @@ export const podcastProcessor = inngest.createFunction(
       jobs.push(generateSummary(step, transcript, openaiApiKey));
       jobNames.push("summary");
 
-      // PRO and ULTRA features
-      if (plan === "pro" || plan === "ultra") {
-        jobs.push(generateSocialPosts(step, transcript, openaiApiKey));
-        jobNames.push("socialPosts");
+      // For documents, skip certain features (YouTube timestamps, social posts, hashtags, key moments)
+      // Documents don't have timestamps or need social media optimization
+      if (!isDocument) {
+        // AUDIO FILES: Generate all features based on plan
+        console.log(`[AUDIO FILE] Generating audio-specific features for ${plan} plan`);
+        
+        // PRO and ULTRA features (audio only)
+        if (plan === "pro" || plan === "ultra") {
+          jobs.push(generateSocialPosts(step, transcript, openaiApiKey));
+          jobNames.push("socialPosts");
 
-        jobs.push(generateTitles(step, transcript, openaiApiKey));
-        jobNames.push("titles");
+          jobs.push(generateTitles(step, transcript, openaiApiKey));
+          jobNames.push("titles");
 
-        jobs.push(generateHashtags(step, transcript, openaiApiKey));
-        jobNames.push("hashtags");
+          jobs.push(generateHashtags(step, transcript, openaiApiKey));
+          jobNames.push("hashtags");
+        } else {
+          console.log(`[AUDIO] Skipping social posts, titles, hashtags for ${plan} plan`);
+        }
+
+        // ULTRA-only features (audio only)
+        if (plan === "ultra") {
+          jobs.push(generateKeyMoments(transcript));
+          jobNames.push("keyMoments");
+
+          jobs.push(
+            generateYouTubeTimestamps(step, transcript, openaiApiKey),
+          );
+          jobNames.push("youtubeTimestamps");
+        } else {
+          console.log(
+            `[AUDIO] Skipping key moments and YouTube timestamps for ${plan} plan`,
+          );
+        }
       } else {
-        console.log(`Skipping social posts, titles, hashtags for ${plan} plan`);
+        // DOCUMENT FILES: Only generate Summary, Titles, and Engagement Tools
+        console.log(
+          `[DOCUMENT FILE] Only generating: Summary, Titles (${plan === "pro" || plan === "ultra" ? "YES" : "NO"}), Engagement Tools (${plan === "ultra" ? "YES" : "NO"})`,
+        );
+        console.log(
+          `[DOCUMENT FILE] SKIPPING: social posts, hashtags, YouTube timestamps, key moments`,
+        );
+        
+        if (plan === "pro" || plan === "ultra") {
+          jobs.push(generateTitles(step, transcript, openaiApiKey));
+          jobNames.push("titles");
+        }
       }
 
-      // ULTRA-only features
+      // Engagement tools available for all file types (ULTRA plan)
       if (plan === "ultra") {
-        jobs.push(generateKeyMoments(transcript));
-        jobNames.push("keyMoments");
-
-        jobs.push(
-          generateYouTubeTimestamps(step, transcript, openaiApiKey),
-        );
-        jobNames.push("youtubeTimestamps");
-
         jobs.push(generateEngagement(step, transcript, openaiApiKey));
         jobNames.push("engagement");
-      } else {
+      } else if (!isDocument) {
         console.log(
-          `Skipping key moments, YouTube timestamps, and engagement tools for ${plan} plan`,
+          `Skipping engagement tools for ${plan} plan`,
         );
+      }
+
+      // Log which jobs will be executed
+      console.log(
+        `[JOB EXECUTION] ${isDocument ? "DOCUMENT" : "AUDIO"} file - Executing ${jobs.length} jobs for ${plan} plan:`,
+        jobNames,
+      );
+      console.log(
+        `[JOB EXECUTION] Jobs array length: ${jobs.length}, Job names: [${jobNames.join(", ")}]`,
+      );
+      
+      // Verify no unwanted jobs for documents
+      if (isDocument) {
+        const unwantedJobs = ["keyMoments", "youtubeTimestamps", "socialPosts", "hashtags"];
+        const foundUnwanted = jobNames.filter((name) => unwantedJobs.includes(name));
+        if (foundUnwanted.length > 0) {
+          console.error(
+            `[ERROR] Document file should not have these jobs: ${foundUnwanted.join(", ")}`,
+          );
+        }
       }
 
       // Run all enabled jobs in parallel

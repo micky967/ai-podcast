@@ -147,6 +147,25 @@ export default function ProjectDetailPage() {
   const hasFailed = project.status === "failed";
   const showGenerating = isProcessing && generationStatus === "running";
 
+  // Check if this is a document file (not audio)
+  const isDocument =
+    project.mimeType === "application/pdf" ||
+    project.mimeType === "application/msword" ||
+    project.mimeType ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    project.mimeType === "text/plain";
+
+  // Filter tabs based on file type
+  // Documents don't show: Key Moments, YouTube timestamps, social posts, hashtags, speakers
+  const visibleTabs = PROJECT_TABS.filter((tab) => {
+    if (isDocument) {
+      return !["moments", "youtube-timestamps", "social", "hashtags", "speakers"].includes(
+        tab.value,
+      );
+    }
+    return true;
+  });
+
   return (
     <div className="container max-w-6xl mx-auto py-10 px-4 ">
       {/* Header with title and actions */}
@@ -233,6 +252,7 @@ export default function ProjectDetailPage() {
             generationStatus={generationStatus}
             fileDuration={project.fileDuration}
             createdAt={project.createdAt}
+            mimeType={project.mimeType}
           />
         )}
 
@@ -265,7 +285,7 @@ export default function ProjectDetailPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {PROJECT_TABS.map((tab) => (
+                  {visibleTabs.map((tab) => (
                     <MobileTabItem
                       key={tab.value}
                       tab={tab}
@@ -279,7 +299,7 @@ export default function ProjectDetailPage() {
             {/* Desktop Tabs */}
             <div className="glass-card rounded-2xl p-2 mb-6 hidden lg:block">
               <TabsList className="flex flex-wrap gap-2 bg-transparent min-w-max w-full">
-                {PROJECT_TABS.map((tab) => (
+                {visibleTabs.map((tab) => (
                   <DesktopTabTrigger
                     key={tab.value}
                     tab={tab}
@@ -302,20 +322,23 @@ export default function ProjectDetailPage() {
               </TabContent>
             </TabsContent>
 
-            <TabsContent value="moments" className="space-y-4">
-              <TabContent
-                isLoading={showGenerating}
-                data={project.keyMoments}
-                error={project.jobErrors?.keyMoments}
-                projectId={projectId}
-                feature={FEATURES.KEY_MOMENTS}
-                featureName="Key Moments"
-                jobName="keyMoments"
-                emptyMessage="No key moments detected"
-              >
-                <KeyMomentsTab keyMoments={project.keyMoments} />
-              </TabContent>
-            </TabsContent>
+            {/* Key Moments - Only for audio files */}
+            {!isDocument && (
+              <TabsContent value="moments" className="space-y-4">
+                <TabContent
+                  isLoading={showGenerating}
+                  data={project.keyMoments}
+                  error={project.jobErrors?.keyMoments}
+                  projectId={projectId}
+                  feature={FEATURES.KEY_MOMENTS}
+                  featureName="Key Moments"
+                  jobName="keyMoments"
+                  emptyMessage="No key moments detected"
+                >
+                  <KeyMomentsTab keyMoments={project.keyMoments} />
+                </TabContent>
+              </TabsContent>
+            )}
 
             <TabsContent value="youtube-timestamps" className="space-y-4">
               <TabContent
@@ -395,16 +418,19 @@ export default function ProjectDetailPage() {
               </TabContent>
             </TabsContent>
 
-            <TabsContent value="speakers" className="space-y-4">
-              <TabContent isLoading={showGenerating} data={project.transcript}>
-                {project.transcript && (
-                  <TranscriptTab
-                    projectId={projectId}
-                    transcript={project.transcript}
-                  />
-                )}
-              </TabContent>
-            </TabsContent>
+            {/* Speaker Dialogue - Only for audio files */}
+            {!isDocument && (
+              <TabsContent value="speakers" className="space-y-4">
+                <TabContent isLoading={showGenerating} data={project.transcript}>
+                  {project.transcript && (
+                    <TranscriptTab
+                      projectId={projectId}
+                      transcript={project.transcript}
+                    />
+                  )}
+                </TabContent>
+              </TabsContent>
+            )}
           </Tabs>
         )}
       </div>

@@ -24,6 +24,7 @@ interface ProcessingFlowProps {
   generationStatus: PhaseStatus;
   fileDuration?: number;
   createdAt: number;
+  mimeType?: string; // To detect if this is a document file
 }
 
 export function ProcessingFlow({
@@ -31,7 +32,15 @@ export function ProcessingFlow({
   generationStatus,
   fileDuration,
   createdAt,
+  mimeType,
 }: ProcessingFlowProps) {
+  // Check if this is a document file (not audio)
+  const isDocument =
+    mimeType === "application/pdf" ||
+    mimeType === "application/msword" ||
+    mimeType ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    mimeType === "text/plain";
   // Get user's current plan from Clerk
   const { has } = useAuth();
 
@@ -64,7 +73,24 @@ export function ProcessingFlow({
       "YouTube Timestamps": FEATURES.YOUTUBE_TIMESTAMPS,
     };
 
+    // For documents, hide certain outputs that don't apply
+    const documentHiddenOutputs = [
+      "Key Moments",
+      "YouTube Timestamps",
+      "Social Posts",
+      "Hashtags",
+    ];
+
     return GENERATION_OUTPUTS.map((output) => {
+      // Hide outputs that don't apply to documents
+      if (isDocument && documentHiddenOutputs.includes(output.name)) {
+        return {
+          ...output,
+          isLocked: true, // Mark as locked to hide it
+          requiredPlan: null,
+        };
+      }
+
       const featureKey = outputToFeature[output.name];
       const isLocked = featureKey
         ? !availableFeatures.includes(featureKey)
@@ -79,7 +105,7 @@ export function ProcessingFlow({
         requiredPlan,
       };
     });
-  }, [availableFeatures]);
+  }, [availableFeatures, isDocument]);
 
   // Only unlocked outputs cycle through animation
   const unlockedOutputs = useMemo(

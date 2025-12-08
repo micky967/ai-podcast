@@ -6,10 +6,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { deleteProjectAction } from "@/app/actions/projects";
+import { updateProjectCategoryAction } from "@/app/actions/categories";
 import { CategoryBadge } from "@/components/category-badge";
 import { CompactProgress } from "@/components/projects/compact-progress";
 import { Badge } from "@/components/ui/badge";
-import type { Doc } from "@/convex/_generated/dataModel";
+import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { formatDuration, formatFileSize, formatSmartDate } from "@/lib/format";
 import {
   getProcessingPhaseLabel,
@@ -30,6 +31,7 @@ export function ProjectCard({
   highlightProjectId 
 }: ProjectCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const router = useRouter();
 
   const StatusIcon = getStatusIcon(project.status);

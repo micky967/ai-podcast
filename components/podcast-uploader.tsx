@@ -63,16 +63,36 @@ export function PodcastUploader() {
     useState<Id<"categories"> | null>(null);
 
   /**
+   * Check if file is a document (not audio)
+   */
+  const isDocumentFile = (mimeType: string): boolean => {
+    return (
+      mimeType === "application/pdf" ||
+      mimeType === "application/msword" ||
+      mimeType ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      mimeType === "text/plain"
+    );
+  };
+
+  /**
    * Handle file selection from dropzone
    *
-   * Extracts duration for better UX (shows processing time estimates)
-   * Falls back to size-based estimation if extraction fails
+   * For audio files: Extracts duration for better UX (shows processing time estimates)
+   * For documents: Skips duration extraction (not applicable)
    */
   const handleFileSelect = async (file: File) => {
     setSelectedFile(file);
     setUploadStatus("idle");
     setUploadProgress(0);
     setError(null);
+
+    // Skip duration extraction for documents
+    if (isDocumentFile(file.type)) {
+      setFileDuration(undefined);
+      console.log("Document file selected - skipping duration extraction");
+      return;
+    }
 
     // Attempt to extract accurate duration from audio file
     try {

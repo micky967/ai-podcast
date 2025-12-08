@@ -102,6 +102,13 @@ export async function transcribeWithAssemblyAI(
       );
     }
 
+    // Check for transcription errors
+    if (transcriptResponse.status === "error") {
+      throw new Error(
+        transcriptResponse.error || "AssemblyAI transcription failed",
+      );
+    }
+
     console.log("AssemblyAI transcription completed");
 
     // Type assertion: AssemblyAI's TypeScript types are incomplete
@@ -143,6 +150,7 @@ export async function transcribeWithAssemblyAI(
     }));
 
     // Prepare transcript object for Convex
+    // Use response.text directly (AssemblyAI always provides this when status is "completed")
     const formattedTranscript = {
       text: response.text || "",
       segments: formattedSegments,
