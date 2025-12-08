@@ -12,6 +12,7 @@ import { FolderTree } from "lucide-react";
 import { useEffect } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { CreateCategoryDialog } from "@/components/categories/create-category-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
@@ -87,11 +88,19 @@ export function CategorySelector({
       <CardContent className="pt-6 space-y-4">
         {/* Main Category Selector */}
         <div className="space-y-2">
-          <Label htmlFor="category" className="flex items-center gap-2">
-            <FolderTree className="h-4 w-4 text-emerald-600" />
-            Category
-            {required && <span className="text-red-600">*</span>}
-          </Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="category" className="flex items-center gap-2">
+              <FolderTree className="h-4 w-4 text-emerald-600" />
+              Category
+              {required && <span className="text-red-600">*</span>}
+            </Label>
+            <CreateCategoryDialog
+              onCategoryCreated={(categoryId) => {
+                // Auto-select the newly created category
+                onCategoryChange(categoryId);
+              }}
+            />
+          </div>
           <Select
             value={selectedCategoryId || undefined}
             onValueChange={(value) => {
@@ -139,11 +148,23 @@ export function CategorySelector({
         </div>
 
         {/* Subcategory Selector (only show if subcategories exist) */}
-        {selectedCategoryId && hasSubcategories && (
+        {selectedCategoryId && (
           <div className="space-y-2">
-            <Label htmlFor="subcategory" className="text-sm text-gray-700">
-              Subcategory <span className="text-gray-500">(Optional)</span>
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="subcategory" className="text-sm text-gray-700">
+                Subcategory <span className="text-gray-500">(Optional)</span>
+              </Label>
+              {selectedCategoryId && (
+                <CreateCategoryDialog
+                  parentCategoryId={selectedCategoryId}
+                  onCategoryCreated={(categoryId) => {
+                    // Auto-select the newly created subcategory
+                    onSubcategoryChange(categoryId);
+                  }}
+                />
+              )}
+            </div>
+            {hasSubcategories ? (
             <Select
               value={selectedSubcategoryId ? selectedSubcategoryId : "__none__"}
               onValueChange={(value) => {
@@ -171,6 +192,11 @@ export function CategorySelector({
                 ) : null}
               </SelectContent>
             </Select>
+            ) : (
+              <p className="text-xs text-gray-500">
+                No subcategories available. Create one using the button above.
+              </p>
+            )}
           </div>
         )}
 

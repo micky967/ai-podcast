@@ -4,9 +4,10 @@ import type { Preloaded } from "convex/react";
 import { usePreloadedQuery } from "convex/react";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
+import { CategoryDropZone } from "@/components/categories/category-drop-zone";
+import { CategoryHeader } from "@/components/categories/category-header";
 import { EmptyState } from "@/components/projects/empty-state";
 import { PageHeader } from "@/components/projects/page-header";
-import { CategoryHeader } from "@/components/categories/category-header";
 import { ProjectCard } from "@/components/projects/project-card";
 import type { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -95,7 +96,10 @@ export function ProjectsList({
           onSearchChange={setSearchQuery}
         />
       ) : (
-        <PageHeader searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+        <>
+          <PageHeader searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+          <CategoryDropZone />
+        </>
       )}
 
       {!hasProjects && (

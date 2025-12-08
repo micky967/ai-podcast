@@ -34,6 +34,27 @@ export function ProjectCard({
   const [isDragging, setIsDragging] = useState(false);
   const router = useRouter();
 
+  const handleDragStart = (e: React.DragEvent) => {
+    setIsDragging(true);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("application/json", JSON.stringify({
+      projectId: project._id,
+      currentCategoryId: project.categoryId,
+      currentSubcategoryId: project.subcategoryId,
+    }));
+    // Add visual feedback
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = "0.5";
+    }
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    setIsDragging(false);
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = "1";
+    }
+  };
+
   const StatusIcon = getStatusIcon(project.status);
   const processingPhase = getProcessingPhaseLabel(project);
 
@@ -93,20 +114,30 @@ export function ProjectCard({
       id={isHighlighted ? `project-${project._id}` : undefined}
       className={cn(isHighlighted && "scroll-mt-24")}
     >
-      <Link 
-        href={getHref()} 
-        className="block"
-        prefetch={true}
-        onMouseEnter={handleMouseEnter}
+      <div
+        draggable
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        className={cn(
+          "glass-card rounded-2xl group relative hover-lift cursor-move overflow-hidden transition-all",
+          project.status === "processing" &&
+            "ring-2 ring-emerald-400 shadow-emerald-200 shadow-lg",
+          project.status === "failed" && "ring-2 ring-red-400",
+          isHighlighted && "ring-4 ring-blue-500 shadow-blue-300 shadow-xl animate-pulse",
+          isDragging && "opacity-50",
+        )}
       >
-        <div
-          className={cn(
-            "glass-card rounded-2xl group relative hover-lift cursor-pointer overflow-hidden transition-all",
-            project.status === "processing" &&
-              "ring-2 ring-emerald-400 shadow-emerald-200 shadow-lg",
-            project.status === "failed" && "ring-2 ring-red-400",
-            isHighlighted && "ring-4 ring-blue-500 shadow-blue-300 shadow-xl animate-pulse",
-          )}
+        <Link 
+          href={getHref()} 
+          className="block"
+          prefetch={true}
+          onMouseEnter={handleMouseEnter}
+          onClick={(e) => {
+            // Prevent navigation when dragging
+            if (isDragging) {
+              e.preventDefault();
+            }
+          }}
         >
         <div className="p-6 md:p-7">
           <div className="flex items-start gap-5">
@@ -215,8 +246,8 @@ export function ProjectCard({
             </div>
           </div>
         </div>
+        </Link>
       </div>
-    </Link>
     </div>
   );
 }
