@@ -13,7 +13,7 @@ export function Footer() {
                   <Sparkles className="h-5 w-5 text-white" />
                 </div>
                 <span className="font-bold text-lg gradient-emerald-text">
-                  Manjit
+                  MedTrain
                 </span>
               </div>
               <p className="text-gray-600 text-sm leading-relaxed">

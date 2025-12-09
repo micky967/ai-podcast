@@ -51,7 +51,7 @@ export function Header() {
                     : "text-xl font-bold gradient-emerald-text tracking-tight"
                 }
               >
-                Podaii
+                MedTrain
               </span>
             </Link>
 
