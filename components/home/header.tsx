@@ -1,18 +1,26 @@
 "use client";
 
 import { Protect, SignInButton, UserButton, useAuth } from "@clerk/nextjs";
-import { Crown, Home, Sparkles, Zap } from "lucide-react";
+import { Crown, Home, Shield, Sparkles, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 export function Header() {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, userId } = useAuth();
   const pathname = usePathname();
   const isDashboard = pathname?.startsWith("/dashboard");
   const showDashboardNav = isDashboard;
+
+  // Check if user is admin
+  const isAdmin = useQuery(
+    api.userSettings.isUserAdmin,
+    userId ? { userId } : "skip"
+  );
 
   return (
     <header
@@ -128,20 +136,38 @@ export function Header() {
                 </Protect>
 
                 {!showDashboardNav && (
-                  <Link href="/dashboard/projects">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={
-                        isDashboard
-                          ? "hover-scale text-white hover:bg-white/20 transition-all duration-300"
-                          : "hover-scale transition-all duration-300"
-                      }
-                    >
-                      <span className="hidden lg:inline">My Projects</span>
-                      <span className="lg:hidden">Projects</span>
-                    </Button>
-                  </Link>
+                  <>
+                    <Link href="/dashboard/projects">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={
+                          isDashboard
+                            ? "hover-scale text-white hover:bg-white/20 transition-all duration-300"
+                            : "hover-scale transition-all duration-300"
+                        }
+                      >
+                        <span className="hidden lg:inline">My Projects</span>
+                        <span className="lg:hidden">Projects</span>
+                      </Button>
+                    </Link>
+                    {isAdmin && (
+                      <Link href="/dashboard/admin">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={
+                            isDashboard
+                              ? "gap-2 hover-scale text-white hover:bg-white/20 transition-all duration-300"
+                              : "gap-2 hover-scale transition-all duration-300"
+                          }
+                        >
+                          <Shield className="h-4 w-4" />
+                          <span className="hidden lg:inline">Admin</span>
+                        </Button>
+                      </Link>
+                    )}
+                  </>
                 )}
                 {showDashboardNav && (
                   <Link href="/" className="hidden lg:block">

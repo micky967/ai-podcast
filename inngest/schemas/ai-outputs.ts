@@ -137,14 +137,7 @@ export const hashtagsSchema = z.object({
 
 export type Hashtags = z.infer<typeof hashtagsSchema>;
 
-/**
- * Engagement Schema - Audience engagement and growth tools
- * Helps content creators spark conversations and build community
- * - commentStarters: 10-50 study flashcard questions with answers for memorization (based on content length - up to 50 for long documents with tables/spreadsheets)
- * - pinComment: Best comment to pin on YouTube (builds community)
- * - communityPosts: Follow-up content ideas to keep audience engaged
- * - descriptions: Podcast descriptions for different contexts (short/medium/long)
- */
+
 export const engagementSchema = z.object({
   commentStarters: z
     .array(

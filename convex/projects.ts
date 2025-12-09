@@ -527,10 +527,20 @@ export const deleteProject = mutation({
       throw new Error("Project not found");
     }
 
-    // Security check: ensure user owns this project
+    // Security check: ensure user owns this project OR is an admin/owner
     if (project.userId !== args.userId) {
-      console.error(`[CONVEX DELETE] Unauthorized: User ${args.userId} does not own project ${args.projectId} (owned by ${project.userId})`);
-      throw new Error("Unauthorized: You don't own this project");
+      // Check if user is admin or owner
+      const userSettings = await ctx.db
+        .query("userSettings")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .first();
+
+      if (userSettings?.role !== "admin" && userSettings?.role !== "owner") {
+        console.error(`[CONVEX DELETE] Unauthorized: User ${args.userId} does not own project ${args.projectId} (owned by ${project.userId}) and is not an admin/owner`);
+        throw new Error("Unauthorized: You don't own this project");
+      }
+      const roleLabel = userSettings?.role === "owner" ? "Owner" : "Admin";
+      console.log(`[CONVEX DELETE] ${roleLabel} ${args.userId} deleting project ${args.projectId} owned by ${project.userId}`);
     }
 
     // Soft delete: set deletedAt timestamp instead of hard delete

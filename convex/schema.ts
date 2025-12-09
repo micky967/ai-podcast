@@ -250,11 +250,16 @@ export default defineSchema({
     openaiApiKey: v.optional(v.string()), // User's OpenAI API key
     assemblyaiApiKey: v.optional(v.string()), // User's AssemblyAI API key
 
+    // User role - defaults to "user", can be set to "admin" or "owner"
+    // Owner role can only be set directly in database, cannot be changed by admins
+    role: v.optional(v.union(v.literal("user"), v.literal("admin"), v.literal("owner"))), // User role (defaults to "user")
+
     // Metadata
     updatedAt: v.number(), // Last modification time
     createdAt: v.number(), // Settings creation time
   })
-    .index("by_user", ["userId"]), // Lookup settings by user ID
+    .index("by_user", ["userId"]) // Lookup settings by user ID
+    .index("by_role", ["role"]), // Find all admins or users by role
 
   // Categories - hierarchical structure for organizing projects by medical specialty
   categories: defineTable({
