@@ -48,13 +48,13 @@ export function AdminUserList({
 
   const setUserRole = useMutation(api.userSettings.setUserRole);
 
-  // Redirect if not admin (handled by page, but show message)
+  // Redirect if not owner (handled by page, but show message)
   if (adminStatus === false) {
     return (
       <Card>
         <CardContent className="pt-6">
           <p className="text-center text-muted-foreground">
-            You don't have permission to access this page. Only admins can view
+            You don't have permission to access this page. Only owners can view
             the admin dashboard.
           </p>
         </CardContent>

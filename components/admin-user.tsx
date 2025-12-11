@@ -26,7 +26,7 @@ export function AdminUser({
           <span className="gradient-emerald-text">Admin</span> Dashboard
         </h1>
         <p className="text-lg text-gray-600">
-          Manage user roles, permissions, and sharing groups. Only admins can access this page.
+          Manage user roles, permissions, and sharing groups. Only owners can access this page.
         </p>
       </div>
 

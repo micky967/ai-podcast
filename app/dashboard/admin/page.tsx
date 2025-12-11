@@ -1,8 +1,8 @@
 /**
  * Admin Dashboard Page
  *
- * Allows admins to manage user roles (promote/demote users to/from admin).
- * Only accessible to users with admin role.
+ * Allows owners to manage user roles (promote/demote users to/from admin).
+ * Only accessible to users with owner role.
  */
 
 import { auth } from "@clerk/nextjs/server";
@@ -10,6 +10,7 @@ import { redirect } from "next/navigation";
 import { AdminUser } from "@/components/admin-user";
 import { api } from "@/convex/_generated/api";
 import { preloadQuery } from "convex/nextjs";
+import { convex } from "@/lib/convex-client";
 
 export default async function AdminPage() {
   const { userId } = await auth();
@@ -18,27 +19,35 @@ export default async function AdminPage() {
     redirect("/");
   }
 
-  // Check if user is admin
-  const preloadedIsAdmin = await preloadQuery(api.userSettings.isUserAdmin, {
-    userId,
-  });
-
-  // Check admin status and redirect if not admin
-  // Note: We can't directly await the preloaded query value, so we'll check it client-side
-  // But we can try to preload users and catch the error
-  let preloadedUsers;
+  // Server-side check: Verify user is owner before rendering
+  // Use ConvexHttpClient to actually execute the query on the server
   try {
-    preloadedUsers = await preloadQuery(api.userSettings.listAllUsers, {
-      adminUserId: userId,
+    // Check if user is owner - this will throw if not owner
+    const isOwner = await convex.query(api.userSettings.isUserOwner, {
+      userId,
     });
+
+    if (!isOwner) {
+      // User is not owner, redirect immediately
+      redirect("/dashboard/projects");
+    }
   } catch (error) {
-    // User is not admin, redirect
+    // User is not owner or query failed, redirect
     redirect("/dashboard/projects");
   }
 
+  // User is owner - preload data for client component
+  const preloadedIsOwner = await preloadQuery(api.userSettings.isUserOwner, {
+    userId,
+  });
+
+  const preloadedUsers = await preloadQuery(api.userSettings.listAllUsers, {
+    adminUserId: userId,
+  });
+
   return (
     <AdminUser
-      preloadedIsAdmin={preloadedIsAdmin}
+      preloadedIsAdmin={preloadedIsOwner}
       preloadedUsers={preloadedUsers}
     />
   );

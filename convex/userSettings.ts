@@ -181,6 +181,27 @@ export const isUserAdmin = query({
 });
 
 /**
+ * Check if a user is an owner
+ *
+ * Used by: Admin dashboard access - only owners can access the admin dashboard
+ *
+ * @returns True if user is owner, false otherwise (defaults to false if no settings exist)
+ */
+export const isUserOwner = query({
+  args: {
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const settings = await ctx.db
+      .query("userSettings")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .first();
+
+    return settings?.role === "owner";
+  },
+});
+
+/**
  * Get user role
  *
  * Used by: Frontend to display user role
@@ -265,28 +286,28 @@ export const setUserRole = mutation({
 });
 
 /**
- * List all users with their roles (admin/owner-only)
+ * List all users with their roles (owner-only)
  *
  * Used by: Admin dashboard to display all users
  *
- * Security: Only admins and owners can list all users
+ * Security: Only owners can list all users
  *
- * @param adminUserId - The admin/owner requesting the list (for verification)
+ * @param adminUserId - The owner requesting the list (for verification)
  * @returns Array of users with their userId and role
  */
 export const listAllUsers = query({
   args: {
-    adminUserId: v.string(), // Admin/owner requesting the list (for verification)
+    adminUserId: v.string(), // Owner requesting the list (for verification)
   },
   handler: async (ctx, args) => {
-    // Verify that the requester is an admin or owner
-    const adminSettings = await ctx.db
+    // Verify that the requester is an owner
+    const ownerSettings = await ctx.db
       .query("userSettings")
       .withIndex("by_user", (q) => q.eq("userId", args.adminUserId))
       .first();
 
-    if (adminSettings?.role !== "admin" && adminSettings?.role !== "owner") {
-      throw new Error("Unauthorized: Only admins and owners can list all users");
+    if (ownerSettings?.role !== "owner") {
+      throw new Error("Unauthorized: Only owners can list all users");
     }
 
     // Get all user settings

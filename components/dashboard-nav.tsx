@@ -14,9 +14,9 @@ export function DashboardNav() {
   const router = useRouter();
   const { userId } = useAuth();
 
-  // Check if user is admin
-  const isAdmin = useQuery(
-    api.userSettings.isUserAdmin,
+  // Check if user is owner (only owners can access admin dashboard)
+  const isOwner = useQuery(
+    api.userSettings.isUserOwner,
     userId ? { userId } : "skip"
   );
 
@@ -108,7 +108,7 @@ export function DashboardNav() {
           <span className="hidden lg:inline">Settings</span>
         </Button>
       </Link>
-      {isAdmin && (
+      {isOwner && (
         <Link
           href="/dashboard/admin"
           prefetch={true}
