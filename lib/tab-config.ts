@@ -33,13 +33,13 @@ export const PROJECT_TABS: TabConfig[] = [
   },
   {
     value: "youtube-timestamps",
-    label: "YouTube Timestamps",
+    label: "YT Time",
     errorKey: "youtubeTimestamps",
     feature: FEATURES.YOUTUBE_TIMESTAMPS,
   },
   {
     value: "social",
-    label: "Social Posts",
+    label: "Social",
     errorKey: "socialPosts",
     feature: FEATURES.SOCIAL_POSTS,
   },
@@ -57,7 +57,7 @@ export const PROJECT_TABS: TabConfig[] = [
   },
   {
     value: "engagement",
-    label: "Engagement Tools",
+    label: "Q&A",
     errorKey: "engagement",
     feature: FEATURES.ENGAGEMENT,
   },

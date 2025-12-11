@@ -24,17 +24,20 @@ interface CategoryDropZoneProps {
 }
 
 export function CategoryDropZone({ onDropComplete }: CategoryDropZoneProps) {
+  // Always call hooks unconditionally - never conditionally
   const { has } = useAuth();
   const [draggedOverCategoryId, setDraggedOverCategoryId] = useState<Id<"categories"> | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Check if user has Ultra plan
+  // Always call useQuery unconditionally
+  const mainCategories = useQuery(api.categories.getMainCategories);
+
+  // Check if user has Ultra plan (after hooks are called)
   const userPlan = getCurrentPlan(has);
   const isUltra = userPlan === "ultra";
 
-  const mainCategories = useQuery(api.categories.getMainCategories);
-
   // Don't render if user doesn't have Ultra plan
+  // But hooks are already called above, so this is safe
   if (!isUltra) {
     return null;
   }

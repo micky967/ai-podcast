@@ -73,3 +73,6 @@ The category selector needs categories in the database. Here's how:
 
 **Ready to test!** Just seed categories first and you're good to go! 🚀
 
+
+
+

@@ -32,7 +32,7 @@ export function ProjectCard({
   isOnAllProjectsPage = false,
   highlightProjectId 
 }: ProjectCardProps) {
-  const { has } = useAuth();
+  const { has, userId: currentUserId } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const router = useRouter();
@@ -40,6 +40,9 @@ export function ProjectCard({
   // Check if user has Ultra plan (required for drag-and-drop)
   const userPlan = getCurrentPlan(has);
   const isUltra = userPlan === "ultra";
+
+  // Check if this is a shared project (not owned by current user)
+  const isSharedProject = currentUserId && project.userId !== currentUserId;
 
   const handleDragStart = (e: React.DragEvent) => {
     setIsDragging(true);
@@ -97,9 +100,15 @@ export function ProjectCard({
   };
 
   // Determine the link destination
-  // On all projects page: navigate to category page with project param (if category exists)
-  // On category page or if no category: navigate to project detail page
+  // Shared projects always go to detail page (read-only view)
+  // Own projects: on all projects page navigate to category page with project param (if category exists)
+  // Own projects: on category page or if no category, navigate to project detail page
   const getHref = () => {
+    // Shared projects always go to detail page for read-only viewing
+    if (isSharedProject) {
+      return `/dashboard/projects/${project._id}`;
+    }
+    
     if (isOnAllProjectsPage && project.categoryId) {
       // Navigate to category page with project param to highlight it
       return `/dashboard/projects?category=${project.categoryId}&project=${project._id}`;
@@ -159,6 +168,13 @@ export function ProjectCard({
               {/* Title + Status + Delete */}
               <div className="flex items-start justify-between gap-2 sm:gap-3 md:gap-4">
                 <div className="flex-1 min-w-0 overflow-hidden">
+                  <div className="flex items-center gap-2 mb-1">
+                    {isSharedProject && (
+                      <Badge className="text-xs bg-red-500 text-white hover:bg-red-600">
+                        Shared
+                      </Badge>
+                    )}
+                  </div>
                   <h3 className="font-extrabold text-lg md:text-xl lg:text-2xl wrap-break-word hyphens-auto group-hover:text-emerald-600 transition-colors leading-snug break-words">
                     {project.displayName || project.fileName}
                   </h3>
@@ -191,18 +207,21 @@ export function ProjectCard({
                       </span>
                     </Badge>
                   )}
-                  <button
-                    type="button"
-                    onClick={handleDelete}
-                    disabled={isDeleting}
-                    className="h-10 w-10 rounded-full bg-red-50 hover:bg-red-100 flex items-center justify-center transition-all hover:scale-110 disabled:opacity-50"
-                  >
-                    {isDeleting ? (
-                      <Loader2 className="h-5 w-5 animate-spin text-red-600" />
-                    ) : (
-                      <Trash2 className="h-5 w-5 text-red-600" />
-                    )}
-                  </button>
+                  {/* Only show delete button for own projects, not shared projects */}
+                  {!isSharedProject && (
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                      className="h-10 w-10 rounded-full bg-red-50 hover:bg-red-100 flex items-center justify-center transition-all hover:scale-110 disabled:opacity-50"
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="h-5 w-5 animate-spin text-red-600" />
+                      ) : (
+                        <Trash2 className="h-5 w-5 text-red-600" />
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
 

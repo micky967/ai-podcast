@@ -41,7 +41,7 @@ export async function retryJob(projectId: Id<"projects">, job: RetryableJob) {
   }
 
   // Get project to check what was already generated
-  const project = await convex.query(api.projects.getProject, { projectId });
+  const project = await convex.query(api.projects.getProject, { projectId, userId });
 
   if (!project) {
     throw new Error("Project not found");

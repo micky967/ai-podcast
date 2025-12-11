@@ -62,3 +62,6 @@ If auto-sync isn't working:
 
 **You're doing everything correctly!** Just wait for Convex to sync, or restart your dev server. The package manager isn't the issue. 🎯
 
+
+
+

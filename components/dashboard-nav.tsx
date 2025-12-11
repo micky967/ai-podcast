@@ -1,6 +1,6 @@
 "use client";
 
-import { FolderOpen, Settings, Upload, Shield } from "lucide-react";
+import { FolderOpen, Settings, Upload, Shield, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
@@ -23,6 +23,9 @@ export function DashboardNav() {
   const isActive = (path: string) => {
     if (path === "/dashboard/projects") {
       return pathname === path || pathname.startsWith("/dashboard/projects/");
+    }
+    if (path === "/dashboard/sharing") {
+      return pathname === path || pathname.startsWith("/dashboard/sharing/");
     }
     return pathname === path;
   };
@@ -65,6 +68,25 @@ export function DashboardNav() {
         >
           <Upload className="h-4 w-4" />
           <span className="hidden lg:inline">Upload</span>
+        </Button>
+      </Link>
+      <Link
+        href="/dashboard/sharing"
+        prefetch={true}
+        onMouseEnter={() => router.prefetch("/dashboard/sharing")}
+      >
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "gap-2 transition-all duration-300 font-medium",
+            isActive("/dashboard/sharing")
+              ? "bg-white/95 text-emerald-600 hover:bg-white hover:scale-105 shadow-lg border border-white/20"
+              : "text-white hover:bg-white/20 hover:scale-105"
+          )}
+        >
+          <Users className="h-4 w-4" />
+          <span className="hidden lg:inline">Sharing</span>
         </Button>
       </Link>
       <Link

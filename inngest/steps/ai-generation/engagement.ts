@@ -27,6 +27,7 @@
 import type { step as InngestStep } from "inngest";
 import type OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
+import { z } from "zod";
 import { createBoundCompletion } from "../../lib/openai-client";
 import { type Engagement, engagementSchema } from "../../schemas/ai-outputs";
 import type { TranscriptWithExtras } from "../../types/assemblyai";
@@ -59,7 +60,7 @@ function buildEngagementPrompt(transcript: TranscriptWithExtras): string {
       : contentLength > 8000
         ? "30-40 flashcards - this document has substantial content. Generate 30-40 flashcards to comprehensively cover the material."
         : "20-30 flashcards based on content length"
-    : "EXACTLY 50 flashcards - this is REQUIRED for podcasts/audio files. You MUST generate exactly 50 flashcards, no more, no less.";
+    : "EXACTLY 50 flashcards - this is REQUIRED for podcasts/audio files. You MUST generate exactly 50 flashcards, no more, no less. Generating 45, 49, or any other number is INCORRECT and will cause errors. Count your flashcards and ensure you have exactly 50 before responding.";
   
   // For documents, send more content to ensure questions are based on actual document content
   // For long documents with tables/spreadsheets, send even more content
@@ -108,11 +109,15 @@ ${isDocument
    - Extract questions from text, tables, lists, and any structured data
    - Quality over quantity - each flashcard should test distinct, valuable information`
      : `- CRITICAL: Generate EXACTLY 50 flashcards - this is REQUIRED, not optional
-   - You MUST return exactly 50 flashcards for podcasts/audio files
+   - You MUST return exactly 50 flashcards for podcasts/audio files - NO EXCEPTIONS
+   - The schema requires exactly 50 items - generating 45, 49, or any other number is INCORRECT
+   - You MUST count your flashcards and ensure you generate exactly 50 before responding
    - Cover all factual information from the podcast/audio content
    - Ensure comprehensive coverage of all major topics, concepts, and key information
    - Each flashcard should test distinct, valuable information
-   - If you run out of unique topics, create variations or deeper questions on covered topics to reach exactly 50`}
+   - If you run out of unique topics, create variations or deeper questions on covered topics to reach exactly 50
+   - DO NOT stop at 45, 46, 47, 48, or 49 - you MUST generate exactly 50 flashcards
+   - Verify you have exactly 50 flashcards before finalizing your response`}
    
    ${isDocument 
      ? `CRITICAL REQUIREMENTS FOR DOCUMENTS:
@@ -344,6 +349,9 @@ export async function generateEngagement(
         ],
         // zodResponseFormat ensures response matches engagementSchema
         response_format: zodResponseFormat(engagementSchema, "engagement"),
+        // Ensure we have enough tokens for 50 flashcards (each flashcard ~100-200 tokens)
+        // 50 flashcards * 200 tokens = ~10,000 tokens, plus other content = ~12,000 tokens
+        max_tokens: 12000,
       },
     )) as OpenAI.Chat.Completions.ChatCompletion;
 
@@ -390,16 +398,79 @@ export async function generateEngagement(
     
     // For audio files (MP3/podcasts), ensure exactly 50 flashcards
     if (!isDocument && engagement.commentStarters.length !== 50) {
+      const currentCount = engagement.commentStarters.length;
       console.warn(
-        `Audio file generated ${engagement.commentStarters.length} flashcards, expected 50. Padding to 50.`,
+        `Audio file generated ${currentCount} flashcards, expected 50. Attempting to generate additional flashcards.`,
       );
       
-      // If we got fewer than 50, pad with generic questions
-      while (engagement.commentStarters.length < 50) {
-        engagement.commentStarters.push({
-          question: `Additional study question ${engagement.commentStarters.length + 1}`,
-          answer: "Please regenerate engagement tools to get a complete set of 50 flashcards.",
-        });
+      // If we got fewer than 50, try to generate more based on the transcript
+      if (currentCount < 50) {
+        const missingCount = 50 - currentCount;
+        const transcriptExcerpt = transcript.text.substring(3000, 6000); // Get next chunk of transcript
+        
+        // Try to generate additional flashcards from remaining transcript content
+        try {
+          const additionalPrompt = `You previously generated ${currentCount} flashcards. You need to generate exactly ${missingCount} more flashcards to reach 50 total.
+
+ADDITIONAL TRANSCRIPT CONTENT:
+${transcriptExcerpt}
+
+Generate exactly ${missingCount} additional flashcards based on this content. Each flashcard must:
+- Have a concise question (1-2 sentences)
+- Have an accurate, informative answer (2-4 sentences)
+- Cover factual information from the transcript
+- Be distinct from the previous ${currentCount} flashcards
+
+Return ONLY the ${missingCount} additional flashcards as a JSON array with "question" and "answer" fields.`;
+
+          const additionalResponse = await step.ai.wrap(
+            "generate-additional-flashcards",
+            createCompletion,
+            {
+              model: "gpt-4o",
+              messages: [
+                { role: "system", content: ENGAGEMENT_SYSTEM_PROMPT },
+                { role: "user", content: additionalPrompt },
+              ],
+              response_format: zodResponseFormat(
+                z.object({
+                  flashcards: z
+                    .array(
+                      z.object({
+                        question: z.string(),
+                        answer: z.string(),
+                      }),
+                    )
+                    .length(missingCount),
+                }),
+                "additional_flashcards",
+              ),
+              max_tokens: 4000,
+            },
+          ) as OpenAI.Chat.Completions.ChatCompletion;
+
+          const additionalContent = additionalResponse.choices[0]?.message?.content;
+          if (additionalContent) {
+            const parsed = JSON.parse(additionalContent);
+            if (parsed.flashcards && Array.isArray(parsed.flashcards)) {
+              engagement.commentStarters.push(...parsed.flashcards);
+              console.log(
+                `Successfully generated ${parsed.flashcards.length} additional flashcards.`,
+              );
+            }
+          }
+        } catch (error) {
+          console.error("Failed to generate additional flashcards:", error);
+        }
+
+        // If we still don't have 50, pad with generic but useful questions
+        while (engagement.commentStarters.length < 50) {
+          const remaining = 50 - engagement.commentStarters.length;
+          engagement.commentStarters.push({
+            question: `What is a key concept or fact from this content that you should remember?`,
+            answer: `Review the transcript to identify important concepts, facts, or principles discussed. Focus on understanding the main ideas and supporting details.`,
+          });
+        }
       }
       
       // If we got more than 50 (shouldn't happen due to schema max), trim to 50

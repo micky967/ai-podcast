@@ -274,4 +274,62 @@ export default defineSchema({
     .index("by_parent", ["parentId"]) // Find all subcategories of a parent
     .index("by_order", ["order"]) // Sort categories by display order
     .index("by_parent_and_order", ["parentId", "order"]), // Get ordered subcategories for a parent
+
+  // Sharing Groups - allows users to share their files with others
+  sharingGroups: defineTable({
+    name: v.optional(v.string()), // Optional group name
+    ownerId: v.string(), // User who created the group (Clerk userId) - wants to share their files
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_owner", ["ownerId"]), // Find all groups owned by a user
+
+  // Group Members - tracks who can see the group owner's files
+  groupMembers: defineTable({
+    groupId: v.id("sharingGroups"), // Reference to sharing group
+    userId: v.string(), // Member's Clerk userId
+    status: v.union(v.literal("active"), v.literal("left")), // Member status
+    addedAt: v.number(), // When member was added
+    addedBy: v.union(v.literal("owner"), v.literal("admin")), // Who added this member
+  })
+    .index("by_group", ["groupId"]) // Find all members of a group
+    .index("by_user", ["userId"]) // Find all groups a user is member of
+    .index("by_group_and_user", ["groupId", "userId"]) // Check if user is in group
+    .index("by_group_and_status", ["groupId", "status"]), // Find active/left members
+
+  // Group Join Requests - tracks requests to join/rejoin groups
+  groupJoinRequests: defineTable({
+    groupId: v.id("sharingGroups"), // Group being requested
+    requesterId: v.string(), // User requesting to join/rejoin (Clerk userId)
+    status: v.union(
+      v.literal("pending"),
+      v.literal("accepted"),
+      v.literal("rejected"),
+    ),
+    requestedAt: v.number(), // When request was made
+    respondedAt: v.optional(v.number()), // When owner responded
+    initiatedBy: v.optional(v.union(v.literal("user"), v.literal("owner"))), // Who initiated: user (user clicked Request) or owner (owner invited)
+  })
+    .index("by_group", ["groupId"]) // Find all requests for a group
+    .index("by_requester", ["requesterId"]) // Find all requests by a user
+    .index("by_group_and_status", ["groupId", "status"]) // Find pending requests
+    .index("by_group_and_requester", ["groupId", "requesterId"]), // Check if request exists
+
+  // User Shares - direct user-to-user file sharing (for future use)
+  userShares: defineTable({
+    requesterId: v.string(), // User requesting share (Clerk userId)
+    recipientId: v.string(), // User being asked (Clerk userId)
+    status: v.union(
+      v.literal("pending"),
+      v.literal("accepted"),
+      v.literal("rejected"),
+    ),
+    initiatedBy: v.union(v.literal("user"), v.literal("admin")), // Who initiated the share
+    requestedAt: v.number(),
+    respondedAt: v.optional(v.number()),
+  })
+    .index("by_requester", ["requesterId"]) // Find shares requested by user
+    .index("by_recipient", ["recipientId"]) // Find shares received by user
+    .index("by_status", ["status"]) // Find pending/accepted shares
+    .index("by_requester_and_recipient", ["requesterId", "recipientId"]), // Check if share exists
 });

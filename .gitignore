@@ -42,3 +42,8 @@ next-env.d.ts
 
 # Links to files
 Links to files/
+
+# Markdown files (ignore all except README.md files)
+*.md
+!README.md
+!**/README.md

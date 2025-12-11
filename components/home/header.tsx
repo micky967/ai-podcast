@@ -9,6 +9,7 @@ import { api } from "@/convex/_generated/api";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { JoinRequestsNotification } from "@/components/sharing/join-requests-notification";
 
 export function Header() {
   const { isSignedIn, userId } = useAuth();
@@ -185,6 +186,8 @@ export function Header() {
                     </Button>
                   </Link>
                 )}
+                {/* Show notification component on dashboard pages */}
+                {isDashboard && <JoinRequestsNotification />}
                 <div className="scale-110 hover:scale-125 transition-transform duration-300">
                   <UserButton afterSignOutUrl="/" />
                 </div>

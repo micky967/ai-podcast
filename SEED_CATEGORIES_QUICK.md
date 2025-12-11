@@ -46,3 +46,6 @@ Look at your terminal where `pnpm dev` is running. You should see:
 
 **Once seeded, visit `/dashboard/categories` to see all 20 medical specialty categories!** 🎉
 
+
+
+

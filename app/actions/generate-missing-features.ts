@@ -45,7 +45,7 @@ export async function generateMissingFeatures(projectId: Id<"projects">) {
   }
 
   // Get project to check what's already generated
-  const project = await convex.query(api.projects.getProject, { projectId });
+  const project = await convex.query(api.projects.getProject, { projectId, userId });
 
   if (!project) {
     throw new Error("Project not found");

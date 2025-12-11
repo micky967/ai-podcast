@@ -20,6 +20,8 @@ interface TabContentProps {
   featureName?: string;
   jobName?: RetryableJob;
   emptyMessage?: string;
+  // If project is shared, bypass plan restrictions (viewer should see owner's content)
+  isShared?: boolean;
 }
 
 /**
@@ -41,9 +43,16 @@ export function TabContent({
   featureName,
   jobName,
   emptyMessage = "No data available",
+  isShared = false,
 }: TabContentProps) {
   // Helper to wrap content with feature gating if needed
+  // For shared projects, bypass plan restrictions - viewer should see owner's content
   const wrapWithProtect = (content: React.ReactNode) => {
+    // If project is shared, show content without plan restrictions
+    if (isShared) {
+      return content;
+    }
+
     if (!feature || !featureName) return content;
 
     return (

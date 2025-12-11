@@ -6,11 +6,26 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 interface EmptyStateProps {
-  message?: string;
+  title?: string;
+  description?: string;
+  message?: string; // Legacy prop for backward compatibility
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
-export function EmptyState({ message }: EmptyStateProps) {
+export function EmptyState({ 
+  title, 
+  description, 
+  message,
+  actionLabel,
+  onAction 
+}: EmptyStateProps) {
   const router = useRouter();
+  
+  // Use title/description if provided, otherwise fall back to message (legacy)
+  const displayTitle = title || "No projects yet";
+  const displayDescription = description || message || "Upload your first podcast to unlock AI-powered insights, summaries, and social content";
+  const showAction = actionLabel && onAction;
   
   return (
     <div className="glass-card rounded-3xl p-12 md:p-16 text-center hover-lift">
@@ -22,22 +37,31 @@ export function EmptyState({ message }: EmptyStateProps) {
           </div>
         </div>
         <h3 className="text-3xl font-bold mb-4 text-gray-900">
-          No projects yet
+          {displayTitle}
         </h3>
         <p className="text-lg text-gray-600 mb-8 leading-relaxed">
-          {message ||
-            "Upload your first podcast to unlock AI-powered insights, summaries, and social content"}
+          {displayDescription}
         </p>
-        <Link 
-          href="/dashboard/upload"
-          prefetch={true}
-          onMouseEnter={() => router.prefetch("/dashboard/upload")}
-        >
-          <Button className="gradient-emerald text-white hover-glow shadow-xl px-8 py-6 text-lg">
+        {showAction ? (
+          <Button 
+            onClick={onAction}
+            className="gradient-emerald text-white hover-glow shadow-xl px-8 py-6 text-lg"
+          >
             <Upload className="mr-2 h-6 w-6" />
-            Upload Your First Podcast
+            {actionLabel}
           </Button>
-        </Link>
+        ) : !title && (
+          <Link 
+            href="/dashboard/upload"
+            prefetch={true}
+            onMouseEnter={() => router.prefetch("/dashboard/upload")}
+          >
+            <Button className="gradient-emerald text-white hover-glow shadow-xl px-8 py-6 text-lg">
+              <Upload className="mr-2 h-6 w-6" />
+              Upload Your First Podcast
+            </Button>
+          </Link>
+        )}
       </div>
     </div>
   );

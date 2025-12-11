@@ -9,6 +9,7 @@ import { api } from "@/convex/_generated/api";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { JoinRequestsNotification } from "@/components/sharing/join-requests-notification";
 
 export function Header() {
   const { isSignedIn, userId } = useAuth();
@@ -195,6 +196,15 @@ export function Header() {
                       Home
                     </Button>
                   </Link>
+                )}
+                {/* Always show notification component on dashboard for debugging */}
+                {isDashboard ? (
+                  <JoinRequestsNotification />
+                ) : (
+                  // Debug: Log when component should render but doesn't
+                  <div style={{ display: 'none' }}>
+                    {console.log("🔔 DEBUG: isDashboard is false, pathname:", pathname)}
+                  </div>
                 )}
                 <div className="scale-110 hover:scale-125 transition-transform duration-300">
                   <UserButton afterSignOutUrl="/" />

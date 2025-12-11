@@ -410,10 +410,42 @@ export const saveJobErrors = mutation({
 export const getProject = query({
   args: {
     projectId: v.id("projects"),
+    userId: v.string(),
   },
   handler: async (ctx, args) => {
-    // Simple ID lookup - Convex makes this extremely fast
-    return await ctx.db.get(args.projectId);
+    const project = await ctx.db.get(args.projectId);
+    
+    if (!project) {
+      return null;
+    }
+
+    // Check if user owns the project
+    if (project.userId === args.userId) {
+      return { ...project, isOwner: true, isShared: false };
+    }
+
+    // Check if user has access via sharing groups
+    // User can see project if they're a member of a group where the project owner is the group owner
+    const userMemberGroups = await ctx.db
+      .query("groupMembers")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .collect();
+
+    // Get the groups the user is a member of
+    const groupIds = userMemberGroups.map((m) => m.groupId);
+    
+    // Check if any of these groups are owned by the project owner
+    for (const groupId of groupIds) {
+      const group = await ctx.db.get(groupId);
+      if (group && group.ownerId === project.userId) {
+        // User has access via sharing group
+        return { ...project, isOwner: false, isShared: true };
+      }
+    }
+
+    // User doesn't have access
+    return null;
   },
 });
 
@@ -459,6 +491,110 @@ export const listUserProjects = query({
       numItems,
       cursor: args.paginationOpts?.cursor ?? null,
     });
+  },
+});
+
+/**
+ * Lists all projects for a user including shared files from groups
+ *
+ * Used by: Projects dashboard page with "All Files" filter
+ *
+ * Includes:
+ * - User's own projects
+ * - Projects from groups where user is an active member (owner's files)
+ *
+ * @param userId - User ID
+ * @param filter - Filter type: "own" | "shared" | "all"
+ * @param paginationOpts - Pagination options
+ */
+export const listUserProjectsWithShared = query({
+  args: {
+    userId: v.string(),
+    filter: v.optional(v.union(v.literal("own"), v.literal("shared"), v.literal("all"))),
+    paginationOpts: v.optional(
+      v.object({
+        numItems: v.number(),
+        cursor: v.optional(v.string()),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const numItems = args.paginationOpts?.numItems ?? 20;
+    const filter = args.filter ?? "all";
+
+    // Get user's own projects
+    const ownProjects = await ctx.db
+      .query("projects")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("deletedAt"), undefined))
+      .collect();
+
+    // Get groups where user is an active member
+    const memberGroups = await ctx.db
+      .query("groupMembers")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .collect();
+
+    // Get group owner IDs
+    const groupIds = memberGroups.map((m) => m.groupId);
+    const groups = await Promise.all(
+      groupIds.map((id) => ctx.db.get(id)),
+    );
+
+    const ownerIds = groups
+      .filter((g) => g !== null)
+      .map((g) => g!.ownerId);
+
+    // Get shared projects (from group owners)
+    const sharedProjects =
+      ownerIds.length > 0
+        ? await Promise.all(
+            ownerIds.map(async (ownerId) => {
+              return await ctx.db
+                .query("projects")
+                .withIndex("by_user", (q) => q.eq("userId", ownerId))
+                .filter((q) => q.eq(q.field("deletedAt"), undefined))
+                .collect();
+            }),
+          )
+        : [];
+
+    const flattenedShared = sharedProjects.flat();
+
+    // Combine and filter based on filter type
+    let allProjects: typeof ownProjects = [];
+    if (filter === "own") {
+      allProjects = ownProjects;
+    } else if (filter === "shared") {
+      allProjects = flattenedShared;
+    } else {
+      // "all" - combine own and shared, remove duplicates
+      const projectIds = new Set<string>();
+      allProjects = [...ownProjects, ...flattenedShared].filter((p) => {
+        if (projectIds.has(p._id)) {
+          return false;
+        }
+        projectIds.add(p._id);
+        return true;
+      });
+    }
+
+    // Sort by newest first
+    allProjects.sort((a, b) => b.createdAt - a.createdAt);
+
+    // Manual pagination
+    const cursor = args.paginationOpts?.cursor;
+    const startIndex = cursor ? parseInt(cursor, 10) : 0;
+    const endIndex = startIndex + numItems;
+    const paginatedProjects = allProjects.slice(startIndex, endIndex);
+    const hasMore = endIndex < allProjects.length;
+
+    return {
+      page: paginatedProjects,
+      continueCursor: hasMore ? endIndex.toString() : null,
+      isDone: !hasMore,
+    };
   },
 });
 

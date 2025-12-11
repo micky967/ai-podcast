@@ -27,12 +27,23 @@ export function CategoryHeader({
   onSearchChange,
 }: CategoryHeaderProps) {
   const router = useRouter();
-  const category = preloadedCategory
-    ? usePreloadedQuery(preloadedCategory)
-    : useQuery(api.categories.getCategory, { categoryId });
-  const subcategory = subcategoryId
-    ? useQuery(api.categories.getCategory, { categoryId: subcategoryId })
-    : null;
+  
+  // Always call hooks unconditionally to avoid "fewer hooks than expected" error
+  // CRITICAL: We must always call the same hooks in the same order
+  // Since usePreloadedQuery requires a valid Preloaded object and can't be called conditionally,
+  // we'll always use useQuery to maintain hook order consistency
+  // Note: This means we're not using the preloaded optimization, but it ensures React hooks work correctly
+  
+  // Always call useQuery for category - always active since we need the category data
+  const category = useQuery(api.categories.getCategory, { categoryId });
+  
+  // Always call useQuery for subcategory - skip if no subcategoryId
+  const subcategoryResult = useQuery(
+    api.categories.getCategory,
+    subcategoryId ? { categoryId: subcategoryId } : "skip"
+  );
+  
+  const subcategory = subcategoryId ? subcategoryResult : null;
 
   return (
     <div className="mb-12">

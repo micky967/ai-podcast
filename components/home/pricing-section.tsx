@@ -2,12 +2,19 @@
 
 import { PricingTable } from "@clerk/nextjs";
 import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface PricingSectionProps {
   compact?: boolean;
 }
 
 export function PricingSection({ compact = false }: PricingSectionProps) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   return (
     <section className="relative py-24 md:py-32 overflow-hidden">
       {/* Gradient background */}
@@ -30,7 +37,17 @@ export function PricingSection({ compact = false }: PricingSectionProps) {
           {/* Pricing Table */}
           <div className="flex justify-center w-full">
             <div className={compact ? "max-w-4xl w-full" : "max-w-5xl w-full"}>
-              <PricingTable
+              {!isMounted ? (
+                <div className="flex items-center justify-center py-20">
+                  <div className="text-center space-y-4 glass-card p-12 rounded-2xl">
+                    <Loader2 className="h-16 w-16 animate-spin text-emerald-600 mx-auto" />
+                    <p className="text-gray-600 text-lg font-medium">
+                      Loading pricing options...
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <PricingTable
                 appearance={{
                   elements: {
                     pricingTableCardHeader: {
@@ -95,17 +112,18 @@ export function PricingSection({ compact = false }: PricingSectionProps) {
                     },
                   },
                 }}
-                fallback={
-                  <div className="flex items-center justify-center py-20">
-                    <div className="text-center space-y-4 glass-card p-12 rounded-2xl">
-                      <Loader2 className="h-16 w-16 animate-spin text-emerald-600 mx-auto" />
-                      <p className="text-gray-600 text-lg font-medium">
-                        Loading pricing options...
-                      </p>
+                  fallback={
+                    <div className="flex items-center justify-center py-20">
+                      <div className="text-center space-y-4 glass-card p-12 rounded-2xl">
+                        <Loader2 className="h-16 w-16 animate-spin text-emerald-600 mx-auto" />
+                        <p className="text-gray-600 text-lg font-medium">
+                          Loading pricing options...
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                }
-              />
+                  }
+                />
+              )}
             </div>
           </div>
         </div>

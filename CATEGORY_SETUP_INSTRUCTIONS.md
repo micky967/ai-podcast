@@ -89,3 +89,6 @@ Once categories are seeded:
 
 **Ready to seed?** Go to Convex Dashboard and run the `seedCategories` function! 🎯
 
+
+
+

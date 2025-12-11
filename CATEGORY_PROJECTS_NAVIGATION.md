@@ -69,3 +69,6 @@ The projects page has been restructured to show categories first, then filtered 
 - Search within categories
 - Sort/filter options on category pages
 
+
+
+

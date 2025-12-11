@@ -27,12 +27,14 @@ import mammoth from "mammoth";
  * @param fileUrl - Public URL to document file (from Vercel Blob)
  * @param projectId - Convex project ID for status updates
  * @param mimeType - MIME type of the file (determines extraction method)
+ * @param userId - User ID for Convex query authorization
  * @returns TranscriptWithExtras - Text content in transcript format
  */
 export async function extractTextFromDocument(
   fileUrl: string,
   projectId: Id<"projects">,
   mimeType: string,
+  userId: string,
 ): Promise<TranscriptWithExtras> {
   console.log(
     `Starting text extraction for project ${projectId} (${mimeType})`,
@@ -229,6 +231,7 @@ export async function extractTextFromDocument(
       // This helps catch any silent failures
       const savedProject = await convex.query(api.projects.getProject, {
         projectId,
+        userId,
       });
       if (!savedProject?.transcript?.text || savedProject.transcript.text.length === 0) {
         throw new Error(

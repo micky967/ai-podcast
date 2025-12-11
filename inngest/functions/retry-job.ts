@@ -25,7 +25,7 @@ export const retryJobFunction = inngest.createFunction(
   { id: "retry-job" },
   { event: "podcast/retry-job" },
   async ({ event, step }) => {
-    const { projectId, job, originalPlan, currentPlan } = event.data;
+    const { projectId, job, originalPlan, currentPlan, userId } = event.data;
 
     // Check if user has upgraded and now has access to this feature
     const currentUserPlan = (currentPlan as PlanName) || "free";
@@ -55,7 +55,10 @@ export const retryJobFunction = inngest.createFunction(
     }
 
     // Get project to access transcript and userId
-    const project = await convex.query(api.projects.getProject, { projectId });
+    if (!userId) {
+      throw new Error("userId is required in event data");
+    }
+    const project = await convex.query(api.projects.getProject, { projectId, userId });
     if (!project) {
       throw new Error("Project not found");
     }
@@ -93,7 +96,7 @@ export const retryJobFunction = inngest.createFunction(
 
     // Get and decrypt user API keys (BYOK support)
     // Keys are stored encrypted in Convex, decrypted server-side here
-    const userId = project.userId;
+    // userId is already available from event.data
     const userApiKeys = await getUserApiKeys(userId);
 
     const openaiApiKey = userApiKeys?.openaiApiKey;

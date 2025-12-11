@@ -167,3 +167,6 @@ When deletion works correctly, you should see:
 ✅ UI: Project disappears from list (filtered out by query)
 ```
 
+
+
+

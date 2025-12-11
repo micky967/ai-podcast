@@ -1,8 +1,11 @@
 "use client";
 
 import { AdminUserList } from "@/components/admin/admin-user-list";
+import { AdminSharing } from "@/components/admin/admin-sharing";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Preloaded } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useAuth } from "@clerk/nextjs";
 
 interface AdminUserProps {
   preloadedIsAdmin: Preloaded<typeof api.userSettings.isUserAdmin>;
@@ -13,6 +16,8 @@ export function AdminUser({
   preloadedIsAdmin,
   preloadedUsers,
 }: AdminUserProps) {
+  const { userId } = useAuth();
+
   return (
     <div className="container max-w-6xl mx-auto py-10 px-12 xl:px-0">
       {/* Header */}
@@ -21,15 +26,26 @@ export function AdminUser({
           <span className="gradient-emerald-text">Admin</span> Dashboard
         </h1>
         <p className="text-lg text-gray-600">
-          Manage user roles and permissions. Only admins can access this page.
+          Manage user roles, permissions, and sharing groups. Only admins can access this page.
         </p>
       </div>
 
-      {/* Admin User List */}
-      <AdminUserList
-        preloadedIsAdmin={preloadedIsAdmin}
-        preloadedUsers={preloadedUsers}
-      />
+      {/* Tabs for different admin sections */}
+      <Tabs defaultValue="users" className="w-full">
+        <TabsList>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="sharing">Sharing Groups</TabsTrigger>
+        </TabsList>
+        <TabsContent value="users">
+          <AdminUserList
+            preloadedIsAdmin={preloadedIsAdmin}
+            preloadedUsers={preloadedUsers}
+          />
+        </TabsContent>
+        <TabsContent value="sharing">
+          {userId && <AdminSharing adminId={userId} />}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

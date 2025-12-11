@@ -49,7 +49,10 @@ export default function ProjectDetailPage() {
   const projectId = id as Id<"projects">;
 
   // Convex is the single source of truth - real-time updates via subscription
-  const project = useQuery(api.projects.getProject, { projectId });
+  const project = useQuery(
+    api.projects.getProject,
+    userId ? { projectId, userId } : "skip"
+  );
 
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
@@ -78,6 +81,13 @@ export default function ProjectDetailPage() {
   };
 
   const handleSaveEdit = async () => {
+    // Prevent editing if not owner
+    if (!project?.isOwner) {
+      toast.error("You can only edit your own projects");
+      setIsEditing(false);
+      return;
+    }
+
     if (!editedName.trim()) {
       toast.error("Project name cannot be empty");
       return;
@@ -99,6 +109,12 @@ export default function ProjectDetailPage() {
 
   // Handle delete
   const handleDelete = async () => {
+    // Prevent deletion if not owner
+    if (!project?.isOwner) {
+      toast.error("You can only delete your own projects");
+      return;
+    }
+
     const confirmed = window.confirm(
       "Are you sure you want to delete this project? This action cannot be undone."
     );
@@ -118,7 +134,8 @@ export default function ProjectDetailPage() {
     }
   };
 
-  if (!project) {
+  // Loading state
+  if (project === undefined) {
     return (
       <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0 overflow-x-hidden">
         <div className="flex items-center justify-center min-h-[400px]">
@@ -128,7 +145,8 @@ export default function ProjectDetailPage() {
     );
   }
 
-  if (project.userId !== userId) {
+  // No access state (project is null)
+  if (project === null) {
     return (
       <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0 overflow-x-hidden">
         <Card>
@@ -141,6 +159,10 @@ export default function ProjectDetailPage() {
       </div>
     );
   }
+
+  // Determine if user is owner or has read-only access via sharing
+  const isOwner = project.isOwner === true;
+  const isShared = project.isShared === true;
 
   const isProcessing = project.status === "processing";
   const isCompleted = project.status === "completed";
@@ -215,32 +237,43 @@ export default function ProjectDetailPage() {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {!isEditing && (
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={handleStartEdit}
-              className="glass-card hover-lift border-2 border-emerald-200 hover:border-emerald-400 px-4 sm:px-6 bg-white"
-            >
-              <Edit2 className="h-4 w-4 sm:mr-2 text-emerald-600" />
-              <span className="hidden sm:inline font-semibold text-emerald-700">Edit</span>
-            </Button>
-          )}
-          <Button
-            size="lg"
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="gradient-emerald text-white hover-glow px-4 sm:px-6 transition-all"
-          >
-            {isDeleting ? (
-              <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />
-            ) : (
-              <Trash2 className="h-4 w-4 sm:mr-2" />
+        {/* Only show Edit/Delete buttons if user owns the project */}
+        {isOwner && (
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {!isEditing && (
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={handleStartEdit}
+                className="glass-card hover-lift border-2 border-emerald-200 hover:border-emerald-400 px-4 sm:px-6 bg-white"
+              >
+                <Edit2 className="h-4 w-4 sm:mr-2 text-emerald-600" />
+                <span className="hidden sm:inline font-semibold text-emerald-700">Edit</span>
+              </Button>
             )}
-            <span className="hidden sm:inline">Delete</span>
-          </Button>
-        </div>
+            <Button
+              size="lg"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="gradient-emerald text-white hover-glow px-4 sm:px-6 transition-all"
+            >
+              {isDeleting ? (
+                <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 sm:mr-2" />
+              )}
+              <span className="hidden sm:inline">Delete</span>
+            </Button>
+          </div>
+        )}
+        {/* Show read-only indicator for shared projects */}
+        {isShared && !isOwner && (
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-sm text-muted-foreground italic">
+              Read-only (Shared project)
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-6">
@@ -290,6 +323,7 @@ export default function ProjectDetailPage() {
                       key={tab.value}
                       tab={tab}
                       project={project}
+                      isShared={isShared}
                     />
                   ))}
                 </SelectContent>
@@ -298,12 +332,13 @@ export default function ProjectDetailPage() {
 
             {/* Desktop Tabs */}
             <div className="glass-card rounded-2xl p-2 mb-6 hidden lg:block overflow-x-auto">
-              <TabsList className="flex flex-wrap gap-2 bg-transparent w-full">
+              <TabsList className="flex flex-nowrap gap-2 bg-transparent w-full min-w-max">
                 {visibleTabs.map((tab) => (
                   <DesktopTabTrigger
                     key={tab.value}
                     tab={tab}
                     project={project}
+                    isShared={isShared}
                   />
                 ))}
               </TabsList>
@@ -317,6 +352,7 @@ export default function ProjectDetailPage() {
                 projectId={projectId}
                 jobName="summary"
                 emptyMessage="No summary available"
+                isShared={isShared}
               >
                 <SummaryTab summary={project.summary} />
               </TabContent>
@@ -334,6 +370,7 @@ export default function ProjectDetailPage() {
                   featureName="Key Moments"
                   jobName="keyMoments"
                   emptyMessage="No key moments detected"
+                  isShared={isShared}
                 >
                   <KeyMomentsTab keyMoments={project.keyMoments} />
                 </TabContent>
@@ -350,6 +387,7 @@ export default function ProjectDetailPage() {
                 featureName="YouTube Timestamps"
                 jobName="youtubeTimestamps"
                 emptyMessage="No YouTube timestamps available"
+                isShared={isShared}
               >
                 <YouTubeTimestampsTab timestamps={project.youtubeTimestamps} />
               </TabContent>
@@ -365,6 +403,7 @@ export default function ProjectDetailPage() {
                 featureName="Social Posts"
                 jobName="socialPosts"
                 emptyMessage="No social posts available"
+                isShared={isShared}
               >
                 <SocialPostsTab socialPosts={project.socialPosts} />
               </TabContent>
@@ -380,6 +419,7 @@ export default function ProjectDetailPage() {
                 featureName="Hashtags"
                 jobName="hashtags"
                 emptyMessage="No hashtags available"
+                isShared={isShared}
               >
                 <HashtagsTab hashtags={project.hashtags} />
               </TabContent>
@@ -395,6 +435,7 @@ export default function ProjectDetailPage() {
                 featureName="AI Title Suggestions"
                 jobName="titles"
                 emptyMessage="No titles available"
+                isShared={isShared}
               >
                 <TitlesTab titles={project.titles} />
               </TabContent>
@@ -410,6 +451,7 @@ export default function ProjectDetailPage() {
                 featureName="Engagement Tools"
                 jobName="engagement"
                 emptyMessage="Please generate the engagement tools here"
+                isShared={isShared}
               >
                 <EngagementTab 
                   engagement={project.engagement}
@@ -421,7 +463,11 @@ export default function ProjectDetailPage() {
             {/* Speaker Dialogue - Only for audio files */}
             {!isDocument && (
               <TabsContent value="speakers" className="space-y-4">
-                <TabContent isLoading={showGenerating} data={project.transcript}>
+                <TabContent
+                  isLoading={showGenerating}
+                  data={project.transcript}
+                  isShared={isShared}
+                >
                   {project.transcript && (
                     <TranscriptTab
                       projectId={projectId}

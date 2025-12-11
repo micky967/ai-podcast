@@ -48,9 +48,13 @@ export default async function ProjectsPage({
   }
 
   // Show all projects if no category filter
-  const preloadedProjects = await preloadQuery(api.projects.listUserProjects, {
-    userId,
-  });
+  const preloadedProjects = await preloadQuery(
+    api.projects.listUserProjectsWithShared,
+    {
+      userId,
+      filter: "all",
+    },
+  );
 
   return <ProjectsList preloadedProjects={preloadedProjects} />;
 }

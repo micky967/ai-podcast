@@ -62,7 +62,7 @@ export const podcastProcessor = inngest.createFunction(
   // Event trigger: sent by server action after upload
   { event: "podcast/uploaded" },
   async ({ event, step }) => {
-    const { projectId, fileUrl, plan: userPlan, mimeType } = event.data;
+    const { projectId, fileUrl, plan: userPlan, mimeType, userId } = event.data;
     const plan = (userPlan as PlanName) || "free"; // Default to free if not provided
 
     console.log(`Processing project ${projectId} for ${plan} plan`);
@@ -70,14 +70,21 @@ export const podcastProcessor = inngest.createFunction(
     try {
       // Get project to retrieve userId, then fetch user API keys (BYOK support)
       const project = await step.run("get-project-for-user-keys", async () => {
-        return await convex.query(api.projects.getProject, { projectId });
+        if (!userId) {
+          throw new Error("userId is required in event data");
+        }
+        return await convex.query(api.projects.getProject, { projectId, userId });
       });
 
       if (!project) {
         throw new Error(`Project ${projectId} not found`);
       }
 
-      const userId = project.userId;
+      // userId is already available from event.data
+      // Verify that the userId from event matches the project's userId for security
+      if (project.userId !== userId) {
+        throw new Error("Project userId does not match event userId");
+      }
 
       // Determine if this is a document file
       const isDocument =
@@ -139,7 +146,7 @@ export const podcastProcessor = inngest.createFunction(
         isDocument ? "extract-text-from-document" : "transcribe-audio",
         () => {
           if (isDocument) {
-            return extractTextFromDocument(fileUrl, projectId, mimeType);
+            return extractTextFromDocument(fileUrl, projectId, mimeType, userId);
           } else {
             return transcribeWithAssemblyAI(
               fileUrl,

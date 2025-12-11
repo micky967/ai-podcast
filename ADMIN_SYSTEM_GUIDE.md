@@ -196,3 +196,6 @@ If a user doesn't have a `userSettings` record:
 - `convex/userSettings.ts` - `setUserRole` mutation and `isUserAdmin` query
 - `convex/projects.ts` - `deleteProject` mutation with admin check
 
+
+
+
