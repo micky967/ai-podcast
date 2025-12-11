@@ -14,35 +14,16 @@ import { api } from "@/convex/_generated/api";
 import { useAuth } from "@clerk/nextjs";
 import { respondToJoinRequestAction, acceptInvitationAction, declineInvitationAction } from "@/app/actions/sharing";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import { getCurrentPlan } from "@/lib/client-tier-utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function JoinRequestsNotification() {
   const { userId, has } = useAuth();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [requestNames, setRequestNames] = useState<Map<string, string>>(new Map());
   const [respondingRequests, setRespondingRequests] = useState<Set<string>>(new Set());
   // Track accepted/declined requests locally to immediately hide them
   const [processedRequests, setProcessedRequests] = useState<Set<string>>(new Set());
-
-  // CRITICAL DEBUG: Log immediately when component function is called
-  console.log("🔔 JoinRequestsNotification FUNCTION CALLED:", { 
-    userId, 
-    hasUserId: !!userId,
-    timestamp: new Date().toISOString(),
-    location: typeof window !== 'undefined' ? window.location.pathname : 'server'
-  });
-
-  // Debug: Log component render - ALWAYS log to verify component is rendering
-  useEffect(() => {
-    console.log("🔔 JoinRequestsNotification MOUNTED (useEffect):", { 
-      userId, 
-      hasUserId: !!userId,
-      timestamp: new Date().toISOString()
-    });
-  }, [userId]);
 
   // Get requests as owner (requests received for groups I own)
   const pendingCountAsOwner = useQuery(
@@ -195,27 +176,6 @@ export function JoinRequestsNotification() {
   const hasUnviewedRecentResponses = hasRecentResponses && 
     recentResponses.some((r) => !viewedResponseIds.has(r.requestId));
 
-  // Debug logging (removed pendingRequests from dependencies to prevent infinite loops)
-  useEffect(() => {
-    console.log("🔔 Join Requests Notification Debug:", {
-      userId,
-      pendingCount,
-      pendingCountAsOwner,
-      pendingCountAsRequester,
-      pendingRequestsLength: pendingRequests?.length,
-      pendingRequestsAsOwnerLength: pendingRequestsAsOwner?.length,
-      pendingRequestsAsRequesterLength: pendingRequestsAsRequester?.length,
-      recentResponsesLength: recentResponses?.length,
-      open,
-      queryCalled: userId ? "YES" : "NO",
-      pendingRequestsAsOwner: pendingRequestsAsOwner?.map((r) => ({
-        requestId: r.requestId,
-        requesterId: r.requesterId,
-        groupName: r.groupName,
-      })),
-    });
-  }, [userId, pendingCount, pendingCountAsOwner, pendingCountAsRequester, pendingRequestsAsOwner, pendingRequestsAsRequester, recentResponses, open]);
-
   // Fetch requester names (for both pending requests and recent responses)
   useEffect(() => {
     const allRequesterIds = new Set<string>();
@@ -342,8 +302,7 @@ export function JoinRequestsNotification() {
         });
         // Close popover immediately to prevent double-clicks
         setOpen(false);
-        // Convex queries will update reactively - no need for router.refresh()
-        // The badge count will automatically update when the request status changes
+        // Convex queries will update reactively - the badge count will automatically update when the request status changes
       } else {
         toast.error(result.error || "Failed to respond to request");
       }
@@ -359,10 +318,6 @@ export function JoinRequestsNotification() {
   };
 
 
-  // Always show the bell icon for debugging - shows count even if 0
-  // This helps us see if the component is rendering and what the count is
-  console.log("🔔 Rendering bell icon:", { pendingCount, userId });
-  
   // Always show bell icon if user is logged in
   if (!shouldShowBell) {
     return null;

@@ -61,35 +61,13 @@ export function SharingGroupCard({ group }: SharingGroupCardProps) {
                     deletePermission?.idsMatch === true &&
                     deletePermission?.groupOwnerId === deletePermission?.requesterId; // Extra explicit check
 
-  // Enhanced debug logging - ALWAYS log to help debug security issues
-  if (deletePermission !== undefined) {
-    console.log("🔒 SECURITY CHECK - Delete Permission:", {
-      groupId: group.groupId,
-      groupName: group.name,
-      "⚠️ CLIENT currentUserId": currentUserId?.trim(),
-      "⚠️ CLIENT group.ownerId (from getUserGroups)": group.ownerId?.trim(),
-      "✅ SERVER groupOwnerId (from DB)": deletePermission.groupOwnerId,
-      "✅ SERVER requesterId": deletePermission.requesterId,
-      "✅ SERVER canDelete": deletePermission.canDelete,
-      "✅ SERVER isGroupOwner": deletePermission.isGroupOwner,
-      "✅ SERVER idsMatch": deletePermission.idsMatch,
-      "✅ SERVER ownerId length": deletePermission.ownerIdLength,
-      "✅ SERVER requesterId length": deletePermission.requesterIdLength,
-      "✅ SERVER ownerId first 10 chars": deletePermission.ownerIdFirst10,
-      "✅ SERVER requesterId first 10 chars": deletePermission.requesterIdFirst10,
-      "🔍 IDs Match?": deletePermission.groupOwnerId === deletePermission.requesterId,
-      "🚨 FINAL canDelete": canDelete,
-      "🚨 BUTTON WILL SHOW": canDelete,
+  // Security check: If IDs don't match but canDelete is true, log a warning
+  if (deletePermission !== undefined && deletePermission.groupOwnerId !== deletePermission.requesterId && deletePermission.canDelete) {
+    console.error("Security warning: IDs don't match but canDelete is true", {
+      groupOwnerId: deletePermission.groupOwnerId,
+      requesterId: deletePermission.requesterId,
+      isAppOwner: deletePermission.isAppOwner,
     });
-    
-    // CRITICAL: If IDs don't match but canDelete is true, log a warning
-    if (deletePermission.groupOwnerId !== deletePermission.requesterId && deletePermission.canDelete) {
-      console.error("🚨 SECURITY WARNING: IDs don't match but canDelete is true!", {
-        groupOwnerId: deletePermission.groupOwnerId,
-        requesterId: deletePermission.requesterId,
-        isAppOwner: deletePermission.isAppOwner,
-      });
-    }
   }
 
   const handleLeaveClick = () => {

@@ -197,15 +197,8 @@ export function Header() {
                     </Button>
                   </Link>
                 )}
-                {/* Always show notification component on dashboard for debugging */}
-                {isDashboard ? (
-                  <JoinRequestsNotification />
-                ) : (
-                  // Debug: Log when component should render but doesn't
-                  <div style={{ display: 'none' }}>
-                    {console.log("🔔 DEBUG: isDashboard is false, pathname:", pathname)}
-                  </div>
-                )}
+                {/* Show notification component on dashboard pages */}
+                {isDashboard && <JoinRequestsNotification />}
                 <div className="scale-110 hover:scale-125 transition-transform duration-300">
                   <UserButton afterSignOutUrl="/" />
                 </div>
