@@ -1,7 +1,12 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +17,12 @@ import { useEffect, useState, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users, Crown, UserPlus, Search, X } from "lucide-react";
 import type { Id } from "@/convex/_generated/dataModel";
-import { inviteUserAction, addMemberAction, removeMemberAction, respondToJoinRequestAction } from "@/app/actions/sharing";
+import {
+  inviteUserAction,
+  addMemberAction,
+  removeMemberAction,
+  respondToJoinRequestAction,
+} from "@/app/actions/sharing";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { getCurrentPlan } from "@/lib/client-tier-utils";
@@ -47,7 +57,7 @@ export function GroupMembersModal({
     api.sharingGroups.getGroupDetails,
     currentUserId && open ? { groupId, userId: currentUserId } : "skip"
   );
-  
+
   // Get pending join requests (only for owners)
   const pendingRequests = useQuery(
     api.sharingGroups.getPendingJoinRequests,
@@ -55,26 +65,28 @@ export function GroupMembersModal({
       ? { groupId, ownerId: currentUserId }
       : "skip"
   );
-  
+
   // Check if current user has "owner" role (app owner)
   const userRole = useQuery(
     api.userSettings.getUserRole,
     currentUserId ? { userId: currentUserId } : "skip"
   );
   const isAppOwner = userRole === "owner";
-  
+
   // Can remove members if group owner OR app owner
   const canRemoveMembers = isOwner || isAppOwner;
 
   const [userNames, setUserNames] = useState<Map<string, string>>(new Map());
   const [showAddMember, setShowAddMember] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Array<{
-    userId: string;
-    name: string;
-    email: string | null;
-    imageUrl: string | null;
-  }>>([]);
+  const [searchResults, setSearchResults] = useState<
+    Array<{
+      userId: string;
+      name: string;
+      email: string | null;
+      imageUrl: string | null;
+    }>
+  >([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -84,8 +96,12 @@ export function GroupMembersModal({
     email: string | null;
     imageUrl: string | null;
   } | null>(null);
-  const [requestNames, setRequestNames] = useState<Map<string, string>>(new Map());
-  const [respondingRequests, setRespondingRequests] = useState<Set<string>>(new Set());
+  const [requestNames, setRequestNames] = useState<Map<string, string>>(
+    new Map()
+  );
+  const [respondingRequests, setRespondingRequests] = useState<Set<string>>(
+    new Set()
+  );
 
   // Fetch user names from Clerk
   useEffect(() => {
@@ -97,7 +113,7 @@ export function GroupMembersModal({
         groupDetails.ownerId,
         ...groupDetails.members.map((m) => m.userId),
       ];
-      
+
       // Add pending request user IDs
       if (pendingRequests) {
         pendingRequests.forEach((req) => {
@@ -129,7 +145,7 @@ export function GroupMembersModal({
       });
 
       setUserNames(names);
-      
+
       // Also set request names separately (using the same results)
       if (pendingRequests) {
         const reqNames = new Map<string, string>();
@@ -160,7 +176,9 @@ export function GroupMembersModal({
 
       setIsSearching(true);
       try {
-        const response = await fetch(`/api/users/search?q=${encodeURIComponent(searchQuery.trim())}`);
+        const response = await fetch(
+          `/api/users/search?q=${encodeURIComponent(searchQuery.trim())}`
+        );
         if (response.ok) {
           const data = await response.json();
           setSearchResults(data.users || []);
@@ -219,7 +237,11 @@ export function GroupMembersModal({
 
   const ownerName = userNames.get(groupDetails.ownerId) || groupDetails.ownerId;
   const allMembers = [
-    { userId: groupDetails.ownerId, addedAt: groupDetails.createdAt, addedBy: "owner" as const },
+    {
+      userId: groupDetails.ownerId,
+      addedAt: groupDetails.createdAt,
+      addedBy: "owner" as const,
+    },
     ...groupDetails.members,
   ];
 
@@ -261,10 +283,13 @@ export function GroupMembersModal({
                 </Button>
               )}
             </div>
-            
+
             {showAddMember && isOwner && (
               <div className="mb-4 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
-                <Label htmlFor="memberSearch" className="text-sm font-medium mb-2 block">
+                <Label
+                  htmlFor="memberSearch"
+                  className="text-sm font-medium mb-2 block"
+                >
                   Search Users by Name or Email
                 </Label>
                 <div className="relative">
@@ -292,7 +317,7 @@ export function GroupMembersModal({
                       </button>
                     )}
                   </div>
-                  
+
                   {/* Search Results Dropdown */}
                   {searchQuery.trim().length >= 2 && !selectedUserId && (
                     <div className="absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -306,8 +331,9 @@ export function GroupMembersModal({
                             const isAlreadyMember = groupDetails.members.some(
                               (m) => m.userId === user.userId
                             );
-                            const isOwner = groupDetails.ownerId === user.userId;
-                            
+                            const isOwner =
+                              groupDetails.ownerId === user.userId;
+
                             return (
                               <button
                                 key={user.userId}
@@ -320,7 +346,9 @@ export function GroupMembersModal({
                                     setSearchResults([]); // Clear results
                                   }
                                 }}
-                                disabled={isAlreadyMember || isOwner || isAdding}
+                                disabled={
+                                  isAlreadyMember || isOwner || isAdding
+                                }
                                 className={`w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center gap-3 ${
                                   selectedUserId === user.userId
                                     ? "bg-emerald-50 border-l-4 border-emerald-500"
@@ -349,12 +377,18 @@ export function GroupMembersModal({
                                   )}
                                 </div>
                                 {isAlreadyMember && (
-                                  <Badge variant="secondary" className="text-xs">
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
                                     Member
                                   </Badge>
                                 )}
                                 {isOwner && (
-                                  <Badge variant="secondary" className="text-xs">
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
                                     Owner
                                   </Badge>
                                 )}
@@ -370,7 +404,7 @@ export function GroupMembersModal({
                     </div>
                   )}
                 </div>
-                
+
                 {/* Selected User Display and Add Button */}
                 {selectedUserId && selectedUserInfo && (
                   <div className="mt-3 space-y-2">
@@ -406,15 +440,19 @@ export function GroupMembersModal({
                               ownerPlan,
                             });
                             if (result.success) {
-                            toast.success("Invitation sent! The user will see the request in their notifications.");
-                            setSearchQuery("");
-                            setSearchResults([]);
-                            setSelectedUserId(null);
-                            setSelectedUserInfo(null);
-                            setShowAddMember(false);
-                            router.refresh();
+                              toast.success(
+                                "Invitation sent! The user will see the request in their notifications."
+                              );
+                              setSearchQuery("");
+                              setSearchResults([]);
+                              setSelectedUserId(null);
+                              setSelectedUserInfo(null);
+                              setShowAddMember(false);
+                              router.refresh();
                             } else {
-                              toast.error(result.error || "Failed to invite user");
+                              toast.error(
+                                result.error || "Failed to invite user"
+                              );
                             }
                           } catch (error) {
                             toast.error("Failed to invite user");
@@ -443,9 +481,10 @@ export function GroupMembersModal({
                     </div>
                   </div>
                 )}
-                
+
                 <p className="text-xs text-gray-500 mt-2">
-                  Type at least 2 characters to search for users by name or email.
+                  Type at least 2 characters to search for users by name or
+                  email.
                 </p>
               </div>
             )}
@@ -464,7 +503,9 @@ export function GroupMembersModal({
                       <span className="text-sm flex-1">{memberName}</span>
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-xs">
-                          {member.addedBy === "admin" ? "Added by Admin" : "Member"}
+                          {member.addedBy === "admin"
+                            ? "Added by Admin"
+                            : "Member"}
                         </Badge>
                         {canRemoveMembers && !isCurrentUser && (
                           <Button
@@ -488,7 +529,9 @@ export function GroupMembersModal({
                                   toast.success("Member removed successfully");
                                   router.refresh();
                                 } else {
-                                  toast.error(result.error || "Failed to remove member");
+                                  toast.error(
+                                    result.error || "Failed to remove member"
+                                  );
                                 }
                               } catch (error) {
                                 toast.error("Failed to remove member");
@@ -514,4 +557,3 @@ export function GroupMembersModal({
     </Dialog>
   );
 }
-

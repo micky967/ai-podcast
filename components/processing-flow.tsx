@@ -1,11 +1,13 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
 import { ChevronDown, FileText, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GenerationOutputItem } from "@/components/processing-flow/generation-output-item";
 import { PhaseCard } from "@/components/processing-flow/phase-card";
 import { Badge } from "@/components/ui/badge";
+import { api } from "@/convex/_generated/api";
 import {
   ANIMATION_INTERVAL_MS,
   GENERATION_OUTPUTS,
@@ -42,7 +44,13 @@ export function ProcessingFlow({
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
     mimeType === "text/plain";
   // Get user's current plan from Clerk
-  const { has } = useAuth();
+  const { has, userId } = useAuth();
+
+  // Check if user is owner - owners bypass plan restrictions
+  const isOwner = useQuery(
+    api.userSettings.isUserOwner,
+    userId ? { userId } : "skip"
+  );
 
   // Determine user's plan using Clerk's has() method
   const userPlan = useMemo(() => {
@@ -59,7 +67,11 @@ export function ProcessingFlow({
   const generationComplete = generationStatus === "completed";
 
   // Get features available for user's plan
-  const availableFeatures = useMemo(() => PLAN_FEATURES[userPlan], [userPlan]);
+  // Owners get all features (treat as ultra plan)
+  const availableFeatures = useMemo(
+    () => (isOwner ? PLAN_FEATURES.ultra : PLAN_FEATURES[userPlan]),
+    [userPlan, isOwner]
+  );
 
   // Process all outputs and mark which are locked
   const processedOutputs = useMemo(() => {
@@ -68,8 +80,9 @@ export function ProcessingFlow({
       Summary: FEATURES.SUMMARY,
       "Key Moments": FEATURES.KEY_MOMENTS,
       "Social Posts": FEATURES.SOCIAL_POSTS,
-      Titles: FEATURES.TITLES,
       Hashtags: FEATURES.HASHTAGS,
+      Titles: FEATURES.TITLES,
+      PowerPoint: FEATURES.POWERPOINT,
       "YouTube Timestamps": FEATURES.YOUTUBE_TIMESTAMPS,
     };
 
@@ -78,7 +91,6 @@ export function ProcessingFlow({
       "Key Moments",
       "YouTube Timestamps",
       "Social Posts",
-      "Hashtags",
     ];
 
     return GENERATION_OUTPUTS.map((output) => {
@@ -110,18 +122,18 @@ export function ProcessingFlow({
   // Only unlocked outputs cycle through animation
   const unlockedOutputs = useMemo(
     () => processedOutputs.filter((o) => !o.isLocked),
-    [processedOutputs],
+    [processedOutputs]
   );
 
   // Memoize expensive calculations
   const timeEstimate = useMemo(
     () => estimateAssemblyAITime(fileDuration),
-    [fileDuration],
+    [fileDuration]
   );
 
   const timeRangeText = useMemo(
     () => formatTimeRange(timeEstimate.bestCase, timeEstimate.conservative),
-    [timeEstimate.bestCase, timeEstimate.conservative],
+    [timeEstimate.bestCase, timeEstimate.conservative]
   );
 
   const [transcriptionProgress, setTranscriptionProgress] = useState(0);
@@ -167,7 +179,9 @@ export function ProcessingFlow({
     if (!transcriptionComplete) return "Waiting for analysis...";
     const unlockedCount = unlockedOutputs.length;
     if (isGenerating)
-      return `Generating ${unlockedCount} AI output${unlockedCount !== 1 ? "s" : ""} in parallel...`;
+      return `Generating ${unlockedCount} AI output${
+        unlockedCount !== 1 ? "s" : ""
+      } in parallel...`;
     if (generationComplete) return "All content generated!";
     return "Starting generation...";
   }, [

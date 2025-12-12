@@ -38,7 +38,7 @@ function escapeCsvField(field: string): string {
  * Convert comment starters to CSV format (comma-separated)
  */
 function convertToCSV(
-  commentStarters: Array<{ question: string; answer: string }>,
+  commentStarters: Array<{ question: string; answer: string }>
 ): string {
   // CSV header
   const header = "Question,Answer\n";
@@ -60,7 +60,7 @@ function convertToCSV(
  * Anki format: Tab-separated with "Front" and "Back" columns
  */
 function convertToAnkiCSV(
-  commentStarters: Array<{ question: string; answer: string }>,
+  commentStarters: Array<{ question: string; answer: string }>
 ): string {
   // Anki format uses tab-separated values
   // Headers: Front (question) and Back (answer)
@@ -85,20 +85,20 @@ function convertToAnkiCSV(
 function downloadCSV(csvContent: string, filename: string) {
   // Create blob with CSV content
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  
+
   // Create download link
   const link = document.createElement("a");
   const url = URL.createObjectURL(blob);
-  
+
   link.setAttribute("href", url);
   link.setAttribute("download", filename);
   link.style.visibility = "hidden";
-  
+
   // Trigger download
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  
+
   // Clean up URL object
   URL.revokeObjectURL(url);
 }
@@ -113,17 +113,17 @@ export function EngagementTab({ engagement, projectName }: EngagementTabProps) {
     try {
       // Convert comment starters to CSV
       const csvContent = convertToCSV(engagement.commentStarters);
-      
+
       // Generate filename
       const sanitizedProjectName = projectName
         ? projectName.replace(/[^a-z0-9]/gi, "_").toLowerCase()
         : "comment-starters";
       const timestamp = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
       const filename = `${sanitizedProjectName}-comment-starters-${timestamp}.csv`;
-      
+
       // Download CSV
       downloadCSV(csvContent, filename);
-      
+
       toast.success("Comment starters exported to CSV!");
     } catch (error) {
       console.error("Error exporting CSV:", error);
@@ -135,17 +135,17 @@ export function EngagementTab({ engagement, projectName }: EngagementTabProps) {
     try {
       // Convert comment starters to Anki-formatted CSV
       const ankiContent = convertToAnkiCSV(engagement.commentStarters);
-      
+
       // Generate filename
       const sanitizedProjectName = projectName
         ? projectName.replace(/[^a-z0-9]/gi, "_").toLowerCase()
         : "comment-starters";
       const timestamp = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
       const filename = `${sanitizedProjectName}-comment-starters-anki-${timestamp}.csv`;
-      
+
       // Download Anki CSV (still uses .csv extension for Anki import)
       downloadCSV(ankiContent, filename);
-      
+
       toast.success("Comment starters exported to Anki CSV format!");
     } catch (error) {
       console.error("Error exporting Anki CSV:", error);
@@ -173,7 +173,7 @@ export function EngagementTab({ engagement, projectName }: EngagementTabProps) {
               copy(
                 engagement.pinComment,
                 "pin-comment",
-                "Pin comment copied to clipboard!",
+                "Pin comment copied to clipboard!"
               )
             }
             className="shrink-0 gradient-emerald text-white hover-glow shadow-lg gap-2"
@@ -198,12 +198,12 @@ export function EngagementTab({ engagement, projectName }: EngagementTabProps) {
         </div>
       </div>
 
-      {/* Comment Starters with Answers */}
+      {/* Questions & Answers */}
       <div className="glass-card rounded-2xl p-6 md:p-8">
         <div className="flex flex-col sm:flex-row items-start justify-between mb-4 md:mb-6 gap-4">
           <div>
             <h3 className="text-xl md:text-2xl font-bold mb-2 gradient-emerald-text">
-              Comment Starters with Answers
+              Questions & Answers
             </h3>
             <p className="text-sm text-gray-600">
               Anticipated questions to prime engagement - click any question to
@@ -256,7 +256,7 @@ export function EngagementTab({ engagement, projectName }: EngagementTabProps) {
                             copy(
                               item.question,
                               `question-${idx}`,
-                              "Question copied!",
+                              "Question copied!"
                             )
                           }
                           className="border-emerald-300 hover:bg-emerald-50"
@@ -367,7 +367,7 @@ export function EngagementTab({ engagement, projectName }: EngagementTabProps) {
                   copy(
                     engagement.descriptions.short,
                     "desc-short",
-                    "Short description copied!",
+                    "Short description copied!"
                   )
                 }
                 className="shrink-0 gradient-emerald text-white hover-glow shadow-lg gap-2"
@@ -409,7 +409,7 @@ export function EngagementTab({ engagement, projectName }: EngagementTabProps) {
                   copy(
                     engagement.descriptions.medium,
                     "desc-medium",
-                    "Medium description copied!",
+                    "Medium description copied!"
                   )
                 }
                 className="shrink-0 gradient-emerald text-white hover-glow shadow-lg gap-2"
@@ -451,7 +451,7 @@ export function EngagementTab({ engagement, projectName }: EngagementTabProps) {
                   copy(
                     engagement.descriptions.long,
                     "desc-long",
-                    "Long description copied!",
+                    "Long description copied!"
                   )
                 }
                 className="shrink-0 gradient-emerald text-white hover-glow shadow-lg gap-2"

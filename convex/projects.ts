@@ -283,15 +283,6 @@ export const saveGeneratedContent = mutation({
         seoKeywords: v.array(v.string()),
       }),
     ),
-    hashtags: v.optional(
-      v.object({
-        youtube: v.array(v.string()),
-        instagram: v.array(v.string()),
-        tiktok: v.array(v.string()),
-        linkedin: v.array(v.string()),
-        twitter: v.array(v.string()),
-      }),
-    ),
     youtubeTimestamps: v.optional(
       v.array(
         v.object({
@@ -299,6 +290,39 @@ export const saveGeneratedContent = mutation({
           description: v.string(),
         }),
       ),
+    ),
+    powerPoint: v.optional(
+      v.object({
+        status: v.union(
+          v.literal("pending"),
+          v.literal("running"),
+          v.literal("completed"),
+          v.literal("failed"),
+        ),
+        template: v.optional(v.string()),
+        summary: v.optional(v.string()),
+        slides: v.optional(
+          v.array(
+            v.object({
+              title: v.string(),
+              bullets: v.array(v.string()),
+              notes: v.optional(v.string()),
+              visualHint: v.optional(v.string()),
+              layout: v.optional(
+                v.union(
+                  v.literal("title"),
+                  v.literal("bullets"),
+                  v.literal("quote"),
+                  v.literal("two-column"),
+                ),
+              ),
+            }),
+          ),
+        ),
+        downloadUrl: v.optional(v.string()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+      }),
     ),
     engagement: v.optional(
       v.object({
@@ -317,11 +341,21 @@ export const saveGeneratedContent = mutation({
         }),
       }),
     ),
+    // Legacy field - kept for backward compatibility, will be ignored
+    hashtags: v.optional(
+      v.object({
+        instagram: v.array(v.string()),
+        linkedin: v.array(v.string()),
+        tiktok: v.array(v.string()),
+        twitter: v.array(v.string()),
+        youtube: v.array(v.string()),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const { projectId, ...content } = args;
 
-    // Spread all optional content fields (summary, keyMoments, socialPosts, etc.)
+    // Spread all optional content fields (summary, keyMoments, socialPosts, powerPoint, hashtags, etc.)
     // Only provided fields are updated, others remain unchanged
     await ctx.db.patch(projectId, {
       ...content,
@@ -378,15 +412,15 @@ export const recordError = mutation({
 export const saveJobErrors = mutation({
   args: {
     projectId: v.id("projects"),
-    jobErrors: v.object({
-      keyMoments: v.optional(v.string()),
-      summary: v.optional(v.string()),
-      socialPosts: v.optional(v.string()),
-      titles: v.optional(v.string()),
-      hashtags: v.optional(v.string()),
-      youtubeTimestamps: v.optional(v.string()),
-      engagement: v.optional(v.string()),
-    }),
+      jobErrors: v.object({
+        keyMoments: v.optional(v.string()),
+        summary: v.optional(v.string()),
+        socialPosts: v.optional(v.string()),
+        titles: v.optional(v.string()),
+        powerPoint: v.optional(v.string()),
+        youtubeTimestamps: v.optional(v.string()),
+        engagement: v.optional(v.string()),
+      }),
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.projectId, {

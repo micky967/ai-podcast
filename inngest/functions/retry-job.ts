@@ -14,6 +14,7 @@ import { inngest } from "../client";
 import { generateEngagement } from "../steps/ai-generation/engagement";
 import { generateHashtags } from "../steps/ai-generation/hashtags";
 import { generateKeyMoments } from "../steps/ai-generation/key-moments";
+import { generatePowerPoint } from "../steps/ai-generation/powerpoint";
 import { generateSocialPosts } from "../steps/ai-generation/social-posts";
 import { generateSummary } from "../steps/ai-generation/summary";
 import { generateTitles } from "../steps/ai-generation/titles";
@@ -27,6 +28,14 @@ export const retryJobFunction = inngest.createFunction(
   async ({ event, step }) => {
     const { projectId, job, originalPlan, currentPlan, userId } = event.data;
 
+    // Check if user is owner - owners bypass plan restrictions
+    const isOwner = await step.run("check-user-owner", async () => {
+      if (!userId) {
+        return false;
+      }
+      return await convex.query(api.userSettings.isUserOwner, { userId });
+    });
+
     // Check if user has upgraded and now has access to this feature
     const currentUserPlan = (currentPlan as PlanName) || "free";
     const originalUserPlan = (originalPlan as PlanName) || "free";
@@ -36,9 +45,10 @@ export const retryJobFunction = inngest.createFunction(
       Object.entries(FEATURE_TO_JOB_MAP).map(([k, v]) => [v, k]),
     );
 
-    // Check if user has access to this feature with current plan
+    // Check if user has access to this feature with current plan (owners bypass)
     const featureKey = jobToFeature[job];
     if (
+      !isOwner &&
       featureKey &&
       !planHasFeature(currentUserPlan, featureKey as FeatureName)
     ) {
@@ -82,12 +92,11 @@ export const retryJobFunction = inngest.createFunction(
 
     // For documents, certain jobs are not applicable
     if (isDocument) {
-      if (
-        job === "keyMoments" ||
-        job === "youtubeTimestamps" ||
-        job === "socialPosts" ||
-        job === "hashtags"
-      ) {
+    if (
+      job === "keyMoments" ||
+      job === "youtubeTimestamps" ||
+      job === "socialPosts"
+    ) {
         throw new Error(
           `${job} is not available for document files. This feature requires audio content with timestamps.`,
         );
@@ -150,7 +159,7 @@ export const retryJobFunction = inngest.createFunction(
       }
     }
 
-    // Other jobs (summary, socialPosts, titles, hashtags) can work with just text
+    // Other jobs (summary, socialPosts, titles, powerPoint) can work with just text
     // They will use chapters if available for better context, but don't require them
 
     // Regenerate the specific job
@@ -193,6 +202,17 @@ export const retryJobFunction = inngest.createFunction(
           break;
         }
 
+        case "hashtags": {
+          const result = await generateHashtags(step, transcript, openaiApiKey);
+          await step.run("save-hashtags", () =>
+            convex.mutation(api.projects.saveGeneratedContent, {
+              projectId,
+              hashtags: result,
+            }),
+          );
+          break;
+        }
+
         case "titles": {
           const result = await generateTitles(step, transcript, openaiApiKey);
           await step.run("save-titles", () =>
@@ -204,12 +224,27 @@ export const retryJobFunction = inngest.createFunction(
           break;
         }
 
-        case "hashtags": {
-          const result = await generateHashtags(step, transcript, openaiApiKey);
-          await step.run("save-hashtags", () =>
+        case "powerPoint": {
+          const result = await generatePowerPoint(
+            step,
+            transcript,
+            isDocument ? "document" : "audio",
+            openaiApiKey,
+          );
+          // Transform PowerPoint AI output to match Convex schema
+          const powerPointForConvex = {
+            status: "completed" as const,
+            template: result.theme,
+            summary: result.summary,
+            slides: result.slides,
+            downloadUrl: undefined,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          await step.run("save-powerpoint", () =>
             convex.mutation(api.projects.saveGeneratedContent, {
               projectId,
-              hashtags: result,
+              powerPoint: powerPointForConvex,
             }),
           );
           break;

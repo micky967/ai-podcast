@@ -8,7 +8,7 @@
  *
  * Feature Gating by Plan:
  * - FREE: Summary only
- * - PRO: + Social Posts, Titles, Hashtags
+ * - PRO: + Social Posts, Titles, PowerPoint Outlines
  * - ULTRA: + YouTube Timestamps, Key Moments, Full Transcript Access
  *
  * Note: Audio analysis (transcription) runs for ALL users to power AI features.
@@ -42,6 +42,7 @@ import type { PlanName } from "@/lib/tier-config";
 import { generateEngagement } from "../steps/ai-generation/engagement";
 import { generateHashtags } from "../steps/ai-generation/hashtags";
 import { generateKeyMoments } from "../steps/ai-generation/key-moments";
+import { generatePowerPoint } from "../steps/ai-generation/powerpoint";
 import { generateSocialPosts } from "../steps/ai-generation/social-posts";
 import { generateSummary } from "../steps/ai-generation/summary";
 import { generateTitles } from "../steps/ai-generation/titles";
@@ -97,6 +98,15 @@ export const podcastProcessor = inngest.createFunction(
       console.log(
         `[FILE TYPE] mimeType="${mimeType}", isDocument=${isDocument}, plan=${plan}`,
       );
+
+      // Check if user is owner - owners bypass plan restrictions
+      const isOwner = await step.run("check-user-owner", async () => {
+        return await convex.query(api.userSettings.isUserOwner, { userId });
+      });
+
+      if (isOwner) {
+        console.log(`[OWNER ACCESS] User ${userId} is owner - bypassing plan restrictions`);
+      }
 
       // Get and decrypt user API keys (BYOK - Bring Your Own Key)
       // Keys are stored encrypted in Convex, decrypted server-side here
@@ -188,24 +198,44 @@ export const podcastProcessor = inngest.createFunction(
       jobs.push(generateSummary(step, transcript, openaiApiKey));
       jobNames.push("summary");
 
-      // For documents, skip certain features (YouTube timestamps, social posts, hashtags, key moments)
+      // PowerPoint export for PRO/ULTRA plans and owners (audio + document support)
+      // Owners can generate PowerPoint regardless of their plan
+      if (plan === "pro" || plan === "ultra" || isOwner) {
+        if (isOwner && plan === "free") {
+          console.log(`[OWNER ACCESS] Generating PowerPoint for owner on ${plan} plan`);
+        }
+        jobs.push(
+          generatePowerPoint(
+            step,
+            transcript,
+            isDocument ? "document" : "audio",
+            openaiApiKey,
+          ),
+        );
+        jobNames.push("powerPoint");
+      }
+
+      // For documents, skip certain features (YouTube timestamps, social posts, key moments)
       // Documents don't have timestamps or need social media optimization
       if (!isDocument) {
         // AUDIO FILES: Generate all features based on plan
         console.log(`[AUDIO FILE] Generating audio-specific features for ${plan} plan`);
-        
-        // PRO and ULTRA features (audio only)
-        if (plan === "pro" || plan === "ultra") {
+
+        // PRO and ULTRA features (audio only) - owners also get access
+        if (plan === "pro" || plan === "ultra" || isOwner) {
+          if (isOwner && plan === "free") {
+            console.log(`[OWNER ACCESS] Generating social posts, hashtags, and titles for owner on ${plan} plan`);
+          }
           jobs.push(generateSocialPosts(step, transcript, openaiApiKey));
           jobNames.push("socialPosts");
 
-          jobs.push(generateTitles(step, transcript, openaiApiKey));
-          jobNames.push("titles");
-
           jobs.push(generateHashtags(step, transcript, openaiApiKey));
           jobNames.push("hashtags");
+
+          jobs.push(generateTitles(step, transcript, openaiApiKey));
+          jobNames.push("titles");
         } else {
-          console.log(`[AUDIO] Skipping social posts, titles, hashtags for ${plan} plan`);
+          console.log(`[AUDIO] Skipping social posts, hashtags and titles for ${plan} plan`);
         }
 
         // ULTRA-only features (audio only)
@@ -223,15 +253,25 @@ export const podcastProcessor = inngest.createFunction(
           );
         }
       } else {
-        // DOCUMENT FILES: Only generate Summary, Titles, and Engagement Tools
+        // DOCUMENT FILES: Only generate Summary, Titles, PowerPoint, and Engagement Tools
         console.log(
-          `[DOCUMENT FILE] Only generating: Summary, Titles (${plan === "pro" || plan === "ultra" ? "YES" : "NO"}), Engagement Tools (${plan === "ultra" ? "YES" : "NO"})`,
+          `[DOCUMENT FILE] Only generating: Summary, Titles (${
+            plan === "pro" || plan === "ultra" ? "YES" : "NO"
+          }), PowerPoint (${
+            plan === "pro" || plan === "ultra" ? "YES" : "NO"
+          }), Engagement Tools (${plan === "ultra" ? "YES" : "NO"})`,
         );
         console.log(
-          `[DOCUMENT FILE] SKIPPING: social posts, hashtags, YouTube timestamps, key moments`,
+          `[DOCUMENT FILE] SKIPPING: social posts, YouTube timestamps, key moments`,
         );
-        
-        if (plan === "pro" || plan === "ultra") {
+
+        if (plan === "pro" || plan === "ultra" || isOwner) {
+          if (isOwner && plan === "free") {
+            console.log(`[OWNER ACCESS] Generating hashtags and titles for owner on ${plan} plan`);
+          }
+          jobs.push(generateHashtags(step, transcript, openaiApiKey));
+          jobNames.push("hashtags");
+
           jobs.push(generateTitles(step, transcript, openaiApiKey));
           jobNames.push("titles");
         }
@@ -258,7 +298,7 @@ export const podcastProcessor = inngest.createFunction(
       
       // Verify no unwanted jobs for documents
       if (isDocument) {
-        const unwantedJobs = ["keyMoments", "youtubeTimestamps", "socialPosts", "hashtags"];
+        const unwantedJobs = ["keyMoments", "youtubeTimestamps", "socialPosts"];
         const foundUnwanted = jobNames.filter((name) => unwantedJobs.includes(name));
         if (foundUnwanted.length > 0) {
           console.error(

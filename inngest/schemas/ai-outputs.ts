@@ -77,6 +77,50 @@ export const titlesSchema = z.object({
 export type Titles = z.infer<typeof titlesSchema>;
 
 /**
+ * PowerPoint Schema - Slide deck outline for export
+ *
+ * Each slide includes a title, bullet points, optional notes, and a hint
+ * about simple clip art/icons or layouts. The deck is designed to be
+ * templated for export as PowerPoint or PDF.
+ */
+export const powerPointSchema = z.object({
+  slides: z
+    .array(
+      z.object({
+        title: z.string().describe("Clear, descriptive slide title"),
+        bullets: z
+          .array(z.string())
+          .min(3)
+          .max(8)
+          .describe("3-8 complete, detailed bullet points with full information - ready to present. Each bullet should contain substantial content, not just a phrase. Make them comprehensive and presentation-ready."),
+        notes: z
+          .string()
+          .optional()
+          .describe("Detailed speaker notes with additional context, talking points, and explanations for the presenter"),
+        visualHint: z
+          .string()
+          .optional()
+          .describe(
+            "Simple vector/clip-art suggestion (icon name, shape, or theme)",
+          ),
+        layout: z
+          .string()
+          .optional()
+          .describe("Suggested slide layout (title, bullets, quote, or two-column)"),
+      }),
+    )
+    .min(15)
+    .max(40)
+    .describe("15-40 comprehensive slides covering ALL content from the podcast/document. Each slide must have complete, presentation-ready content."),
+  theme: z.string().optional().describe("Suggested template or visual theme"),
+  summary: z
+    .string()
+    .describe("Brief narrative describing the flow of the deck"),
+});
+
+export type PowerPoint = z.infer<typeof powerPointSchema>;
+
+/**
  * Social Posts Schema - Platform-optimized content
  *
  * Each platform has unique characteristics:
@@ -101,38 +145,41 @@ export const socialPostsSchema = z.object({
 export type SocialPosts = z.infer<typeof socialPostsSchema>;
 
 /**
- * Hashtags Schema - Platform-specific discovery tags
+ * Hashtags Schema - Platform-specific hashtag arrays
  *
- * Hashtag strategies vary by platform:
- * - youtube: Broader reach (lower competition)
- * - instagram: Mix of niche + broad (6-8 is optimal)
- * - tiktok: Trending tags (refresh frequently)
- * - linkedin: Professional keywords (lower usage than Instagram/TikTok)
- * - twitter: Concise, recognizable tags
+ * Each platform has different hashtag conventions:
+ * - twitter: Trending topics, concise tags
+ * - linkedin: Professional, industry-focused
+ * - instagram: Mix of popular and niche (8-10 tags)
+ * - tiktok: Trending and viral hashtags
+ * - youtube: SEO-focused, topic-based
  */
 export const hashtagsSchema = z.object({
-  youtube: z
+  twitter: z
     .array(z.string())
-    .length(5)
-    .describe("5 YouTube hashtags (broad reach)"),
+    .min(5)
+    .max(8)
+    .describe("5-8 Twitter/X hashtags (trending and niche mix)"),
+  linkedin: z
+    .array(z.string())
+    .min(5)
+    .max(8)
+    .describe("5-8 LinkedIn hashtags (professional, industry-focused)"),
   instagram: z
     .array(z.string())
-    .min(6)
-    .max(8)
-    .describe("6-8 Instagram hashtags (mix of niche + broad)"),
+    .min(8)
+    .max(10)
+    .describe("8-10 Instagram hashtags (mix of popular and niche)"),
   tiktok: z
     .array(z.string())
     .min(5)
-    .max(6)
-    .describe("5-6 TikTok hashtags (trending)"),
-  linkedin: z
+    .max(8)
+    .describe("5-8 TikTok hashtags (trending and viral tags)"),
+  youtube: z
     .array(z.string())
-    .length(5)
-    .describe("5 LinkedIn hashtags (professional)"),
-  twitter: z
-    .array(z.string())
-    .length(5)
-    .describe("5 Twitter hashtags (concise)"),
+    .min(5)
+    .max(8)
+    .describe("5-8 YouTube hashtags (SEO-focused, topic-based)"),
 });
 
 export type Hashtags = z.infer<typeof hashtagsSchema>;

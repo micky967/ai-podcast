@@ -7,10 +7,12 @@
 
 "use client";
 
-import { Protect } from "@clerk/nextjs";
+import { Protect, useAuth } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
 import { AlertCircle, Lock } from "lucide-react";
 import { SelectItem } from "@/components/ui/select";
 import { TabsTrigger } from "@/components/ui/tabs";
+import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import type { TabConfig } from "@/lib/tab-config";
 
@@ -23,7 +25,19 @@ interface TabTriggerItemProps {
 /**
  * Mobile dropdown item for a tab
  */
-export function MobileTabItem({ tab, project, isShared = false }: TabTriggerItemProps) {
+export function MobileTabItem({
+  tab,
+  project,
+  isShared = false,
+}: TabTriggerItemProps) {
+  const { userId } = useAuth();
+
+  // Check if user is owner - owners bypass plan restrictions
+  const isOwner = useQuery(
+    api.userSettings.isUserOwner,
+    userId ? { userId } : "skip"
+  );
+
   const hasError =
     tab.errorKey &&
     project.jobErrors?.[tab.errorKey as keyof typeof project.jobErrors];
@@ -33,8 +47,8 @@ export function MobileTabItem({ tab, project, isShared = false }: TabTriggerItem
       <span className="flex items-center gap-2">
         {tab.label}
         {hasError && <AlertCircle className="h-4 w-4 text-destructive" />}
-        {/* Don't show lock icon for shared projects - viewer should see owner's content */}
-        {tab.feature && !isShared && (
+        {/* Don't show lock icon for shared projects or owners - they bypass plan restrictions */}
+        {tab.feature && !isShared && !isOwner && (
           <Protect
             feature={tab.feature}
             fallback={<Lock className="h-3 w-3 text-red-500 cursor-pointer" />}
@@ -48,7 +62,19 @@ export function MobileTabItem({ tab, project, isShared = false }: TabTriggerItem
 /**
  * Desktop tab trigger for a tab
  */
-export function DesktopTabTrigger({ tab, project, isShared = false }: TabTriggerItemProps) {
+export function DesktopTabTrigger({
+  tab,
+  project,
+  isShared = false,
+}: TabTriggerItemProps) {
+  const { userId } = useAuth();
+
+  // Check if user is owner - owners bypass plan restrictions
+  const isOwner = useQuery(
+    api.userSettings.isUserOwner,
+    userId ? { userId } : "skip"
+  );
+
   const hasError =
     tab.errorKey &&
     project.jobErrors?.[tab.errorKey as keyof typeof project.jobErrors];
@@ -59,12 +85,16 @@ export function DesktopTabTrigger({ tab, project, isShared = false }: TabTrigger
       className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-2 sm:py-3 rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-400 data-[state=active]:text-white transition-all font-semibold whitespace-nowrap cursor-pointer text-xs sm:text-sm md:text-base shrink-0"
     >
       {tab.label}
-      {hasError && <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-destructive shrink-0" />}
-      {/* Don't show lock icon for shared projects - viewer should see owner's content */}
-      {tab.feature && !isShared && (
+      {hasError && (
+        <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-destructive shrink-0" />
+      )}
+      {/* Don't show lock icon for shared projects or owners - they bypass plan restrictions */}
+      {tab.feature && !isShared && !isOwner && (
         <Protect
           feature={tab.feature}
-          fallback={<Lock className="h-3 w-3 text-red-500 cursor-pointer shrink-0" />}
+          fallback={
+            <Lock className="h-3 w-3 text-red-500 cursor-pointer shrink-0" />
+          }
         />
       )}
     </TabsTrigger>

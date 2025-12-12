@@ -7,6 +7,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   FileSignature,
+  FileText,
   Hash,
   Heading,
   MessageSquare,
@@ -123,16 +124,22 @@ export const GENERATION_OUTPUTS: GenerationOutput[] = [
       "Crafting platform-optimized posts for Twitter, LinkedIn, Instagram, TikTok, YouTube, and Facebook",
   },
   {
+    name: "Hashtags",
+    icon: Hash,
+    description:
+      "Generating platform-specific hashtags optimized for Twitter, LinkedIn, Instagram, TikTok, and YouTube",
+  },
+  {
     name: "Titles",
     icon: Heading,
     description:
       "Generating engaging SEO-optimized titles and keywords for maximum reach",
   },
   {
-    name: "Hashtags",
-    icon: Hash,
+    name: "PowerPoint",
+    icon: FileText,
     description:
-      "Creating trending platform-specific hashtag strategies for better discoverability",
+      "Transforming audio or document content into a slide deck with text, notes, and simple icon hints",
   },
   {
     name: "Engagement Tools",

@@ -9,8 +9,16 @@ import { EmptyState } from "@/components/projects/empty-state";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@clerk/nextjs";
 import { getCurrentPlan } from "@/lib/client-tier-utils";
-import { canUserCreateGroup, getSharingUpgradeMessage } from "@/lib/sharing-utils";
-import { requestToJoinAction, cancelJoinRequestAction, acceptInvitationAction, declineInvitationAction } from "@/app/actions/sharing";
+import {
+  canUserCreateGroup,
+  getSharingUpgradeMessage,
+} from "@/lib/sharing-utils";
+import {
+  requestToJoinAction,
+  cancelJoinRequestAction,
+  acceptInvitationAction,
+  declineInvitationAction,
+} from "@/app/actions/sharing";
 import { toast } from "sonner";
 import { Users, UserPlus, Loader2, Clock, X, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -19,10 +27,18 @@ import type { Id } from "@/convex/_generated/dataModel";
 export function BrowseGroups() {
   const { userId, has } = useAuth();
   const router = useRouter();
-  const [requestingGroups, setRequestingGroups] = useState<Set<string>>(new Set());
-  const [cancelingGroups, setCancelingGroups] = useState<Set<string>>(new Set());
-  const [acceptingGroups, setAcceptingGroups] = useState<Set<string>>(new Set());
-  const [decliningGroups, setDecliningGroups] = useState<Set<string>>(new Set());
+  const [requestingGroups, setRequestingGroups] = useState<Set<string>>(
+    new Set()
+  );
+  const [cancelingGroups, setCancelingGroups] = useState<Set<string>>(
+    new Set()
+  );
+  const [acceptingGroups, setAcceptingGroups] = useState<Set<string>>(
+    new Set()
+  );
+  const [decliningGroups, setDecliningGroups] = useState<Set<string>>(
+    new Set()
+  );
   const [ownerNames, setOwnerNames] = useState<Map<string, string>>(new Map());
 
   const groups = useQuery(
@@ -81,7 +97,9 @@ export function BrowseGroups() {
     try {
       const result = await requestToJoinAction(groupId);
       if (result.success) {
-        toast.success("Join request sent! The group owner will review your request.");
+        toast.success(
+          "Join request sent! The group owner will review your request."
+        );
         router.refresh();
       } else {
         toast.error(result.error || "Failed to send join request");
@@ -118,12 +136,17 @@ export function BrowseGroups() {
     }
   };
 
-  const handleAcceptInvite = async (requestId: Id<"groupJoinRequests">, groupName: string) => {
+  const handleAcceptInvite = async (
+    requestId: Id<"groupJoinRequests">,
+    groupName: string
+  ) => {
     setAcceptingGroups((prev) => new Set(prev).add(requestId));
     try {
       const result = await acceptInvitationAction({ requestId });
       if (result.success) {
-        toast.success(`You've joined "${groupName}"! The group owner has been notified.`);
+        toast.success(
+          `You've joined "${groupName}"! The group owner has been notified.`
+        );
         router.refresh();
       } else {
         toast.error(result.error || "Failed to accept invitation");
@@ -139,14 +162,20 @@ export function BrowseGroups() {
     }
   };
 
-  const handleDeclineInvite = async (requestId: Id<"groupJoinRequests">, groupName: string, ownerName: string) => {
+  const handleDeclineInvite = async (
+    requestId: Id<"groupJoinRequests">,
+    groupName: string,
+    ownerName: string
+  ) => {
     setDecliningGroups((prev) => new Set(prev).add(requestId));
     try {
       // Decline by canceling the request (which will notify the owner via the request status change)
       // Actually, we should reject it so the owner knows it was declined
       const result = await declineInvitationAction({ requestId });
       if (result.success) {
-        toast.success(`You've declined the invitation. ${ownerName} has been notified.`);
+        toast.success(
+          `You've declined the invitation. ${ownerName} has been notified.`
+        );
         router.refresh();
       } else {
         toast.error(result.error || "Failed to decline invitation");
@@ -188,14 +217,18 @@ export function BrowseGroups() {
       {groups.map((group) => {
         const isRequesting = requestingGroups.has(group.groupId);
         return (
-          <Card key={group.groupId} className="p-6 hover:shadow-lg transition-shadow">
+          <Card
+            key={group.groupId}
+            className="p-6 hover:shadow-lg transition-shadow"
+          >
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h3 className="text-xl font-semibold mb-2">
                   {group.name || "Unnamed Group"}
                 </h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  {group.memberCount} {group.memberCount === 1 ? "member" : "members"}
+                  {group.memberCount}{" "}
+                  {group.memberCount === 1 ? "member" : "members"}
                 </p>
               </div>
             </div>
@@ -204,14 +237,20 @@ export function BrowseGroups() {
               <div className="space-y-3">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
                   <p className="text-sm text-blue-900 font-medium">
-                    {ownerNames.get(group.ownerId) || "Someone"} invited you to join this group
+                    {ownerNames.get(group.ownerId) || "Someone"} invited you to
+                    join this group
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <Button
                     variant="default"
                     size="sm"
-                    onClick={() => handleAcceptInvite(group.inviteRequestId!, group.name || "Unnamed Group")}
+                    onClick={() =>
+                      handleAcceptInvite(
+                        group.inviteRequestId!,
+                        group.name || "Unnamed Group"
+                      )
+                    }
                     disabled={acceptingGroups.has(group.inviteRequestId!)}
                     className="flex-1 gradient-emerald text-white hover-glow"
                   >
@@ -230,11 +269,13 @@ export function BrowseGroups() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleDeclineInvite(
-                      group.inviteRequestId!,
-                      group.name || "Unnamed Group",
-                      ownerNames.get(group.ownerId) || "The owner"
-                    )}
+                    onClick={() =>
+                      handleDeclineInvite(
+                        group.inviteRequestId!,
+                        group.name || "Unnamed Group",
+                        ownerNames.get(group.ownerId) || "The owner"
+                      )
+                    }
                     disabled={decliningGroups.has(group.inviteRequestId!)}
                     className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                   >
@@ -303,4 +344,3 @@ export function BrowseGroups() {
     </div>
   );
 }
-

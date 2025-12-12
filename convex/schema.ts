@@ -84,7 +84,7 @@ export default defineSchema({
         summary: v.optional(v.string()),
         socialPosts: v.optional(v.string()),
         titles: v.optional(v.string()),
-        hashtags: v.optional(v.string()),
+        powerPoint: v.optional(v.string()),
         youtubeTimestamps: v.optional(v.string()),
         engagement: v.optional(v.string()),
       }),
@@ -183,14 +183,38 @@ export default defineSchema({
       }),
     ),
 
-    // Platform-specific hashtag recommendations
-    hashtags: v.optional(
+    // PowerPoint export metadata
+    powerPoint: v.optional(
       v.object({
-        youtube: v.array(v.string()),
-        instagram: v.array(v.string()),
-        tiktok: v.array(v.string()),
-        linkedin: v.array(v.string()),
-        twitter: v.array(v.string()),
+        status: v.union(
+          v.literal("pending"),
+          v.literal("running"),
+          v.literal("completed"),
+          v.literal("failed"),
+        ),
+        template: v.optional(v.string()), // Template or theme identifier
+        summary: v.optional(v.string()), // Brief narrative describing the deck flow
+        slides: v.optional(
+          v.array(
+            v.object({
+              title: v.string(),
+              bullets: v.array(v.string()),
+              notes: v.optional(v.string()),
+              visualHint: v.optional(v.string()),
+              layout: v.optional(
+                v.union(
+                  v.literal("title"),
+                  v.literal("bullets"),
+                  v.literal("quote"),
+                  v.literal("two-column"),
+                ),
+              ),
+            }),
+          ),
+        ),
+        downloadUrl: v.optional(v.string()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
       }),
     ),
 
@@ -220,6 +244,17 @@ export default defineSchema({
           medium: v.string(), // 300-500 chars for podcast feed descriptions
           long: v.string(), // 800-1000 words for blog/show notes
         }),
+      }),
+    ),
+
+    // Hashtags for social media platforms
+    hashtags: v.optional(
+      v.object({
+        instagram: v.array(v.string()),
+        linkedin: v.array(v.string()),
+        tiktok: v.array(v.string()),
+        twitter: v.array(v.string()),
+        youtube: v.array(v.string()),
       }),
     ),
 

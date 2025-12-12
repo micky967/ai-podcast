@@ -4,6 +4,7 @@ import { Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { generateMissingFeatures } from "@/app/actions/generate-missing-features";
+import { type RetryableJob, retryJob } from "@/app/actions/retry-job";
 import { Button } from "@/components/ui/button";
 import type { Id } from "@/convex/_generated/dataModel";
 
@@ -11,23 +12,33 @@ interface GenerateMissingCardProps {
   projectId: Id<"projects">;
   message?: string;
   className?: string;
+  // If jobName is provided, generate only that specific job instead of all missing
+  jobName?: RetryableJob;
 }
 
 export function GenerateMissingCard({
   projectId,
   message,
   className = "",
+  jobName,
 }: GenerateMissingCardProps) {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      const result = await generateMissingFeatures(projectId);
-      toast.success(result.message);
+      // If jobName is provided, generate only that specific job
+      if (jobName) {
+        await retryJob(projectId, jobName);
+        toast.success(`Generating ${jobName}...`);
+      } else {
+        // Otherwise, generate all missing features
+        const result = await generateMissingFeatures(projectId);
+        toast.success(result.message);
+      }
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to generate features",
+        error instanceof Error ? error.message : "Failed to generate features"
       );
       setIsGenerating(false);
     }
@@ -49,10 +60,16 @@ export function GenerateMissingCard({
         className="gradient-emerald text-white hover-glow shadow-lg px-6 py-3 gap-2"
       >
         <Sparkles className="h-5 w-5" />
-        {isGenerating ? "Generating..." : "Generate All Missing Features"}
+        {isGenerating
+          ? "Generating..."
+          : jobName
+          ? `Generate ${jobName}`
+          : "Generate All Missing Features"}
       </Button>
       <p className="text-xs text-gray-500">
-        This will generate all features available in your current plan
+        {jobName
+          ? `This will generate ${jobName} for this project`
+          : "This will generate all features available in your current plan"}
       </p>
     </div>
   );

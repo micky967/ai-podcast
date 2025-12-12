@@ -50,6 +50,12 @@ export const PROJECT_TABS: TabConfig[] = [
     feature: FEATURES.HASHTAGS,
   },
   {
+    value: "powerpoint",
+    label: "PowerPoint",
+    errorKey: "powerPoint",
+    feature: FEATURES.POWERPOINT,
+  },
+  {
     value: "titles",
     label: "Titles",
     errorKey: "titles",

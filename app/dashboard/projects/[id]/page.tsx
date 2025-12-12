@@ -19,6 +19,7 @@ import {
 import { ProjectStatusCard } from "@/components/project-status-card";
 import { EngagementTab } from "@/components/project-tabs/engagement-tab";
 import { HashtagsTab } from "@/components/project-tabs/hashtags-tab";
+import { PowerPointTab } from "@/components/project-tabs/powerpoint-tab";
 import { KeyMomentsTab } from "@/components/project-tabs/key-moments-tab";
 import { SocialPostsTab } from "@/components/project-tabs/social-posts-tab";
 import { SummaryTab } from "@/components/project-tabs/summary-tab";
@@ -178,11 +179,11 @@ export default function ProjectDetailPage() {
     project.mimeType === "text/plain";
 
   // Filter tabs based on file type
-  // Documents don't show: Key Moments, YouTube timestamps, social posts, hashtags, speakers
+  // Documents don't show: Key Moments, YouTube timestamps, social posts, speakers
   const visibleTabs = PROJECT_TABS.filter((tab) => {
     if (isDocument) {
-      return !["moments", "youtube-timestamps", "social", "hashtags", "speakers"].includes(
-        tab.value,
+      return !["moments", "youtube-timestamps", "social", "speakers"].includes(
+        tab.value
       );
     }
     return true;
@@ -248,7 +249,9 @@ export default function ProjectDetailPage() {
                 className="glass-card hover-lift border-2 border-emerald-200 hover:border-emerald-400 px-4 sm:px-6 bg-white"
               >
                 <Edit2 className="h-4 w-4 sm:mr-2 text-emerald-600" />
-                <span className="hidden sm:inline font-semibold text-emerald-700">Edit</span>
+                <span className="hidden sm:inline font-semibold text-emerald-700">
+                  Edit
+                </span>
               </Button>
             )}
             <Button
@@ -425,6 +428,22 @@ export default function ProjectDetailPage() {
               </TabContent>
             </TabsContent>
 
+            <TabsContent value="powerpoint" className="space-y-4">
+              <TabContent
+                isLoading={showGenerating}
+                data={project.powerPoint}
+                error={project.jobErrors?.powerPoint}
+                projectId={projectId}
+                feature={FEATURES.POWERPOINT}
+                featureName="PowerPoint Outline"
+                jobName="powerPoint"
+                emptyMessage="No PowerPoint outline yet"
+                isShared={isShared}
+              >
+                <PowerPointTab powerPoint={project.powerPoint} />
+              </TabContent>
+            </TabsContent>
+
             <TabsContent value="titles" className="space-y-4">
               <TabContent
                 isLoading={showGenerating}
@@ -453,7 +472,7 @@ export default function ProjectDetailPage() {
                 emptyMessage="Please generate the engagement tools here"
                 isShared={isShared}
               >
-                <EngagementTab 
+                <EngagementTab
                   engagement={project.engagement}
                   projectName={project.displayName || project.fileName}
                 />

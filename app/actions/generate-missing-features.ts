@@ -8,7 +8,7 @@
  * was processed on their old plan.
  *
  * Example: User had Free plan (only Summary), upgrades to Pro.
- * This will generate: Social Posts, Titles, Hashtags all at once.
+ * This will generate: Social Posts, Titles, PowerPoint outlines all at once.
  *
  * Note: Transcription is NOT a feature - it's available to all users.
  */
@@ -35,6 +35,9 @@ export async function generateMissingFeatures(projectId: Id<"projects">) {
   if (!userId) {
     throw new Error("Unauthorized");
   }
+
+  // Check if user is owner - owners bypass plan restrictions
+  const isOwner = await convex.query(api.userSettings.isUserOwner, { userId });
 
   // Get user's current plan using Clerk's has() method
   let currentPlan: "free" | "pro" | "ultra" = "free";
@@ -67,12 +70,15 @@ export async function generateMissingFeatures(projectId: Id<"projects">) {
   let originalPlan: "free" | "pro" | "ultra" = "free";
   if (project.keyMoments || project.youtubeTimestamps) {
     originalPlan = "ultra";
-  } else if (project.socialPosts || project.titles || project.hashtags) {
+  } else if (project.socialPosts || project.hashtags || project.titles || project.powerPoint) {
     originalPlan = "pro";
   }
 
   // Get all features available in current plan
-  const availableFeatures = PLAN_FEATURES[currentPlan];
+  // Owners get all features (treat as ultra plan for feature access)
+  const availableFeatures = isOwner
+    ? PLAN_FEATURES.ultra
+    : PLAN_FEATURES[currentPlan];
 
   const missingJobs: RetryableJob[] = [];
 
@@ -86,13 +92,11 @@ export async function generateMissingFeatures(projectId: Id<"projects">) {
     // - keyMoments (requires timestamps/chapters)
     // - youtubeTimestamps (requires timestamps)
     // - socialPosts (not generated for documents)
-    // - hashtags (not generated for documents)
     if (isDocument) {
       if (
         jobName === "keyMoments" ||
         jobName === "youtubeTimestamps" ||
-        jobName === "socialPosts" ||
-        jobName === "hashtags"
+        jobName === "socialPosts"
       ) {
         continue; // Skip these for documents
       }

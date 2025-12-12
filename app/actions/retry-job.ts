@@ -19,8 +19,9 @@ export type RetryableJob =
   | "keyMoments"
   | "summary"
   | "socialPosts"
-  | "titles"
   | "hashtags"
+  | "titles"
+  | "powerPoint"
   | "youtubeTimestamps"
   | "engagement";
 
@@ -51,7 +52,7 @@ export async function retryJob(projectId: Id<"projects">, job: RetryableJob) {
   let originalPlan: "free" | "pro" | "ultra" = "free";
   if (project.keyMoments || project.youtubeTimestamps || project.engagement) {
     originalPlan = "ultra";
-  } else if (project.socialPosts || project.titles || project.hashtags) {
+  } else if (project.socialPosts || project.hashtags || project.titles || project.powerPoint) {
     originalPlan = "pro";
   }
 

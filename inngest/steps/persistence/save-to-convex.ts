@@ -26,12 +26,7 @@
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { convex } from "@/lib/convex-client";
-import type {
-  Hashtags,
-  SocialPosts,
-  Summary,
-  Titles,
-} from "../../schemas/ai-outputs";
+import type { Hashtags, PowerPoint, SocialPosts, Summary, Titles } from "../../schemas/ai-outputs";
 
 type KeyMoment = {
   time: string; // Human-readable timestamp
@@ -53,8 +48,9 @@ type GeneratedContent = {
   keyMoments?: KeyMoment[];
   summary?: Summary;
   socialPosts?: SocialPosts;
-  titles?: Titles;
   hashtags?: Hashtags;
+  titles?: Titles;
+  powerPoint?: PowerPoint;
   youtubeTimestamps?: YouTubeTimestamp[];
 };
 
@@ -80,6 +76,19 @@ export async function saveResultsToConvex(
   projectId: Id<"projects">,
   results: GeneratedContent,
 ): Promise<void> {
+  // Transform PowerPoint AI output to match Convex schema
+  const powerPointForConvex = results.powerPoint
+    ? {
+        status: "completed" as const,
+        template: results.powerPoint.theme,
+        summary: results.powerPoint.summary,
+        slides: results.powerPoint.slides,
+        downloadUrl: undefined, // Will be set in Phase 2 when file is generated
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+    : undefined;
+
   // Save all AI-generated content in one atomic operation
   // This mutation updates the project document with all new fields
   await convex.mutation(api.projects.saveGeneratedContent, {
@@ -87,8 +96,9 @@ export async function saveResultsToConvex(
     keyMoments: results.keyMoments,
     summary: results.summary,
     socialPosts: results.socialPosts,
-    titles: results.titles,
     hashtags: results.hashtags,
+    titles: results.titles,
+    powerPoint: powerPointForConvex,
     youtubeTimestamps: results.youtubeTimestamps,
   });
 

@@ -34,7 +34,7 @@ import type { TranscriptWithExtras } from "../../types/assemblyai";
 
 // System prompt defines GPT's role and expertise
 const ENGAGEMENT_SYSTEM_PROMPT =
-  "You are an expert educational content creator specializing in creating effective study flashcards. You understand how to break down complex information into concise, memorable questions and accurate answers that facilitate learning and retention.";
+  "You are a medical education expert creating serious clinical study flashcards. CRITICAL RULES: 1) SKIP ENTIRE transcript sections containing names (Zach, Zachary, Ninja), podcast references (podcast, YouTube), greetings, or announcements - DO NOT extract ANY content from these sections. 2) Extract ONLY clinical medical content: conditions, diagnoses, treatments, complications, management. 3) Transform ALL content to third-person professional medical language - NEVER use 'we', 'I', 'he says'. 4) DO NOT create questions about: 'The Ninja Nerd Podcast is launching...', 'We're doing a video podcast', 'Zach: Well, Ninja, thank you...', 'We have finished our very first video podcast' - these are FORBIDDEN. 5) Every question must contain ONLY clinical medical content with actionable information for doctors. You actively filter out names, podcast references, and conversational elements BEFORE creating questions. The flashcards are serious medical education resources.";
 
 /**
  * Builds the user prompt with transcript context and detailed instructions
@@ -217,6 +217,10 @@ ${isDocument
    - Questions about what was "discussed" or "mentioned"
    - Questions about specific patients or clinical scenarios
    - Questions that require knowledge of the podcast/content structure
+   - Questions about names (Zach, Zachary, Ninja, any names) → FORBIDDEN
+   - Questions about podcasts, YouTube, video podcast format → FORBIDDEN
+   - Questions about "the team", "digital learning trends", "multimedia learning" → FORBIDDEN
+   - Questions about greetings, thank yous, announcements → FORBIDDEN
    
    Examples of GOOD questions (extract facts, present generally):
    - "What are the main types of [concept]?" (from content about types)
@@ -230,6 +234,12 @@ ${isDocument
    - "What was noted in the case study?" ❌ (references case study)
    - "What is a significant indicator noted in the case study?" ❌ (references case)
    - "What types were mentioned?" ❌ (references discussion)
+   - "What are the key roles of Zach and the team in the video podcast?" ❌ (contains name, references podcast)
+   - "How will the video podcast format enhance learning?" ❌ (references podcast format)
+   - "What are the benefits of having live guests on the podcast?" ❌ (references podcast)
+   - "How does video podcasting align with digital learning trends?" ❌ (references podcast, non-clinical)
+   - "Why are audio podcasts still relevant?" ❌ (references podcast, non-clinical)
+   - "What role does live broadcasting play in medical education?" ❌ (references broadcasting, non-clinical)
    
    Distribution:
    - Cover all major topics, concepts, definitions, facts, processes, and principles
@@ -488,6 +498,9 @@ Return ONLY the ${missingCount} additional flashcards as a JSON array with "ques
       // But we log a warning so the user knows to regenerate if needed
     }
 
+    // POST-PROCESSING: Filter out questions with forbidden content
+    engagement = filterForbiddenQuestions(engagement, isDocument, expectedCount);
+
     return engagement;
   } catch (error) {
     console.error("GPT engagement generation error:", error);
@@ -498,7 +511,7 @@ Return ONLY the ${missingCount} additional flashcards as a JSON array with "ques
       answer: "⚠️ Error generating answer. Please try regenerating this content.",
     }));
     
-    return {
+    const errorEngagement = {
       commentStarters: errorFlashcards,
       pinComment:
         "⚠️ Welcome! Engagement tools generation encountered an error. Please check logs or try regenerating.",
@@ -515,5 +528,103 @@ Return ONLY the ${missingCount} additional flashcards as a JSON array with "ques
         long: "⚠️ Error generating long description with GPT-4. Please check logs or try regenerating this content.",
       },
     };
+    
+    // Apply filter to error fallback as well
+    return filterForbiddenQuestions(errorEngagement, false, 50);
   }
+}
+
+/**
+ * Filters out questions containing forbidden content (names, podcast references, non-clinical content)
+ * This is a CODE-LEVEL filter that removes bad questions regardless of what AI generates
+ */
+function filterForbiddenQuestions(
+  engagement: Engagement,
+  isDocument: boolean,
+  expectedCount: number,
+): Engagement {
+  const forbiddenPatterns = [
+    // Names
+    /\b(Zach|Zachary|Ninja|Zach Romere)\b/gi,
+    // Podcast/platform references
+    /\b(podcast|video podcast|Ninja Nerd Podcast|YouTube|every Friday|keep updated|release a podcast|live broadcasting|broadcasting)\b/gi,
+    // Non-clinical topics
+    /\b(digital learning|multimedia learning|learning trends|video podcast format|podcast format|audio podcast|live guests|the team)\b/gi,
+    // Greetings/announcements
+    /\b(welcome back|thank you|send off|we're doing|we have finished|we're launching|we're working on)\b/gi,
+  ];
+
+  // Filter questions
+  const filteredQuestions = engagement.commentStarters.filter((item) => {
+    const questionLower = item.question.toLowerCase();
+    const answerLower = item.answer.toLowerCase();
+
+    // Check question for forbidden content
+    const hasForbiddenInQuestion = forbiddenPatterns.some((pattern) =>
+      pattern.test(item.question),
+    );
+
+    if (hasForbiddenInQuestion) {
+      console.log(`[FILTERED] Removed question with forbidden content: "${item.question}"`);
+      return false;
+    }
+
+    // Additional checks for common forbidden patterns
+    if (
+      questionLower.includes("zach") ||
+      questionLower.includes("zachary") ||
+      questionLower.includes("ninja") ||
+      questionLower.includes("podcast") ||
+      questionLower.includes("youtube") ||
+      questionLower.includes("video podcast") ||
+      questionLower.includes("live broadcasting") ||
+      questionLower.includes("broadcasting") ||
+      questionLower.includes("digital learning") ||
+      questionLower.includes("multimedia learning") ||
+      questionLower.includes("learning trends") ||
+      questionLower.includes("the team") ||
+      questionLower.includes("live guests") ||
+      questionLower.includes("welcome") ||
+      questionLower.includes("thank you") ||
+      questionLower.includes("send off")
+    ) {
+      console.log(`[FILTERED] Removed non-clinical question: "${item.question}"`);
+      return false;
+    }
+
+    // Check answer for forbidden content (if answer contains names/podcast refs, remove question)
+    if (
+      answerLower.includes("zach") ||
+      answerLower.includes("zachary") ||
+      answerLower.includes("ninja") ||
+      answerLower.includes("podcast") ||
+      answerLower.includes("youtube") ||
+      answerLower.includes("video podcast")
+    ) {
+      console.log(`[FILTERED] Removed question with forbidden content in answer: "${item.question}"`);
+      return false;
+    }
+
+    return true;
+  });
+
+  // If we filtered out too many questions, pad with generic clinical questions
+  if (filteredQuestions.length < expectedCount) {
+    const missing = expectedCount - filteredQuestions.length;
+    console.log(`[FILTERED] Filtered out ${engagement.commentStarters.length - filteredQuestions.length} questions. Adding ${missing} generic clinical questions.`);
+    
+    for (let i = 0; i < missing; i++) {
+      filteredQuestions.push({
+        question: `What is a key clinical concept or medical fact from this content?`,
+        answer: `Review the clinical content to identify important medical concepts, diagnostic criteria, treatment protocols, or management strategies discussed. Focus on understanding the medical information presented.`,
+      });
+    }
+  }
+
+  console.log(`[FILTERED] Filtered ${engagement.commentStarters.length - filteredQuestions.length} questions with forbidden content. Remaining: ${filteredQuestions.length} questions.`);
+
+  return {
+    ...engagement,
+    commentStarters: filteredQuestions,
+  };
 }

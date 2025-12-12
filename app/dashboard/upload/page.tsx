@@ -60,7 +60,8 @@ export default function UploadPage() {
                     Content Generation
                   </p>
                   <p className="text-gray-600">
-                    Generate summaries, social posts, titles, and hashtags
+                    Generate summaries, social posts, titles, and PowerPoint
+                    outlines
                   </p>
                 </div>
               </li>

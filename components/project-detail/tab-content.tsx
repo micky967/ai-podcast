@@ -1,7 +1,9 @@
 "use client";
 
-import { Protect } from "@clerk/nextjs";
+import { Protect, useAuth } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
 import type { RetryableJob } from "@/app/actions/retry-job";
+import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { FeatureName } from "@/lib/tier-config";
 import { ErrorRetryCard } from "./error-retry-card";
@@ -45,11 +47,24 @@ export function TabContent({
   emptyMessage = "No data available",
   isShared = false,
 }: TabContentProps) {
+  const { userId } = useAuth();
+
+  // Check if user is owner - owners bypass plan restrictions
+  const isOwner = useQuery(
+    api.userSettings.isUserOwner,
+    userId ? { userId } : "skip"
+  );
+
   // Helper to wrap content with feature gating if needed
-  // For shared projects, bypass plan restrictions - viewer should see owner's content
+  // For shared projects and owners, bypass plan restrictions
   const wrapWithProtect = (content: React.ReactNode) => {
     // If project is shared, show content without plan restrictions
     if (isShared) {
+      return content;
+    }
+
+    // Owners bypass all plan restrictions
+    if (isOwner) {
       return content;
     }
 
@@ -88,14 +103,18 @@ export function TabContent({
         projectId={projectId}
         job={jobName}
         errorMessage={error}
-      />,
+      />
     );
   }
 
   // Empty state
   if (!data || (Array.isArray(data) && data.length === 0)) {
     return wrapWithProtect(
-      <GenerateMissingCard projectId={projectId} message={emptyMessage} />,
+      <GenerateMissingCard
+        projectId={projectId}
+        message={emptyMessage}
+        jobName={jobName}
+      />
     );
   }
 
