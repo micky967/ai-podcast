@@ -7,7 +7,7 @@
 
 "use client";
 
-import { Protect, useAuth } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { AlertCircle, Lock } from "lucide-react";
 import { SelectItem } from "@/components/ui/select";
@@ -67,7 +67,7 @@ export function DesktopTabTrigger({
   project,
   isShared = false,
 }: TabTriggerItemProps) {
-  const { userId } = useAuth();
+  const { userId, has } = useAuth();
 
   // Check if user is owner - owners bypass plan restrictions
   const isOwner = useQuery(
@@ -79,6 +79,11 @@ export function DesktopTabTrigger({
     tab.errorKey &&
     project.jobErrors?.[tab.errorKey as keyof typeof project.jobErrors];
 
+  // Check if user has access to the feature
+  const hasFeatureAccess = tab.feature
+    ? isOwner || isShared || (has ? has({ feature: tab.feature }) : false)
+    : true;
+
   return (
     <TabsTrigger
       value={tab.value}
@@ -88,14 +93,9 @@ export function DesktopTabTrigger({
       {hasError && (
         <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-destructive shrink-0" />
       )}
-      {/* Don't show lock icon for shared projects or owners - they bypass plan restrictions */}
-      {tab.feature && !isShared && !isOwner && (
-        <Protect
-          feature={tab.feature}
-          fallback={
-            <Lock className="h-3 w-3 text-red-500 cursor-pointer shrink-0" />
-          }
-        />
+      {/* Show lock icon if feature is locked and user doesn't have access */}
+      {tab.feature && !hasFeatureAccess && (
+        <Lock className="h-3 w-3 sm:h-4 sm:w-4 text-red-500 cursor-pointer shrink-0" />
       )}
     </TabsTrigger>
   );

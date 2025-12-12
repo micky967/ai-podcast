@@ -1,7 +1,7 @@
 /**
  * Settings Page
  *
- * Allows users to manage their required API keys.
+ * Allows users to manage their required API keys and subscription.
  * Users MUST provide their own OpenAI and AssemblyAI API keys
  * to process podcasts. Keys are provided by the administrator.
  */
@@ -9,6 +9,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { SettingsForm } from "@/components/settings/settings-form";
+import { SubscriptionManagement } from "@/components/settings/subscription-management";
 import { api } from "@/convex/_generated/api";
 import { preloadQuery } from "convex/nextjs";
 
@@ -24,7 +25,7 @@ export default async function SettingsPage() {
     api.userSettings.getUserSettingsStatus,
     {
       userId,
-    },
+    }
   );
 
   return (
@@ -34,9 +35,14 @@ export default async function SettingsPage() {
         <div>
           <h1 className="text-4xl font-extrabold mb-3">Settings</h1>
           <p className="text-lg text-gray-600">
-            Configure your API keys. <strong>Both OpenAI and AssemblyAI keys are required</strong> to process podcasts.
+            Manage your subscription and configure your API keys.{" "}
+            <strong>Both OpenAI and AssemblyAI keys are required</strong> to
+            process podcasts.
           </p>
         </div>
+
+        {/* Subscription Management */}
+        <SubscriptionManagement />
 
         {/* Settings Form */}
         <SettingsForm preloadedSettings={preloadedSettings} />
@@ -44,4 +50,3 @@ export default async function SettingsPage() {
     </div>
   );
 }
-
