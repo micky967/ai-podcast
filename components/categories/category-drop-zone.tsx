@@ -33,7 +33,7 @@ export function CategoryDropZone({ onDropComplete }: CategoryDropZoneProps) {
   const mainCategories = useQuery(api.categories.getMainCategories);
 
   // Check if user has Ultra plan (after hooks are called)
-  const userPlan = getCurrentPlan(has);
+  const userPlan = getCurrentPlan(has as any);
   const isUltra = userPlan === "ultra";
 
   // Don't render if user doesn't have Ultra plan

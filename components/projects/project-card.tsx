@@ -38,7 +38,7 @@ export function ProjectCard({
   const router = useRouter();
 
   // Check if user has Ultra plan (required for drag-and-drop)
-  const userPlan = getCurrentPlan(has);
+  const userPlan = getCurrentPlan(has as any);
   const isUltra = userPlan === "ultra";
 
   // Check if this is a shared project (not owned by current user)

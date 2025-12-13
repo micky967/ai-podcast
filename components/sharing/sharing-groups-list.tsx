@@ -26,7 +26,7 @@ export function SharingGroupsList({ preloadedGroups }: SharingGroupsListProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("my-groups");
 
-  const userPlan = getCurrentPlan(has);
+  const userPlan = getCurrentPlan(has as any);
   const canCreate = canUserCreateGroup(userPlan);
 
   const handleCreateClick = () => {

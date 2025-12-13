@@ -936,10 +936,13 @@ function filterForbiddenContent(powerpoint: PowerPoint): PowerPoint {
         })
         // Remove duplicate bullets within the same slide
         .filter((bullet, bulletIndex, bulletsArray) => {
+          if (!bullet) return false;
           const bulletLower = bullet.toLowerCase();
           // Check if this bullet is too similar to any previous bullet in the same slide
           for (let i = 0; i < bulletIndex; i++) {
-            const prevBulletLower = bulletsArray[i].toLowerCase();
+            const prevBullet = bulletsArray[i];
+            if (!prevBullet) continue;
+            const prevBulletLower = prevBullet.toLowerCase();
             // If bullets are very similar (70% match), remove the duplicate
             if (bulletLower === prevBulletLower ||
                 (bulletLower.length > 20 && prevBulletLower.length > 20 &&
@@ -998,38 +1001,46 @@ function filterForbiddenContent(powerpoint: PowerPoint): PowerPoint {
 
   // Deduplicate slides - remove slides with very similar titles or content
   const deduplicatedSlides = filteredSlides.filter((slide, index, array) => {
+    if (!slide || !slide.title) return false;
     // Check if this slide's title is too similar to any previous slide
     const titleLower = slide.title.toLowerCase();
     for (let i = 0; i < index; i++) {
-      const prevTitleLower = array[i].title.toLowerCase();
+      const prevSlide = array[i];
+      if (!prevSlide || !prevSlide.title) continue;
+      const prevTitleLower = prevSlide.title.toLowerCase();
       // If titles are very similar (80% match), remove the duplicate
       if (titleLower === prevTitleLower || 
           (titleLower.length > 10 && prevTitleLower.length > 10 && 
            (titleLower.includes(prevTitleLower.substring(0, Math.min(prevTitleLower.length, titleLower.length) * 0.8)) ||
             prevTitleLower.includes(titleLower.substring(0, Math.min(titleLower.length, prevTitleLower.length) * 0.8))))) {
-        console.log(`[FILTERED] Removed duplicate slide: "${slide.title}" (similar to "${array[i].title}")`);
+         console.log(`[FILTERED] Removed duplicate slide: "${slide.title}" (similar to "${prevSlide?.title || "unknown"}")`);
         return false;
       }
     }
     return true;
   });
 
-  // Final validation: ensure all slides are valid objects
-  const validSlides = deduplicatedSlides.filter((slide) => {
-    if (!slide || typeof slide !== "object") {
-      console.error(`[FILTERED] Found invalid slide (not an object):`, slide);
-      return false;
-    }
-    if (!slide.title || typeof slide.title !== "string") {
-      console.error(`[FILTERED] Found slide with invalid title:`, slide);
-      return false;
-    }
-    if (!Array.isArray(slide.bullets)) {
-      console.error(`[FILTERED] Found slide with invalid bullets:`, slide);
-      return false;
-    }
-    return true;
-  });
+  // Final validation: ensure all slides are valid objects and filter out nulls
+  const validSlides = deduplicatedSlides
+    .filter((slide): slide is NonNullable<typeof slide> => {
+      if (!slide || typeof slide !== "object") {
+        console.error(`[FILTERED] Found invalid slide (not an object):`, slide);
+        return false;
+      }
+      if (!slide.title || typeof slide.title !== "string") {
+        console.error(`[FILTERED] Found slide with invalid title:`, slide);
+        return false;
+      }
+      if (!Array.isArray(slide.bullets)) {
+        console.error(`[FILTERED] Found slide with invalid bullets:`, slide);
+        return false;
+      }
+      return true;
+    })
+    .map((slide) => ({
+      ...slide,
+      bullets: slide.bullets.filter((b): b is string => typeof b === "string" && b !== null),
+    }));
 
   console.log(`[FILTERED] Filtered ${powerpoint.slides.length - validSlides.length} slides (${powerpoint.slides.length - deduplicatedSlides.length} duplicates, ${deduplicatedSlides.length - validSlides.length} invalid). Remaining: ${validSlides.length} slides.`);
 
@@ -1121,3 +1132,4 @@ function fallbackPowerPoint(transcript: TranscriptWithExtras): PowerPoint {
     theme: "Professional",
   };
 }
+

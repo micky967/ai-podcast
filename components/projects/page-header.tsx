@@ -99,7 +99,7 @@ export function PageHeader({
       {/* Filter and Search */}
       <div className="mt-6 flex flex-col sm:flex-row gap-4">
         {onFilterChange && (
-          <Tabs value={filter} onValueChange={onFilterChange}>
+          <Tabs value={filter} onValueChange={(value) => onFilterChange(value as "own" | "shared" | "all")}>
             <TabsList>
               <TabsTrigger value="all">All Files</TabsTrigger>
               <TabsTrigger value="own">My Files</TabsTrigger>

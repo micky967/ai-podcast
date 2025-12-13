@@ -87,6 +87,7 @@ export default defineSchema({
         powerPoint: v.optional(v.string()),
         youtubeTimestamps: v.optional(v.string()),
         engagement: v.optional(v.string()),
+        hashtags: v.optional(v.string()),
       }),
     ),
 

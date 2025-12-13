@@ -34,7 +34,7 @@ export function getCurrentPlan(
  * @returns Recommended upgrade plan name or null if already on Ultra
  */
 export function getUpgradePlan(
-  hasFunction?: ((params: { plan?: string }) => boolean) | null,
+  hasFunction?: ((params: { plan?: string }) => boolean) | null | undefined,
 ): PlanName | null {
   const currentPlan = getCurrentPlan(hasFunction);
 
@@ -50,7 +50,7 @@ export function getUpgradePlan(
  * @returns CTA button text
  */
 export function getUpgradeCTA(
-  hasFunction?: ((params: { plan?: string }) => boolean) | null,
+  hasFunction?: ((params: { plan?: string }) => boolean) | null | undefined | any,
 ): string {
   const upgradePlan = getUpgradePlan(hasFunction);
 

@@ -154,9 +154,10 @@ export async function cancelSubscriptionAction(): Promise<{
     // Filter to only active subscription items (not already canceled or ended)
     const activeItems = subscription.subscriptionItems.filter(
       (item) => 
-        item.status === "active" || 
-        item.status === "trialing" ||
-        (item.status !== "canceled" && item.status !== "ended")
+        item.status !== "canceled" && 
+        item.status !== "ended" &&
+        item.status !== "abandoned" &&
+        item.status !== "expired"
     );
 
     if (activeItems.length === 0) {

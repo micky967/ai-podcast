@@ -221,14 +221,14 @@ export function JoinRequestsNotification() {
     fetchNames();
   }, [pendingRequests, recentResponses, sentInvitations]);
 
-  const userPlan = getCurrentPlan(has);
+  const userPlan = getCurrentPlan(has as any);
 
   const handleRespond = async (
     requestId: string,
     accept: boolean,
     requesterName: string,
     groupName: string,
-    requestType: "received" | "invited",
+    requestType: "received" | "invited" | "sent" | "requested",
     groupId?: string
   ) => {
     // Prevent double-clicks by checking if already responding
@@ -258,7 +258,7 @@ export function JoinRequestsNotification() {
             toast.success(`You've joined "${groupName}"`);
           }
         }
-      } else if (requestType === "sent") {
+      } else if ((requestType as any) === "sent") {
         // User sent this invitation - they can't accept/reject it
         toast.info("Waiting for the invited user to respond to your invitation");
         return;
@@ -466,7 +466,7 @@ export function JoinRequestsNotification() {
                             true,
                             requesterName,
                             request.groupName,
-                            request.type,
+                            request.type as "received" | "invited" | "sent",
                             request.groupId
                           )
                         }

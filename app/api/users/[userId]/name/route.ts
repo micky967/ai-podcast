@@ -25,7 +25,12 @@ export async function GET(
       user.emailAddresses[0]?.emailAddress ||
       userId;
 
-    return NextResponse.json({ name });
+    return NextResponse.json({
+      name,
+      imageUrl: user.imageUrl || null,
+      firstName: user.firstName || null,
+      lastName: user.lastName || null,
+    });
   } catch (error) {
     console.error("Error fetching user name:", error);
     return NextResponse.json(
@@ -34,7 +39,4 @@ export async function GET(
     );
   }
 }
-
-
-
 

@@ -256,7 +256,7 @@ export const retryJobFunction = inngest.createFunction(
           await step.run("save-powerpoint", () =>
             convex.mutation(api.projects.saveGeneratedContent, {
               projectId,
-              powerPoint: powerPointForConvex,
+              powerPoint: powerPointForConvex as any,
             }),
           );
           break;

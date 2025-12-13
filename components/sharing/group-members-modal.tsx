@@ -465,7 +465,7 @@ export function GroupMembersModal({
                           onClick={async () => {
                             setIsAdding(true);
                             try {
-                              const ownerPlan = getCurrentPlan(has);
+                              const ownerPlan = getCurrentPlan(has as any);
                               const result = await inviteUserAction({
                                 groupId,
                                 userId: selectedUserId,

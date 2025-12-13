@@ -23,7 +23,7 @@ interface AdminSharingProps {
 export function AdminSharing({ adminId }: AdminSharingProps) {
   const router = useRouter();
   const { has } = useAuth();
-  const userPlan = getCurrentPlan(has);
+  const userPlan = getCurrentPlan(has as any);
 
   const allGroups = useQuery(api.sharingGroups.listAllGroups, {
     adminId,

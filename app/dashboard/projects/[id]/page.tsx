@@ -513,7 +513,6 @@ export default function ProjectDetailPage() {
                   projectId={projectId}
                   feature={FEATURES.SPEAKER_DIARIZATION}
                   featureName="Speaker Dialogue"
-                  jobName="transcript"
                   emptyMessage="No transcript available"
                   isShared={isShared}
                 >

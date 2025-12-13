@@ -93,7 +93,7 @@ export async function extractTextFromDocument(
                         return decodeURIComponent(textItem.T);
                       }
                       return "";
-                    }).filter(text => text.trim().length > 0);
+                    }).filter((text: string) => text.trim().length > 0);
                     
                     if (texts.length > 0) {
                       pageTextParts.push(texts.join(" "));
@@ -115,7 +115,7 @@ export async function extractTextFromDocument(
                         return decodeURIComponent(fillItem.T);
                       }
                       return "";
-                    }).filter(text => text.trim().length > 0);
+                    }).filter((text: string) => text.trim().length > 0);
                     
                     if (fillTexts.length > 0) {
                       pageTextParts.push(fillTexts.join(" "));
@@ -259,7 +259,6 @@ export async function extractTextFromDocument(
       segments: [], // Documents don't have time-based segments
       chapters: [], // Documents don't have auto-detected chapters
       utterances: [], // Documents don't have speaker diarization
-      words: [], // Documents don't have word-level timestamps
     };
   } catch (error) {
     console.error("Document text extraction failed:", error);

@@ -98,7 +98,7 @@ export async function saveResultsToConvex(
     socialPosts: results.socialPosts,
     hashtags: results.hashtags,
     titles: results.titles,
-    powerPoint: powerPointForConvex,
+    powerPoint: powerPointForConvex as any,
     youtubeTimestamps: results.youtubeTimestamps,
   });
 

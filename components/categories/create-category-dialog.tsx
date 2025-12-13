@@ -57,7 +57,7 @@ export function CreateCategoryDialog({
   const [isCreating, setIsCreating] = useState(false);
 
   // Check if user has Ultra plan
-  const userPlan = getCurrentPlan(has);
+  const userPlan = getCurrentPlan(has as any);
   const isUltra = userPlan === "ultra";
 
   // Fetch main categories for parent selection (only if not creating a subcategory)

@@ -58,7 +58,7 @@ export function TabContent({
   );
 
   // Get current plan for upgrade prompts
-  const currentPlan = getCurrentPlan(has);
+  const currentPlan = getCurrentPlan(has as any);
 
   // Helper to wrap content with feature gating if needed
   // Owners and shared project viewers bypass all plan/role restrictions

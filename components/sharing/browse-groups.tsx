@@ -46,7 +46,7 @@ export function BrowseGroups() {
     userId ? { userId } : "skip"
   );
 
-  const userPlan = getCurrentPlan(has);
+  const userPlan = getCurrentPlan(has as any);
   const canJoin = canUserCreateGroup(userPlan);
 
   // Fetch owner names for groups with owner invites

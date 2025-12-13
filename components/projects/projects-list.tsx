@@ -40,7 +40,7 @@ export function ProjectsList({
 
   // Always call usePreloadedQuery unconditionally
   // This hook must be called on every render, even if we don't use the result
-  const preloadedResult = usePreloadedQuery(preloadedProjects);
+  const preloadedResult = usePreloadedQuery(preloadedProjects as any);
 
   // Always call useQuery hook unconditionally, but conditionally skip it
   // This ensures hooks are called in the same order every render
@@ -78,7 +78,7 @@ export function ProjectsList({
 
     const query = searchQuery.toLowerCase().trim();
     
-    return allProjects.filter((project) => {
+    return allProjects.filter((project: any) => {
       // Get the actual project name to search (use displayName if available, otherwise fileName)
       const projectName = (project.displayName || project.fileName || "").toLowerCase().trim();
       
@@ -159,7 +159,7 @@ export function ProjectsList({
 
       {hasProjects && (
         <div className="grid gap-4 @container">
-          {filteredProjects.map((project) => (
+          {filteredProjects.map((project: any) => (
             <div
               key={project._id}
               ref={highlightProjectId === project._id ? highlightedElementRef : null}

@@ -96,18 +96,13 @@ export async function transcribeWithAssemblyAI(
     });
 
     // Check for transcription errors
-    if (transcriptResponse.status === "error") {
+    if ((transcriptResponse as any).status === "error") {
       throw new Error(
-        transcriptResponse.error || "AssemblyAI transcription failed",
+        (transcriptResponse as any).error || "AssemblyAI transcription failed",
       );
     }
 
-    // Check for transcription errors
-    if (transcriptResponse.status === "error") {
-      throw new Error(
-        transcriptResponse.error || "AssemblyAI transcription failed",
-      );
-    }
+    // Check for transcription errors (duplicate check removed - only one needed)
 
     console.log("AssemblyAI transcription completed");
 
