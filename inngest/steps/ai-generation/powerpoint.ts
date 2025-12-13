@@ -653,7 +653,7 @@ export async function generatePowerPoint(
       "generate-powerpoint-with-gpt",
       createCompletion,
       {
-        model: "gpt-5-mini",
+        model: "gpt-4o",
         messages: [
           { role: "system", content: POWERPOINT_SYSTEM_PROMPT },
           {

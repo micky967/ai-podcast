@@ -139,7 +139,7 @@ Remember: Create TITLES, not transcript excerpts!`;
     "generate-youtube-titles-with-gpt",
     createCompletion,
     {
-      model: "gpt-5-mini",
+      model: "gpt-4o",
       response_format: {
         type: "json_schema",
         json_schema: {

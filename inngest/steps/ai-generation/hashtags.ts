@@ -84,7 +84,7 @@ export async function generateHashtags(
       "generate-hashtags-with-gpt",
       createCompletion,
       {
-        model: "gpt-5-mini",
+        model: "gpt-4o",
         messages: [
           { role: "system", content: HASHTAGS_SYSTEM_PROMPT },
           { role: "user", content: buildHashtagsPrompt(transcript) },

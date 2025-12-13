@@ -8,7 +8,7 @@
 import { api } from "@/convex/_generated/api";
 import { convex } from "@/lib/convex-client";
 import type { FeatureName, PlanName } from "@/lib/tier-config";
-import { FEATURE_TO_JOB_MAP } from "@/lib/tier-config";
+import { FEATURES, FEATURE_TO_JOB_MAP } from "@/lib/tier-config";
 import { planHasFeature } from "@/lib/tier-utils";
 import { inngest } from "../client";
 import { generateEngagement } from "../steps/ai-generation/engagement";
@@ -40,6 +40,18 @@ export const retryJobFunction = inngest.createFunction(
     const currentUserPlan = (currentPlan as PlanName) || "free";
     const originalUserPlan = (originalPlan as PlanName) || "free";
 
+    // Get project to check ownership (needed for Q&A exception)
+    if (!userId) {
+      throw new Error("userId is required in event data");
+    }
+    const project = await convex.query(api.projects.getProject, { projectId, userId });
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    // Check if this is the user's own project (not shared)
+    const isOwnProject = project.userId === userId && project.isShared !== true;
+
     // Get feature key from job name using the shared mapping
     const jobToFeature = Object.fromEntries(
       Object.entries(FEATURE_TO_JOB_MAP).map(([k, v]) => [v, k]),
@@ -47,10 +59,19 @@ export const retryJobFunction = inngest.createFunction(
 
     // Check if user has access to this feature with current plan (owners bypass)
     const featureKey = jobToFeature[job];
+    
+    // Special exception: Allow free users to access Q&A on their own uploaded files
+    // This matches frontend behavior where free users can see Q&A in shared files and their own files
+    const isQAndAException = 
+      featureKey === FEATURES.ENGAGEMENT && 
+      isOwnProject && 
+      !isOwner;
+
     if (
       !isOwner &&
       featureKey &&
-      !planHasFeature(currentUserPlan, featureKey as FeatureName)
+      !planHasFeature(currentUserPlan, featureKey as FeatureName) &&
+      !isQAndAException
     ) {
       throw new Error(
         `This feature (${job}) is not available on your current plan. Please upgrade to access it.`,
@@ -62,15 +83,6 @@ export const retryJobFunction = inngest.createFunction(
       console.log(
         `User upgraded from ${originalUserPlan} to ${currentUserPlan}. Generating ${job}.`,
       );
-    }
-
-    // Get project to access transcript and userId
-    if (!userId) {
-      throw new Error("userId is required in event data");
-    }
-    const project = await convex.query(api.projects.getProject, { projectId, userId });
-    if (!project) {
-      throw new Error("Project not found");
     }
 
     // Check if this is a document file (not audio)

@@ -1,6 +1,12 @@
 "use client";
 
+import { RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { retryJob } from "@/app/actions/retry-job";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import type { Id } from "@/convex/_generated/dataModel";
 
 interface TitlesTabProps {
   titles?: {
@@ -9,6 +15,7 @@ interface TitlesTabProps {
     podcastTitles: string[];
     seoKeywords: string[];
   };
+  projectId?: Id<"projects">;
 }
 
 const TITLE_CATEGORIES = [

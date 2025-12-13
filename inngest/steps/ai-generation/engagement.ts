@@ -1,7 +1,7 @@
 /**
- * AI Engagement & Growth Tools Generation Step
+ * AI Q&A Generation Step
  *
- * Generates audience engagement assets using OpenAI GPT to help creators:
+ * Generates Q&A assets using OpenAI GPT to help creators:
  * - Spark conversations with anticipated questions/comments
  * - Build community with welcoming pinned comments
  * - Maintain momentum with follow-up post ideas
@@ -18,7 +18,7 @@
  * - Wrapped in step.ai.wrap() for Inngest observability and automatic retries
  * - Leverages transcript and chapters for context-aware suggestions
  *
- * Design Decision: Why engagement tools?
+ * Design Decision: Why Q&A?
  * - Comments drive YouTube algorithm (engagement signals)
  * - Pinned comments set the tone for community culture
  * - Follow-up posts maintain audience connection between episodes
@@ -71,7 +71,7 @@ function buildEngagementPrompt(transcript: TranscriptWithExtras): string {
       : transcript.text.substring(0, 12000) // Extended preview for documents
     : transcript.text.substring(0, 3000); // Standard preview for audio
 
-  return `Analyze this content and create comprehensive study materials and engagement tools.
+  return `Analyze this content and create comprehensive study materials and Q&A.
 
 ${isDocument ? "DOCUMENT CONTENT" : "CONTENT"} (${isDocument ? (isLongDocument ? "first 20000 chars" : "first 12000 chars") : "first 3000 chars"}):
 ${contentPreview}${transcript.text.length > (isDocument ? (isLongDocument ? 20000 : 12000) : 3000) ? "..." : ""}
@@ -324,7 +324,7 @@ function generateFallbackFlashcards(): Array<{ question: string; answer: string 
 }
 
 /**
- * Generates engagement tools using OpenAI GPT with structured outputs
+ * Generates Q&A using OpenAI GPT with structured outputs
  *
  * Error Handling:
  * - Returns fallback content on API failure (graceful degradation)
@@ -514,7 +514,7 @@ Return ONLY the ${missingCount} additional flashcards as a JSON array with "ques
     const errorEngagement = {
       commentStarters: errorFlashcards,
       pinComment:
-        "⚠️ Welcome! Engagement tools generation encountered an error. Please check logs or try regenerating.",
+        "⚠️ Welcome! Q&A generation encountered an error. Please check logs or try regenerating.",
       communityPosts: [
         "Error generating community post ideas - please try again",
         "Error generating community post ideas - please try again",

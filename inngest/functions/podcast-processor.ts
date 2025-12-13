@@ -253,13 +253,13 @@ export const podcastProcessor = inngest.createFunction(
           );
         }
       } else {
-        // DOCUMENT FILES: Only generate Summary, Titles, PowerPoint, and Engagement Tools
+        // DOCUMENT FILES: Only generate Summary, Titles, PowerPoint, and Q&A
         console.log(
           `[DOCUMENT FILE] Only generating: Summary, Titles (${
             plan === "pro" || plan === "ultra" ? "YES" : "NO"
           }), PowerPoint (${
             plan === "pro" || plan === "ultra" ? "YES" : "NO"
-          }), Engagement Tools (${plan === "ultra" ? "YES" : "NO"})`,
+          }), Q&A (${plan === "ultra" ? "YES" : "NO"})`,
         );
         console.log(
           `[DOCUMENT FILE] SKIPPING: social posts, YouTube timestamps, key moments`,
@@ -277,13 +277,13 @@ export const podcastProcessor = inngest.createFunction(
         }
       }
 
-      // Engagement tools available for all file types (ULTRA plan)
+      // Q&A available for all file types (ULTRA plan)
       if (plan === "ultra") {
         jobs.push(generateEngagement(step, transcript, openaiApiKey));
         jobNames.push("engagement");
       } else if (!isDocument) {
         console.log(
-          `Skipping engagement tools for ${plan} plan`,
+          `Skipping Q&A for ${plan} plan`,
         );
       }
 

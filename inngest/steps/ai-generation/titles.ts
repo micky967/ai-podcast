@@ -48,7 +48,7 @@ TRANSCRIPT PREVIEW:
 ${transcript.text.substring(0, 2000)}...
 
 ${
-  transcript.chapters.length > 0
+  transcript.chapters && transcript.chapters.length > 0
     ? `MAIN TOPICS COVERED:\n${transcript.chapters
         .map((ch, idx) => `${idx + 1}. ${ch.headline}`)
         .join("\n")}`
@@ -112,7 +112,7 @@ export async function generateTitles(
       "generate-titles-with-gpt",
       createCompletion,
       {
-        model: "gpt-5-mini",
+        model: "gpt-4o",
         messages: [
           { role: "system", content: TITLES_SYSTEM_PROMPT },
           { role: "user", content: buildTitlesPrompt(transcript) },
@@ -122,27 +122,33 @@ export async function generateTitles(
     )) as OpenAI.Chat.Completions.ChatCompletion;
 
     const titlesContent = response.choices[0]?.message?.content;
-    // Parse and validate against schema
-    const titles = titlesContent
-      ? titlesSchema.parse(JSON.parse(titlesContent))
-      : {
-          // Fallback titles if parsing fails
-          youtubeShort: ["Podcast Episode"],
-          youtubeLong: ["Podcast Episode - Full Discussion"],
-          podcastTitles: ["New Episode"],
-          seoKeywords: ["podcast"],
-        };
 
+    if (!titlesContent) {
+      console.error("GPT titles error: No content in response");
+      throw new Error("No content returned from OpenAI API");
+    }
+
+    // Parse and validate against schema
+    let parsedContent;
+    try {
+      parsedContent = JSON.parse(titlesContent);
+    } catch (parseError) {
+      console.error("GPT titles JSON parse error:", parseError);
+      console.error("Raw content:", titlesContent);
+      throw new Error(`Failed to parse JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+    }
+
+    const titles = titlesSchema.parse(parsedContent);
     return titles;
   } catch (error) {
     console.error("GPT titles error:", error);
+    console.error("Error details:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
 
-    // Graceful degradation: Return error indicators
-    return {
-      youtubeShort: ["⚠️ Title generation failed"],
-      youtubeLong: ["⚠️ Title generation failed - check logs"],
-      podcastTitles: ["⚠️ Title generation failed"],
-      seoKeywords: ["error"],
-    };
+    // Throw error instead of returning fallback values
+    // This allows Inngest to properly track the error and set jobErrors.titles
+    throw error;
   }
 }

@@ -24,7 +24,7 @@ export function AdminSharing({ adminId }: AdminSharingProps) {
   const router = useRouter();
   const { has } = useAuth();
   const userPlan = getCurrentPlan(has);
-  
+
   const allGroups = useQuery(api.sharingGroups.listAllGroups, {
     adminId,
   });
@@ -51,7 +51,8 @@ export function AdminSharing({ adminId }: AdminSharingProps) {
             <p className="text-base md:text-lg text-gray-600 mb-8">
               File sharing is available on the{" "}
               <strong className="text-emerald-600">{planName}</strong> or{" "}
-              <strong className="text-emerald-600">{PLAN_NAMES.ultra}</strong> plan
+              <strong className="text-emerald-600">{PLAN_NAMES.ultra}</strong>{" "}
+              plan
             </p>
 
             {/* Feature List */}
@@ -64,12 +65,16 @@ export function AdminSharing({ adminId }: AdminSharingProps) {
                   </p>
                   <ul className="space-y-3 text-sm md:text-base text-gray-700">
                     <li className="flex items-center gap-3">
-                      <span className="text-emerald-600 font-bold text-lg">✓</span>
+                      <span className="text-emerald-600 font-bold text-lg">
+                        ✓
+                      </span>
                       <span className="font-medium">File Sharing Groups</span>
                     </li>
                     {planFeatures.map((feat, idx) => (
                       <li key={idx} className="flex items-center gap-3">
-                        <span className="text-emerald-600 font-bold text-lg">✓</span>
+                        <span className="text-emerald-600 font-bold text-lg">
+                          ✓
+                        </span>
                         <span className="font-medium">
                           {feat
                             .replace(/_/g, " ")
@@ -92,7 +97,11 @@ export function AdminSharing({ adminId }: AdminSharingProps) {
               </p>
 
               {/* CTA Button */}
-              <Link href="/dashboard/upgrade?reason=feature&feature=File Sharing">
+              <Link
+                href="/dashboard/upgrade?reason=feature&feature=File Sharing"
+                prefetch={true}
+                onMouseEnter={() => router.prefetch("/dashboard/upgrade")}
+              >
                 <Button
                   size="lg"
                   className="gradient-emerald text-white hover-glow px-8 md:px-10 py-5 md:py-6 text-base md:text-lg rounded-xl font-bold w-full md:w-auto"
@@ -150,7 +159,7 @@ export function AdminSharing({ adminId }: AdminSharingProps) {
   const handleDeleteGroup = async (groupId: Id<"sharingGroups">) => {
     if (
       !confirm(
-        "Are you sure you want to delete this group? All members will lose access.",
+        "Are you sure you want to delete this group? All members will lose access."
       )
     ) {
       return;
@@ -193,7 +202,8 @@ export function AdminSharing({ adminId }: AdminSharingProps) {
                       Owner: {ownerName}
                     </p>
                     <Badge variant="secondary" className="mt-2">
-                      {group.memberCount} {group.memberCount === 1 ? "member" : "members"}
+                      {group.memberCount}{" "}
+                      {group.memberCount === 1 ? "member" : "members"}
                     </Badge>
                   </div>
                 </div>
@@ -214,4 +224,3 @@ export function AdminSharing({ adminId }: AdminSharingProps) {
     </div>
   );
 }
-

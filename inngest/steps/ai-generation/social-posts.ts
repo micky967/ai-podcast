@@ -137,7 +137,7 @@ export async function generateSocialPosts(
       "generate-social-posts-with-gpt",
       createCompletion,
       {
-        model: "gpt-5-mini",
+        model: "gpt-4o",
         messages: [
           { role: "system", content: SOCIAL_SYSTEM_PROMPT },
           { role: "user", content: buildSocialPrompt(transcript) },

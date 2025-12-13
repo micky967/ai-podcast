@@ -3,7 +3,7 @@
 import { Protect, SignInButton, UserButton, useAuth } from "@clerk/nextjs";
 import { Crown, Home, Shield, Sparkles, Zap } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { DashboardNav } from "@/components/dashboard-nav";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { JoinRequestsNotification } from "@/components/sharing/join-requests-notification";
 
 export function Header() {
+  const router = useRouter();
   const { isSignedIn, userId } = useAuth();
   const pathname = usePathname();
   const isDashboard = pathname?.startsWith("/dashboard");
@@ -104,7 +105,11 @@ export function Header() {
                   }
                   fallback={null}
                 >
-                  <Link href="/dashboard/upgrade">
+                  <Link
+                    href="/dashboard/upgrade"
+                    prefetch={true}
+                    onMouseEnter={() => router.prefetch("/dashboard/upgrade")}
+                  >
                     <Button
                       className={
                         isDashboard
@@ -153,7 +158,11 @@ export function Header() {
                       </Button>
                     </Link>
                     {isAdmin && (
-                      <Link href="/dashboard/admin">
+                      <Link
+                        href="/dashboard/admin"
+                        prefetch={true}
+                        onMouseEnter={() => router.prefetch("/dashboard/admin")}
+                      >
                         <Button
                           variant="ghost"
                           size="sm"

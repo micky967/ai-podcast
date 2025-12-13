@@ -2,7 +2,8 @@
 
 import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
-import { Edit2, Loader2, Save, Trash2, X } from "lucide-react";
+import { ArrowLeft, Edit2, Loader2, Save, Trash2, X } from "lucide-react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -55,6 +56,12 @@ export default function ProjectDetailPage() {
     userId ? { projectId, userId } : "skip"
   );
 
+  // Check if user is owner - owners bypass plan restrictions
+  const isOwner = useQuery(
+    api.userSettings.isUserOwner,
+    userId ? { userId } : "skip"
+  );
+
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState("");
@@ -83,7 +90,7 @@ export default function ProjectDetailPage() {
 
   const handleSaveEdit = async () => {
     // Prevent editing if not owner
-    if (!project?.isOwner) {
+    if (isOwner !== true) {
       toast.error("You can only edit your own projects");
       setIsEditing(false);
       return;
@@ -111,7 +118,7 @@ export default function ProjectDetailPage() {
   // Handle delete
   const handleDelete = async () => {
     // Prevent deletion if not owner
-    if (!project?.isOwner) {
+    if (isOwner !== true) {
       toast.error("You can only delete your own projects");
       return;
     }
@@ -161,8 +168,8 @@ export default function ProjectDetailPage() {
     );
   }
 
-  // Determine if user is owner or has read-only access via sharing
-  const isOwner = project.isOwner === true;
+  // Determine if user has read-only access via sharing
+  // Note: isOwner is already declared above from useQuery
   const isShared = project.isShared === true;
 
   const isProcessing = project.status === "processing";
@@ -191,6 +198,24 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0 overflow-x-hidden">
+      {/* Back button */}
+      <div className="mb-4">
+        <Link
+          href="/dashboard/projects"
+          prefetch={true}
+          onMouseEnter={() => router.prefetch("/dashboard/projects")}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Projects
+          </Button>
+        </Link>
+      </div>
+
       {/* Header with title and actions */}
       <div className="mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex-1 min-w-0">
@@ -239,7 +264,7 @@ export default function ProjectDetailPage() {
           )}
         </div>
         {/* Only show Edit/Delete buttons if user owns the project */}
-        {isOwner && (
+        {isOwner === true && (
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {!isEditing && (
               <Button
@@ -270,7 +295,7 @@ export default function ProjectDetailPage() {
           </div>
         )}
         {/* Show read-only indicator for shared projects */}
-        {isShared && !isOwner && (
+        {isShared && isOwner !== true && (
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-sm text-muted-foreground italic">
               Read-only (Shared project)
@@ -334,8 +359,8 @@ export default function ProjectDetailPage() {
             </div>
 
             {/* Desktop Tabs */}
-            <div className="glass-card rounded-2xl p-2 mb-6 hidden lg:block overflow-x-auto">
-              <TabsList className="flex flex-nowrap gap-2 bg-transparent w-full min-w-max">
+            <div className="glass-card rounded-2xl p-2 mb-6 hidden lg:block w-full">
+              <TabsList className="flex flex-wrap gap-2 bg-transparent">
                 {visibleTabs.map((tab) => (
                   <DesktopTabTrigger
                     key={tab.value}
@@ -467,9 +492,9 @@ export default function ProjectDetailPage() {
                 error={project.jobErrors?.engagement}
                 projectId={projectId}
                 feature={FEATURES.ENGAGEMENT}
-                featureName="Engagement Tools"
+                featureName="Q&A"
                 jobName="engagement"
-                emptyMessage="Please generate the engagement tools here"
+                emptyMessage="Please generate Q&A here"
                 isShared={isShared}
               >
                 <EngagementTab
@@ -485,6 +510,11 @@ export default function ProjectDetailPage() {
                 <TabContent
                   isLoading={showGenerating}
                   data={project.transcript}
+                  projectId={projectId}
+                  feature={FEATURES.SPEAKER_DIARIZATION}
+                  featureName="Speaker Dialogue"
+                  jobName="transcript"
+                  emptyMessage="No transcript available"
                   isShared={isShared}
                 >
                   {project.transcript && (

@@ -7,6 +7,7 @@
  */
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import {
   CreditCard,
@@ -38,6 +39,7 @@ import { toast } from "sonner";
 import { cancelSubscriptionAction } from "@/app/actions/user-settings";
 
 export function SubscriptionManagement() {
+  const router = useRouter();
   const { has, userId } = useAuth();
   const [isCanceling, setIsCanceling] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -126,7 +128,11 @@ export function SubscriptionManagement() {
               You're currently on the <strong>Free</strong> plan. Upgrade to
               unlock more features and capabilities.
             </p>
-            <Link href="/dashboard/upgrade">
+            <Link
+              href="/dashboard/upgrade"
+              prefetch={true}
+              onMouseEnter={() => router.prefetch("/dashboard/upgrade")}
+            >
               <Button className="gradient-emerald text-white">
                 <Zap className="h-4 w-4 mr-2" />
                 Upgrade Plan
@@ -147,7 +153,11 @@ export function SubscriptionManagement() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <Link href="/dashboard/upgrade">
+              <Link
+                href="/dashboard/upgrade"
+                prefetch={true}
+                onMouseEnter={() => router.prefetch("/dashboard/upgrade")}
+              >
                 <Button
                   variant="outline"
                   className="border-emerald-300 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"

@@ -142,7 +142,7 @@ export const GENERATION_OUTPUTS: GenerationOutput[] = [
       "Transforming audio or document content into a slide deck with text, notes, and simple icon hints",
   },
   {
-    name: "Engagement Tools",
+    name: "Q&A",
     icon: Sparkles,
     description:
       "Generating comment starters, pin-worthy comments, community posts, and optimized descriptions",

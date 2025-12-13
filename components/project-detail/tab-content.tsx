@@ -6,6 +6,8 @@ import type { RetryableJob } from "@/app/actions/retry-job";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { FeatureName } from "@/lib/tier-config";
+import { FEATURES } from "@/lib/tier-config";
+import { getCurrentPlan } from "@/lib/client-tier-utils";
 import { ErrorRetryCard } from "./error-retry-card";
 import { GenerateMissingCard } from "./generate-missing-card";
 import { TabSkeleton } from "./tab-skeleton";
@@ -47,7 +49,7 @@ export function TabContent({
   emptyMessage = "No data available",
   isShared = false,
 }: TabContentProps) {
-  const { userId } = useAuth();
+  const { userId, has } = useAuth();
 
   // Check if user is owner - owners bypass plan restrictions
   const isOwner = useQuery(
@@ -55,21 +57,37 @@ export function TabContent({
     userId ? { userId } : "skip"
   );
 
+  // Get current plan for upgrade prompts
+  const currentPlan = getCurrentPlan(has);
+
   // Helper to wrap content with feature gating if needed
-  // For shared projects and owners, bypass plan restrictions
+  // Owners and shared project viewers bypass all plan/role restrictions
   const wrapWithProtect = (content: React.ReactNode) => {
-    // If project is shared, show content without plan restrictions
+    // If project is shared, show content without plan restrictions (read-only viewing)
+    // Shared projects allow viewers to see all content regardless of their plan
     if (isShared) {
       return content;
     }
 
-    // Owners bypass all plan restrictions
-    if (isOwner) {
+    // Owners bypass all plan restrictions (explicitly check for true)
+    if (isOwner === true) {
       return content;
     }
 
+    // No feature requirement - available to all
     if (!feature || !featureName) return content;
 
+    // Special exception: Allow free users to access Q&A on their own uploaded files
+    // This matches the behavior where free users can see Q&A in shared files
+    // If the project is not shared (meaning it's the user's own project), allow Q&A access
+    // Note: Users can only view their own non-shared projects, so !isShared means it's their project
+    if (feature === FEATURES.ENGAGEMENT && projectId && userId && !isShared) {
+      return content;
+    }
+
+    // Use Clerk's Protect component to check feature access
+    // This checks BOTH plan permissions (free/pro/ultra) AND role permissions (user/admin/owner)
+    // Free users without the feature will see the upgrade prompt
     return (
       <Protect
         feature={feature}
@@ -77,7 +95,7 @@ export function TabContent({
           <UpgradePrompt
             feature={featureName}
             featureKey={feature}
-            currentPlan="free"
+            currentPlan={currentPlan}
           />
         }
       >
@@ -91,9 +109,18 @@ export function TabContent({
     return <TabSkeleton />;
   }
 
-  // Simple pass-through if enhanced props not provided (backward compatible)
-  if (!projectId || !jobName) {
-    return <>{children}</>;
+  // If feature is provided, always wrap with protection (even if projectId/jobName missing)
+  // This ensures locked tabs show upgrade prompt
+  if (feature && featureName) {
+    // If we don't have projectId/jobName, just wrap children with protection
+    if (!projectId || !jobName) {
+      return wrapWithProtect(children);
+    }
+  } else {
+    // No feature, simple pass-through if enhanced props not provided (backward compatible)
+    if (!projectId || !jobName) {
+      return <>{children}</>;
+    }
   }
 
   // Error state

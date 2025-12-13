@@ -83,7 +83,11 @@ export function Header() {
                   }
                   fallback={null}
                 >
-                  <Link href="/dashboard/upgrade">
+                  <Link
+                    href="/dashboard/upgrade"
+                    prefetch={true}
+                    onMouseEnter={() => router.prefetch("/dashboard/upgrade")}
+                  >
                     <Button
                       className={
                         isDashboard
@@ -105,7 +109,11 @@ export function Header() {
                   }
                   fallback={null}
                 >
-                  <Link href="/dashboard/upgrade">
+                  <Link
+                    href="/dashboard/upgrade"
+                    prefetch={true}
+                    onMouseEnter={() => router.prefetch("/dashboard/upgrade")}
+                  >
                     <Button
                       className={
                         isDashboard

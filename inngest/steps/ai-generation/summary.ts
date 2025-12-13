@@ -109,7 +109,7 @@ export async function generateSummary(
       "generate-summary-with-gpt",
       createCompletion,
       {
-        model: "gpt-5-mini", // Fast and cost-effective model
+        model: "gpt-4o", // Fast and cost-effective model
         messages: [
           { role: "system", content: SUMMARY_SYSTEM_PROMPT },
           { role: "user", content: buildSummaryPrompt(transcript) },
