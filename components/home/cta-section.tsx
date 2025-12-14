@@ -40,7 +40,7 @@ export async function CtaSection() {
                 </Button>
               </Link>
             ) : (
-              <SignUpButton mode="modal" afterSignUpUrl="/dashboard/settings">
+              <SignUpButton mode="modal">
                 <Button
                   size="lg"
                   className="bg-white text-emerald-600 hover:bg-white/90 hover-glow text-lg px-10 py-7 rounded-xl shadow-2xl font-bold"

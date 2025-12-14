@@ -219,10 +219,7 @@ export function Header() {
               </>
             ) : (
               <>
-                <SignUpButton
-                  mode="modal"
-                  afterSignUpUrl="/dashboard/settings"
-                >
+                <SignUpButton mode="modal">
                   <Button
                     className={
                       isDashboard
@@ -233,10 +230,7 @@ export function Header() {
                     Sign Up
                   </Button>
                 </SignUpButton>
-                <SignInButton
-                  mode="modal"
-                  afterSignInUrl="/dashboard/projects"
-                >
+                <SignInButton mode="modal">
                   <Button
                     variant="ghost"
                     className={
