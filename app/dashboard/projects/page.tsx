@@ -37,7 +37,7 @@ export default async function ProjectsPage({
       {
         userId,
         categoryId: category as Id<"categories">,
-      },
+      }
     );
 
     // Preload category data for header
@@ -60,7 +60,7 @@ export default async function ProjectsPage({
     {
       userId,
       filter: "all",
-    },
+    }
   );
 
   return <ProjectsList preloadedProjects={preloadedProjects} />;
