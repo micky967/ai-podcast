@@ -12,6 +12,7 @@ import { SettingsForm } from "@/components/settings/settings-form";
 import { SubscriptionManagement } from "@/components/settings/subscription-management";
 import { api } from "@/convex/_generated/api";
 import { preloadQuery } from "convex/nextjs";
+import { convex } from "@/lib/convex-client";
 
 export default async function SettingsPage() {
   const { userId } = await auth();
@@ -19,6 +20,12 @@ export default async function SettingsPage() {
   if (!userId) {
     redirect("/");
   }
+
+  // Initialize user settings if they don't exist (creates record in Convex immediately)
+  // This ensures users appear in the database right after sign-up
+  await convex.mutation(api.userSettings.initializeUserSettings, {
+    userId,
+  });
 
   // Preload user settings status (frontend only sees if keys are set, not the keys themselves)
   const preloadedSettings = await preloadQuery(

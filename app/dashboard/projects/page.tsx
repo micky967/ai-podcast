@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { ProjectsList } from "@/components/projects/projects-list";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { convex } from "@/lib/convex-client";
 
 interface ProjectsPageProps {
   searchParams: Promise<{
@@ -22,6 +23,12 @@ export default async function ProjectsPage({
   if (!userId) {
     redirect("/");
   }
+
+  // Initialize user settings if they don't exist (creates record in Convex immediately)
+  // This ensures users appear in the database right after sign-up/sign-in
+  await convex.mutation(api.userSettings.initializeUserSettings, {
+    userId,
+  });
 
   // Preload projects data - filtered by category if provided, otherwise all projects
   if (category) {

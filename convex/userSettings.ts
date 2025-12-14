@@ -133,6 +133,47 @@ export const updateUserSettings = mutation({
 });
 
 /**
+ * Initialize user settings (create record if it doesn't exist)
+ *
+ * Used by: Settings page to ensure user has a record in Convex immediately after sign-up
+ * This allows users to appear in the database even before they add API keys
+ *
+ * @param userId - User ID to initialize settings for
+ * @returns Settings ID (existing or newly created)
+ */
+export const initializeUserSettings = mutation({
+  args: {
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+
+    // Check if settings already exist
+    const existing = await ctx.db
+      .query("userSettings")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .first();
+
+    if (existing) {
+      // Settings already exist, return existing ID
+      return existing._id;
+    }
+
+    // Create new settings with default "user" role and no API keys
+    const settingsId = await ctx.db.insert("userSettings", {
+      userId: args.userId,
+      openaiApiKey: undefined,
+      assemblyaiApiKey: undefined,
+      role: "user", // Default role for new users
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return settingsId;
+  },
+});
+
+/**
  * Delete user API keys (clear settings)
  *
  * Used by: Settings page when user wants to remove their keys
