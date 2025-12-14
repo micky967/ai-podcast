@@ -26,7 +26,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      signUpUrl="/sign-up"
+      signInUrl="/sign-in"
+      afterSignUpUrl="/dashboard/settings"
+      afterSignInUrl="/dashboard/projects"
+    >
       <ConvexClientProvider>
         <html lang="en">
           <body

@@ -1,4 +1,4 @@
-import { SignInButton } from "@clerk/nextjs";
+import { SignUpButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import { Sparkles, Upload } from "lucide-react";
 import Link from "next/link";
@@ -40,7 +40,7 @@ export async function CtaSection() {
                 </Button>
               </Link>
             ) : (
-              <SignInButton mode="modal">
+              <SignUpButton mode="modal" afterSignUpUrl="/dashboard/settings">
                 <Button
                   size="lg"
                   className="bg-white text-emerald-600 hover:bg-white/90 hover-glow text-lg px-10 py-7 rounded-xl shadow-2xl font-bold"
@@ -48,7 +48,7 @@ export async function CtaSection() {
                   Get Started Now
                   <Sparkles className="ml-2 h-6 w-6" />
                 </Button>
-              </SignInButton>
+              </SignUpButton>
             )}
           </div>
         </div>
