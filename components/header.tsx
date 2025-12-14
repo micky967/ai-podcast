@@ -1,6 +1,12 @@
 "use client";
 
-import { Protect, SignInButton, SignUpButton, UserButton, useAuth } from "@clerk/nextjs";
+import {
+  Protect,
+  SignInButton,
+  SignUpButton,
+  UserButton,
+  useAuth,
+} from "@clerk/nextjs";
 import { Crown, Home, Shield, Sparkles, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -213,7 +219,10 @@ export function Header() {
               </>
             ) : (
               <>
-                <SignUpButton mode="modal" afterSignUpUrl="/dashboard/settings" afterSignInUrl="/dashboard/projects">
+                <SignUpButton
+                  mode="modal"
+                  afterSignUpUrl="/dashboard/settings"
+                >
                   <Button
                     className={
                       isDashboard
@@ -224,7 +233,10 @@ export function Header() {
                     Sign Up
                   </Button>
                 </SignUpButton>
-                <SignInButton mode="modal" afterSignInUrl="/dashboard/projects">
+                <SignInButton
+                  mode="modal"
+                  afterSignInUrl="/dashboard/projects"
+                >
                   <Button
                     variant="ghost"
                     className={
