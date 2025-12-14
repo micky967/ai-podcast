@@ -5,5 +5,3 @@ export default function DashboardPage() {
   redirect("/dashboard/projects");
 }
 
-
-

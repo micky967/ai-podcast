@@ -309,6 +309,7 @@ export async function leaveGroupAction(
 
 /**
  * Request to join a group
+ * Note: Free users can request to join groups, but cannot create groups
  */
 export async function requestToJoinAction(
   groupId: Id<"sharingGroups">,
@@ -321,16 +322,8 @@ export async function requestToJoinAction(
       return { success: false, error: "Unauthorized" };
     }
 
-    const plan = getUserPlan(authObj);
-
-    // Check if user can share files
-    if (!canUserCreateGroup(plan)) {
-      return {
-        success: false,
-        error: getSharingUpgradeMessage(plan),
-      };
-    }
-
+    // Allow all users (including free) to request to join groups
+    // Group owners can accept or reject requests based on their own plan limits
     await convex.mutation(api.sharingGroups.requestToJoin, {
       groupId,
       requesterId: userId,

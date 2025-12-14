@@ -52,7 +52,7 @@ export function ProjectsList({
           userId,
           filter,
         }
-      : "skip",
+      : "skip"
   );
 
   // Always call useMemo unconditionally
@@ -63,37 +63,56 @@ export function ProjectsList({
     if (categoryId || filter === "all") {
       return preloadedResult;
     }
-    return dynamicQueryResult || { page: [], continueCursor: null, isDone: true };
+    return (
+      dynamicQueryResult || { page: [], continueCursor: null, isDone: true }
+    );
   }, [categoryId, filter, preloadedResult, dynamicQueryResult]);
-  
-  const allProjects = projectsResult.page || [];
+
+  // Deduplicate projects by _id to prevent duplicate key errors
+  const allProjects = useMemo(() => {
+    const projects = projectsResult.page || [];
+    const seen = new Set<string>();
+    return projects.filter((project: any) => {
+      const id = String(project._id);
+      if (seen.has(id)) {
+        return false;
+      }
+      seen.add(id);
+      return true;
+    });
+  }, [projectsResult.page]);
 
   // Filter projects based on search query (case-insensitive)
   // ONLY searches project displayName and fileName - nothing else
   // Case-insensitive: converts both query and names to lowercase for comparison
   const filteredProjects = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return allProjects;
+    let projects = allProjects;
+
+    // Apply search filter if query exists
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      projects = allProjects.filter((project: any) => {
+        // Get the actual project name to search (use displayName if available, otherwise fileName)
+        const projectName = (project.displayName || project.fileName || "")
+          .toLowerCase()
+          .trim();
+
+        // Also search the original fileName separately
+        const fileName = (project.fileName || "").toLowerCase().trim();
+
+        // ONLY match if the search query appears in the project name or file name
+        // Case-insensitive comparison (both converted to lowercase)
+        // This does NOT search:
+        // - Category names
+        // - File extensions
+        // - File sizes
+        // - Any other metadata
+        return projectName.includes(query) || fileName.includes(query);
+      });
     }
 
-    const query = searchQuery.toLowerCase().trim();
-    
-    return allProjects.filter((project: any) => {
-      // Get the actual project name to search (use displayName if available, otherwise fileName)
-      const projectName = (project.displayName || project.fileName || "").toLowerCase().trim();
-      
-      // Also search the original fileName separately
-      const fileName = (project.fileName || "").toLowerCase().trim();
-      
-      // ONLY match if the search query appears in the project name or file name
-      // Case-insensitive comparison (both converted to lowercase)
-      // This does NOT search:
-      // - Category names
-      // - File extensions  
-      // - File sizes
-      // - Any other metadata
-      return projectName.includes(query) || fileName.includes(query);
-    });
+    // Return filtered projects (already deduplicated in allProjects)
+    return projects;
   }, [allProjects, searchQuery]);
 
   const hasProjects = filteredProjects.length > 0;
@@ -162,7 +181,11 @@ export function ProjectsList({
           {filteredProjects.map((project: any) => (
             <div
               key={project._id}
-              ref={highlightProjectId === project._id ? highlightedElementRef : null}
+              ref={
+                highlightProjectId === project._id
+                  ? highlightedElementRef
+                  : null
+              }
             >
               <ProjectCard
                 project={project}

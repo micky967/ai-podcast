@@ -7,7 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@clerk/nextjs";
 import { useState, useEffect } from "react";
-import { Users, Trash2, Crown, Lock, Sparkles } from "lucide-react";
+import {
+  Users,
+  Trash2,
+  Crown,
+  Lock,
+  Sparkles,
+  AlertTriangle,
+} from "lucide-react";
 import { adminDeleteGroupAction } from "@/app/actions/sharing";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -15,6 +22,14 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { getCurrentPlan } from "@/lib/client-tier-utils";
 import { PLAN_NAMES, PLAN_PRICES, PLAN_FEATURES } from "@/lib/tier-config";
 import Link from "next/link";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface AdminSharingProps {
   adminId: string;
@@ -30,6 +45,15 @@ export function AdminSharing({ adminId }: AdminSharingProps) {
   });
 
   const [userNames, setUserNames] = useState<Map<string, string>>(new Map());
+  const [userAvatars, setUserAvatars] = useState<Map<string, string | null>>(
+    new Map()
+  );
+  const [userInitials, setUserInitials] = useState<Map<string, string>>(
+    new Map()
+  );
+  const [deleteConfirmOpen, setDeleteConfirmOpen] =
+    useState<Id<"sharingGroups"> | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Show upgrade prompt for free plan users
   if (userPlan === "free") {
@@ -120,61 +144,89 @@ export function AdminSharing({ adminId }: AdminSharingProps) {
     );
   }
 
-  // Fetch user names
+  // Fetch user names, avatars, and initials
   useEffect(() => {
     if (!allGroups) return;
 
-    const fetchUserNames = async () => {
+    const fetchUserInfo = async () => {
       const names = new Map<string, string>();
+      const avatars = new Map<string, string | null>();
+      const initialsMap = new Map<string, string>();
       const userIds = new Set<string>();
 
       allGroups.forEach((group) => {
         userIds.add(group.ownerId);
       });
 
-      const namePromises = Array.from(userIds).map(async (userId) => {
+      const infoPromises = Array.from(userIds).map(async (userId) => {
         try {
           const response = await fetch(`/api/users/${userId}/name`);
           if (response.ok) {
             const data = await response.json();
-            return { userId, name: data.name || userId };
+            const name = data.name || userId;
+
+            // Generate initials
+            let initial = "";
+            if (data.firstName && data.lastName) {
+              initial = `${data.firstName[0]}${data.lastName[0]}`.toUpperCase();
+            } else if (data.name) {
+              const nameParts = data.name.trim().split(/\s+/);
+              if (nameParts.length >= 2) {
+                initial = `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase();
+              } else if (nameParts.length === 1) {
+                initial = nameParts[0][0].toUpperCase();
+              }
+            }
+
+            return {
+              userId,
+              name,
+              imageUrl: data.imageUrl || null,
+              initials: initial,
+            };
           }
-          return { userId, name: userId };
+          return { userId, name: userId, imageUrl: null, initials: "" };
         } catch {
-          return { userId, name: userId };
+          return { userId, name: userId, imageUrl: null, initials: "" };
         }
       });
 
-      const results = await Promise.all(namePromises);
-      results.forEach(({ userId, name }) => {
+      const results = await Promise.all(infoPromises);
+      results.forEach(({ userId, name, imageUrl, initials }) => {
         names.set(userId, name);
+        avatars.set(userId, imageUrl);
+        initialsMap.set(userId, initials);
       });
 
       setUserNames(names);
+      setUserAvatars(avatars);
+      setUserInitials(initialsMap);
     };
 
-    fetchUserNames();
+    fetchUserInfo();
   }, [allGroups]);
 
-  const handleDeleteGroup = async (groupId: Id<"sharingGroups">) => {
-    if (
-      !confirm(
-        "Are you sure you want to delete this group? All members will lose access."
-      )
-    ) {
-      return;
-    }
+  const handleDeleteClick = (groupId: Id<"sharingGroups">) => {
+    setDeleteConfirmOpen(groupId);
+  };
 
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmOpen) return;
+
+    setIsDeleting(true);
     try {
-      const result = await adminDeleteGroupAction(groupId);
+      const result = await adminDeleteGroupAction(deleteConfirmOpen);
       if (result.success) {
         toast.success("Group deleted successfully");
+        setDeleteConfirmOpen(null);
         router.refresh();
       } else {
         toast.error(result.error || "Failed to delete group");
       }
     } catch (error) {
       toast.error("Failed to delete group");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -191,6 +243,8 @@ export function AdminSharing({ adminId }: AdminSharingProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {allGroups.map((group) => {
             const ownerName = userNames.get(group.ownerId) || group.ownerId;
+            const ownerAvatar = userAvatars.get(group.ownerId);
+            const ownerInitials = userInitials.get(group.ownerId) || "";
             return (
               <Card key={group.groupId} className="p-4">
                 <div className="flex items-start justify-between mb-2">
@@ -198,9 +252,24 @@ export function AdminSharing({ adminId }: AdminSharingProps) {
                     <h3 className="font-semibold text-lg">
                       {group.name || "Unnamed Group"}
                     </h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Owner: {ownerName}
-                    </p>
+                    {ownerName && (
+                      <div className="flex items-center gap-2 mt-1">
+                        {ownerAvatar ? (
+                          <img
+                            src={ownerAvatar}
+                            alt={ownerName}
+                            className="w-5 h-5 rounded-full object-cover"
+                          />
+                        ) : ownerInitials ? (
+                          <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-700">
+                            {ownerInitials}
+                          </div>
+                        ) : null}
+                        <p className="text-sm text-gray-600">
+                          Created by {ownerName}
+                        </p>
+                      </div>
+                    )}
                     <Badge variant="secondary" className="mt-2">
                       {group.memberCount}{" "}
                       {group.memberCount === 1 ? "member" : "members"}
@@ -210,7 +279,8 @@ export function AdminSharing({ adminId }: AdminSharingProps) {
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => handleDeleteGroup(group.groupId)}
+                  onClick={() => handleDeleteClick(group.groupId)}
+                  disabled={isDeleting}
                   className="w-full mt-4"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
@@ -221,6 +291,65 @@ export function AdminSharing({ adminId }: AdminSharingProps) {
           })}
         </div>
       )}
+
+      {/* Delete Group Confirmation Dialog */}
+      <Dialog
+        open={deleteConfirmOpen !== null}
+        onOpenChange={(open) => !open && setDeleteConfirmOpen(null)}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl">Delete Group?</DialogTitle>
+                <DialogDescription className="mt-1">
+                  This action cannot be undone
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-700">
+              Are you sure you want to delete this group? All members will lose
+              access to all shared files in this group.
+            </p>
+            <div className="mt-4 rounded-lg bg-red-50 border border-red-200 p-3">
+              <p className="text-xs font-semibold text-red-900 mb-1">
+                What happens next:
+              </p>
+              <ul className="text-xs text-red-800 space-y-1 list-disc list-inside">
+                <li>All members will lose access to files in this group</li>
+                <li>
+                  They will no longer receive notifications for this group
+                </li>
+                <li>The group and all its data will be permanently deleted</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteConfirmOpen(null)}
+              disabled={isDeleting}
+              className="sm:flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-red-600 text-white hover:bg-red-700 hover:text-white sm:flex-1"
+            >
+              {isDeleting ? "Deleting..." : "Delete Group"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

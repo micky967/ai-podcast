@@ -9,9 +9,8 @@ export default async function SharingPage() {
 
   // Redirect if not authenticated
   if (!userId) {
-    redirect("/");
-  }
-
+    redirect("/")
+  };
   // Preload user's groups
   const preloadedGroups = await preloadQuery(api.sharingGroups.getUserGroups, {
     userId,
@@ -19,8 +18,3 @@ export default async function SharingPage() {
 
   return <SharingGroupsList preloadedGroups={preloadedGroups} />;
 }
-
-
-
-
-

@@ -8,11 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/projects/empty-state";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@clerk/nextjs";
-import { getCurrentPlan } from "@/lib/client-tier-utils";
-import {
-  canUserCreateGroup,
-  getSharingUpgradeMessage,
-} from "@/lib/sharing-utils";
 import {
   requestToJoinAction,
   cancelJoinRequestAction,
@@ -45,9 +40,6 @@ export function BrowseGroups() {
     api.sharingGroups.browseGroups,
     userId ? { userId } : "skip"
   );
-
-  const userPlan = getCurrentPlan(has as any);
-  const canJoin = canUserCreateGroup(userPlan);
 
   // Fetch owner names for groups with owner invites
   useEffect(() => {
@@ -88,11 +80,7 @@ export function BrowseGroups() {
   }, [groups]);
 
   const handleRequestJoin = async (groupId: Id<"sharingGroups">) => {
-    if (!canJoin) {
-      toast.error(getSharingUpgradeMessage(userPlan));
-      return;
-    }
-
+    // Allow all users (including free) to request to join groups
     setRequestingGroups((prev) => new Set(prev).add(groupId));
     try {
       const result = await requestToJoinAction(groupId);
@@ -203,11 +191,7 @@ export function BrowseGroups() {
     return (
       <EmptyState
         title="No groups available"
-        description={
-          canJoin
-            ? "There are no groups available to join at the moment. Create your own group to get started!"
-            : getSharingUpgradeMessage(userPlan)
-        }
+        description="There are no groups available to join at the moment."
       />
     );
   }
@@ -320,7 +304,7 @@ export function BrowseGroups() {
                     variant="default"
                     size="sm"
                     onClick={() => handleRequestJoin(group.groupId)}
-                    disabled={!canJoin || isRequesting}
+                    disabled={isRequesting}
                     className="flex-1 gradient-emerald text-white hover-glow"
                   >
                     {isRequesting ? (

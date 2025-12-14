@@ -28,8 +28,8 @@ export async function HeroSection() {
             </h1>
 
             <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed">
-              Upload your podcast audio and get AI-generated summaries,
-              transcripts, social posts, key moments, and more - all in minutes.
+              Upload your podcasts or PDF files and get AI-generated summaries,
+              transcripts, social posts, key moments, questions and answers plus more. The questions and answers can be exported as a CSV file and then import them into Anki for your flash cards.
             </p>
           </div>
 
