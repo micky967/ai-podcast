@@ -33,7 +33,7 @@ export default async function SettingsPage() {
     <div className="container max-w-4xl mx-auto py-10 px-4">
       {/* Initialize user settings client-side (has proper auth context) */}
       <UserSettingsInitializer />
-      
+
       <div className="space-y-8">
         {/* Header */}
         <div>

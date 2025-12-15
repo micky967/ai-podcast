@@ -160,13 +160,13 @@ export const initializeUserSettings = mutation({
     }
 
     // Create new settings with default "user" role and no API keys
+    // Don't include undefined fields - Convex doesn't accept undefined values
     const settingsId = await ctx.db.insert("userSettings", {
       userId: args.userId,
-      openaiApiKey: undefined,
-      assemblyaiApiKey: undefined,
       role: "user", // Default role for new users
       createdAt: now,
       updatedAt: now,
+      // openaiApiKey and assemblyaiApiKey are optional - omit them if not set
     });
 
     return settingsId;
