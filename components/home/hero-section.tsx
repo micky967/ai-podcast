@@ -29,30 +29,40 @@ export async function HeroSection() {
 
             <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed">
               Upload your podcasts or PDF files and get AI-generated summaries,
-              transcripts, social posts, key moments, questions and answers plus more. The questions and answers can be exported as a CSV file and then import them into Anki for your flash cards.
+              transcripts, social posts, key moments, questions and answers plus
+              more. The questions and answers can be exported as a CSV file and
+              then import them into Anki for your flash cards.
             </p>
           </div>
 
           {isSignedIn ? (
-            <div className="space-y-6">
+            <div className="space-y-6 relative z-10">
               <div className="glass-card-strong rounded-2xl p-8 hover-lift">
                 <PodcastUploader />
               </div>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link href="/dashboard/projects" prefetch={true}>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
+                <Link
+                  href="/dashboard/projects"
+                  prefetch={true}
+                  className="w-full sm:w-auto"
+                >
                   <Button
                     variant="outline"
                     size="lg"
-                    className="hover-glow hover:cursor-pointer text-lg px-8 py-6 rounded-xl"
+                    className="hover-glow hover:cursor-pointer text-lg px-8 py-6 rounded-xl w-full sm:w-auto"
                   >
                     View All Projects
                   </Button>
                 </Link>
-                <Link href="/dashboard/categories" prefetch={true}>
+                <Link
+                  href="/dashboard/categories"
+                  prefetch={true}
+                  className="w-full sm:w-auto"
+                >
                   <Button
                     variant="outline"
                     size="lg"
-                    className="hover-glow hover:cursor-pointer text-lg px-8 py-6 rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                    className="hover-glow hover:cursor-pointer text-lg px-8 py-6 rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50 w-full sm:w-auto"
                   >
                     Browse Categories
                   </Button>
@@ -60,30 +70,38 @@ export async function HeroSection() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
               <SignInButton mode="modal">
                 <Button
                   size="lg"
-                  className="gradient-emerald text-white hover-glow text-lg px-8 py-6 rounded-xl shadow-lg hover:cursor-pointer"
+                  className="gradient-emerald text-white hover-glow text-lg px-8 py-6 rounded-xl shadow-lg hover:cursor-pointer w-full sm:w-auto"
                 >
                   Get Started
                   <Sparkles className="ml-2 h-6 w-6" />
                 </Button>
               </SignInButton>
-              <Link href="/dashboard/projects" prefetch={true}>
+              <Link
+                href="/dashboard/projects"
+                prefetch={true}
+                className="w-full sm:w-auto"
+              >
                 <Button
                   size="lg"
                   variant="outline"
-                  className="hover-glow text-lg px-8 py-6 rounded-xl"
+                  className="hover-glow text-lg px-8 py-6 rounded-xl w-full sm:w-auto"
                 >
                   View Projects
                 </Button>
               </Link>
-              <Link href="/dashboard/categories" prefetch={true}>
+              <Link
+                href="/dashboard/categories"
+                prefetch={true}
+                className="w-full sm:w-auto"
+              >
                 <Button
                   size="lg"
                   variant="outline"
-                  className="hover-glow text-lg px-8 py-6 rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  className="hover-glow text-lg px-8 py-6 rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50 w-full sm:w-auto"
                 >
                   Browse Categories
                 </Button>
@@ -94,9 +112,9 @@ export async function HeroSection() {
       </div>
 
       {/* Decorative gradient orbs */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float"></div>
+      <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float pointer-events-none"></div>
       <div
-        className="absolute bottom-0 left-0 w-96 h-96 bg-teal-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float"
+        className="absolute bottom-0 left-0 w-96 h-96 bg-teal-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float pointer-events-none"
         style={{ animationDelay: "1s" }}
       ></div>
     </section>
