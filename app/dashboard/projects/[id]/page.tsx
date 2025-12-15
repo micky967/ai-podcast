@@ -342,7 +342,7 @@ export default function ProjectDetailPage() {
             {/* Mobile Dropdown */}
             <div className="glass-card rounded-2xl p-4 mb-6 lg:hidden">
               <Select value={activeTab} onValueChange={setActiveTab}>
-                <SelectTrigger className="w-full px-4 py-3 rounded-xl bg-linear-to-r from-emerald-500 to-teal-400 text-white font-semibold text-base border-none outline-none focus:ring-2 focus:ring-emerald-300 transition-all h-auto">
+                <SelectTrigger className="w-full px-4 py-3 rounded-xl bg-linear-to-r from-emerald-500 to-teal-400 text-white font-semibold text-base border-none outline-none focus:ring-2 focus:ring-emerald-300 transition-all h-auto [&_svg]:!opacity-100 [&_svg]:!size-5 [&_svg]:stroke-[3]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
