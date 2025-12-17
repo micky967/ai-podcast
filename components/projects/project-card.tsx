@@ -99,21 +99,8 @@ export function ProjectCard({
     }
   };
 
-  // Determine the link destination
-  // Shared projects always go to detail page (read-only view)
-  // Own projects: on all projects page navigate to category page with project param (if category exists)
-  // Own projects: on category page or if no category, navigate to project detail page
+  // Determine the link destination - always go to project detail page
   const getHref = () => {
-    // Shared projects always go to detail page for read-only viewing
-    if (isSharedProject) {
-      return `/dashboard/projects/${project._id}`;
-    }
-    
-    if (isOnAllProjectsPage && project.categoryId) {
-      // Navigate to category page with project param to highlight it
-      return `/dashboard/projects?category=${project.categoryId}&project=${project._id}`;
-    }
-    // Default: navigate to project detail page
     return `/dashboard/projects/${project._id}`;
   };
 

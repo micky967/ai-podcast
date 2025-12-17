@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Protect,
-  SignInButton,
-  SignUpButton,
-  UserButton,
-  useAuth,
-} from "@clerk/nextjs";
+import { Protect, SignInButton, UserButton, useAuth } from "@clerk/nextjs";
 import { Crown, Home, Shield, Sparkles, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -63,8 +57,8 @@ export function Header() {
               <span
                 className={
                   isDashboard
-                    ? "text-xl font-bold text-white tracking-tight hidden md:inline"
-                    : "text-xl font-bold gradient-emerald-text tracking-tight hidden md:inline"
+                    ? "text-xl font-bold text-white tracking-tight"
+                    : "text-xl font-bold gradient-emerald-text tracking-tight"
                 }
               >
                 MedTrain
@@ -208,31 +202,17 @@ export function Header() {
                 </div>
               </>
             ) : (
-              <>
-                <SignUpButton mode="modal">
-                  <Button
-                    className={
-                      isDashboard
-                        ? "bg-white/95 text-emerald-600 hover:bg-white hover:scale-105 shadow-lg font-semibold transition-all duration-300 border border-white/20"
-                        : "gradient-emerald text-white hover-glow hover:scale-105 shadow-lg transition-all duration-300"
-                    }
-                  >
-                    Sign Up
-                  </Button>
-                </SignUpButton>
-                <SignInButton mode="modal">
-                  <Button
-                    variant="ghost"
-                    className={
-                      isDashboard
-                        ? "text-white hover:bg-white/20 transition-all duration-300"
-                        : "hover:bg-gray-100 transition-all duration-300"
-                    }
-                  >
-                    Sign In
-                  </Button>
-                </SignInButton>
-              </>
+              <SignInButton mode="modal">
+                <Button
+                  className={
+                    isDashboard
+                      ? "bg-white/95 text-emerald-600 hover:bg-white hover:scale-105 shadow-lg font-semibold transition-all duration-300"
+                      : "gradient-emerald text-white hover-glow hover:scale-105 shadow-lg transition-all duration-300"
+                  }
+                >
+                  Sign In
+                </Button>
+              </SignInButton>
             )}
           </div>
         </div>

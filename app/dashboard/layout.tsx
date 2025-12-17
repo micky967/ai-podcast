@@ -1,5 +1,4 @@
 import { Header } from "@/components/home/header";
-import { UserSettingsInitializer } from "@/components/user-settings-initializer";
 
 export default function DashboardLayout({
   children,
@@ -8,8 +7,6 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="min-h-screen">
-      {/* Initialize user settings on any dashboard page visit */}
-      <UserSettingsInitializer />
       <Header />
 
       <main className="pt-4 xl:pt-10">{children}</main>

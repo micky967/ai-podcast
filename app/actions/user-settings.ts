@@ -79,6 +79,42 @@ export async function updateUserApiKeysAction(input: {
 }
 
 /**
+ * Initialize user settings (create record if it doesn't exist)
+ *
+ * Used by: Settings and Projects pages to ensure user has a record in Convex immediately after sign-up
+ * This allows users to appear in the database even before they add API keys
+ */
+export async function initializeUserSettingsAction(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    const authObj = await auth();
+    const { userId } = authObj;
+
+    if (!userId) {
+      return { success: false, error: "You must be signed in" };
+    }
+
+    // Initialize user settings in Convex
+    await convex.mutation(api.userSettings.initializeUserSettings, {
+      userId,
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to initialize user settings:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to initialize settings. Please try again.",
+    };
+  }
+}
+
+/**
  * Clear user API keys
  *
  * Removes user-provided API keys, falling back to shared keys.

@@ -10,7 +10,6 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { SettingsForm } from "@/components/settings/settings-form";
 import { SubscriptionManagement } from "@/components/settings/subscription-management";
-import { UserSettingsInitializer } from "@/components/user-settings-initializer";
 import { api } from "@/convex/_generated/api";
 import { preloadQuery } from "convex/nextjs";
 
@@ -31,9 +30,6 @@ export default async function SettingsPage() {
 
   return (
     <div className="container max-w-4xl mx-auto py-10 px-4">
-      {/* Initialize user settings client-side (has proper auth context) */}
-      <UserSettingsInitializer />
-
       <div className="space-y-8">
         {/* Header */}
         <div>

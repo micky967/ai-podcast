@@ -31,6 +31,10 @@ import { retryJobFunction } from "../../../inngest/functions/retry-job";
 // Required because Inngest needs to call this endpoint at runtime
 export const dynamic = "force-dynamic";
 
+// Increase timeout for Inngest webhook (max 60s on Vercel Pro, 300s on Vercel Enterprise)
+// This prevents FUNCTION_INVOCATION_TIMEOUT errors during step execution
+export const maxDuration = 60;
+
 /**
  * Inngest HTTP handler for Next.js App Router
  *
