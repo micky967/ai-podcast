@@ -134,42 +134,55 @@ export function CategoryDropZone({ onDropComplete }: CategoryDropZoneProps) {
   }
 
   return (
-    <Card className="glass-card p-4 mb-6">
-      <div className="flex items-center gap-2 mb-4">
-        <Move className="h-5 w-5 text-emerald-600" />
-        <h3 className="font-semibold text-lg">Drag projects to categories</h3>
-      </div>
+    <>
+      {/* Sticky drop zone that appears when dragging */}
       {isDragging && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {mainCategories.map((category) => (
-            <div
-              key={category._id}
-              onDragOver={(e) => handleDragOver(e, category._id)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, category._id)}
-              className={cn(
-                "p-3 rounded-lg border-2 border-dashed transition-all cursor-pointer",
-                draggedOverCategoryId === category._id
-                  ? "border-emerald-500 bg-emerald-50 scale-105"
-                  : "border-gray-300 hover:border-emerald-300 hover:bg-emerald-50/50",
-              )}
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <FolderTree className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-                <p className="text-sm font-medium text-gray-700 truncate min-w-0">
-                  {category.name}
-                </p>
-              </div>
+        <div className="sticky top-4 z-50 mb-6">
+          <Card className="glass-card p-4 shadow-xl border-2 border-emerald-400">
+            <div className="flex items-center gap-2 mb-4">
+              <Move className="h-5 w-5 text-emerald-600" />
+              <h3 className="font-semibold text-lg">Drop project into a category</h3>
             </div>
-          ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {mainCategories.map((category) => (
+                <div
+                  key={category._id}
+                  onDragOver={(e) => handleDragOver(e, category._id)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, category._id)}
+                  className={cn(
+                    "p-3 rounded-lg border-2 border-dashed transition-all cursor-pointer",
+                    draggedOverCategoryId === category._id
+                      ? "border-emerald-500 bg-emerald-50 scale-105"
+                      : "border-gray-300 hover:border-emerald-300 hover:bg-emerald-50/50",
+                  )}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FolderTree className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                    <p className="text-sm font-medium text-gray-700 truncate min-w-0">
+                      {category.name}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
         </div>
       )}
+      
+      {/* Static drop zone at top (only visible when not dragging) */}
       {!isDragging && (
-        <p className="text-sm text-gray-500">
-          Start dragging a project to see category drop zones
-        </p>
+        <Card className="glass-card p-4 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Move className="h-5 w-5 text-emerald-600" />
+            <h3 className="font-semibold text-lg">Drag projects to categories</h3>
+          </div>
+          <p className="text-sm text-gray-500">
+            Start dragging a project to see category drop zones
+          </p>
+        </Card>
       )}
-    </Card>
+    </>
   );
 }
 
