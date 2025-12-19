@@ -93,12 +93,25 @@ export async function createCategoryAction(input: {
       description: input.description?.trim(),
     });
 
+    if (!categoryId) {
+      return {
+        success: false,
+        error: "Category was not created. Please try again.",
+      };
+    }
+
     return { success: true, categoryId };
   } catch (error) {
     console.error("Error creating category:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Category creation error details:", {
+      name: input.name,
+      parentId: input.parentId,
+      error: errorMessage,
+    });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: errorMessage,
     };
   }
 }
