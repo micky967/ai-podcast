@@ -106,10 +106,23 @@ export function ProjectsList({
 
   // Load more projects when paginated query result changes
   useEffect(() => {
-    if (paginatedQueryResult && paginatedQueryResult.page) {
-      setAllLoadedProjects((prev) => [...prev, ...paginatedQueryResult.page]);
-      setPaginationCursor(paginatedQueryResult.continueCursor || null);
-      setIsLoadingMore(false);
+    if (paginatedQueryResult) {
+      if (paginatedQueryResult.page && paginatedQueryResult.page.length > 0) {
+        // Add new projects (deduplicate by _id)
+        setAllLoadedProjects((prev) => {
+          const existingIds = new Set(prev.map((p: any) => p._id));
+          const newProjects = paginatedQueryResult.page.filter((p: any) => !existingIds.has(p._id));
+          return [...prev, ...newProjects];
+        });
+        // Set cursor to null if no more results, otherwise use the continueCursor
+        const nextCursor = paginatedQueryResult.continueCursor || null;
+        setPaginationCursor(nextCursor);
+        setIsLoadingMore(false);
+      } else {
+        // No more results (empty page or no page)
+        setPaginationCursor(null);
+        setIsLoadingMore(false);
+      }
     }
   }, [paginatedQueryResult]);
 
@@ -179,18 +192,30 @@ export function ProjectsList({
 
   const hasProjects = filteredProjects.length > 0;
   // Check if there are more projects to load
-  const currentContinueCursor = allLoadedProjects.length > 0 
-    ? paginationCursor 
-    : projectsResult.continueCursor;
-  const hasMore = !searchQuery.trim() && !categoryId && currentContinueCursor !== null && currentContinueCursor !== undefined;
+  // Use the most recent query result's continueCursor or isDone flag
+  const isDone = paginatedQueryResult?.isDone !== undefined
+    ? paginatedQueryResult.isDone
+    : (projectsResult.isDone !== undefined ? projectsResult.isDone : false);
+
+  const currentContinueCursor = paginatedQueryResult?.continueCursor !== undefined
+    ? paginatedQueryResult.continueCursor
+    : (allLoadedProjects.length > 0
+        ? paginationCursor
+        : projectsResult.continueCursor);
+
+  // Only show "Load More" if not done and cursor exists
+  const hasMore = !searchQuery.trim() && !categoryId && !isDone && currentContinueCursor !== null && currentContinueCursor !== undefined;
 
   // Load more projects
   const handleLoadMore = () => {
-    const currentCursor = allLoadedProjects.length > 0 
-      ? (projectsResult.continueCursor || paginationCursor)
-      : projectsResult.continueCursor;
-    
-    if (currentCursor && !isLoadingMore) {
+    // Get the current cursor from the most recent query result
+    const currentCursor = paginatedQueryResult?.continueCursor !== undefined
+      ? paginatedQueryResult.continueCursor
+      : (allLoadedProjects.length > 0
+          ? paginationCursor
+          : projectsResult.continueCursor);
+
+    if (currentCursor && !isLoadingMore && currentCursor !== null) {
       setIsLoadingMore(true);
       setPaginationCursor(currentCursor);
       // The query will automatically trigger via paginationCursor state
