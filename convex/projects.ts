@@ -886,3 +886,169 @@ export const listUserProjectsByCategory = query({
     };
   },
 });
+
+/**
+ * Gets ALL projects for a user (for search functionality)
+ * 
+ * Used by: Projects list page when searching across all projects
+ * Returns all projects without pagination for client-side filtering
+ */
+export const getAllUserProjects = query({
+  args: {
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("projects")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("deletedAt"), undefined))
+      .order("desc")
+      .collect();
+  },
+});
+
+/**
+ * Admin query: Get ALL projects (for migration purposes)
+ * 
+ * WARNING: This returns all projects without user filtering.
+ * Only use for admin/migration tasks.
+ */
+export const getAllProjectsForMigration = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("projects")
+      .filter((q) => q.eq(q.field("deletedAt"), undefined))
+      .collect();
+  },
+});
+
+/**
+ * Bulk insert projects with duplicate fileName checking
+ * 
+ * Used for: Migrating projects from dev to prod
+ * 
+ * Checks for existing projects by fileName before inserting.
+ * Only inserts projects that don't already exist.
+ */
+export const bulkInsertProjects = mutation({
+  args: {
+    projects: v.array(
+      v.object({
+        userId: v.string(),
+        inputUrl: v.string(),
+        fileName: v.string(),
+        displayName: v.optional(v.string()),
+        fileSize: v.number(),
+        fileDuration: v.optional(v.number()),
+        fileFormat: v.string(),
+        mimeType: v.string(),
+        categoryId: v.optional(v.id("categories")),
+        subcategoryId: v.optional(v.id("categories")),
+        status: v.union(
+          v.literal("uploaded"),
+          v.literal("processing"),
+          v.literal("completed"),
+          v.literal("failed"),
+        ),
+        jobStatus: v.optional(
+          v.object({
+            transcription: v.optional(
+              v.union(
+                v.literal("pending"),
+                v.literal("running"),
+                v.literal("completed"),
+                v.literal("failed"),
+              ),
+            ),
+            contentGeneration: v.optional(
+              v.union(
+                v.literal("pending"),
+                v.literal("running"),
+                v.literal("completed"),
+                v.literal("failed"),
+              ),
+            ),
+          }),
+        ),
+        error: v.optional(
+          v.object({
+            message: v.string(),
+            step: v.string(),
+            timestamp: v.number(),
+            details: v.optional(
+              v.object({
+                statusCode: v.optional(v.number()),
+                stack: v.optional(v.string()),
+              }),
+            ),
+          }),
+        ),
+        jobErrors: v.optional(
+          v.object({
+            keyMoments: v.optional(v.string()),
+            summary: v.optional(v.string()),
+            socialPosts: v.optional(v.string()),
+            titles: v.optional(v.string()),
+            powerPoint: v.optional(v.string()),
+            youtubeTimestamps: v.optional(v.string()),
+            engagement: v.optional(v.string()),
+            hashtags: v.optional(v.string()),
+          }),
+        ),
+        transcript: v.optional(v.any()),
+        summary: v.optional(v.any()),
+        socialPosts: v.optional(v.any()),
+        titles: v.optional(v.any()),
+        powerPoint: v.optional(v.any()),
+        keyMoments: v.optional(v.any()),
+        youtubeTimestamps: v.optional(v.any()),
+        engagement: v.optional(v.any()),
+        hashtags: v.optional(v.any()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+        completedAt: v.optional(v.number()),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    // Get all existing projects to check for duplicates by fileName
+    const existingProjects = await ctx.db
+      .query("projects")
+      .filter((q) => q.eq(q.field("deletedAt"), undefined))
+      .collect();
+    
+    const existingFileNames = new Set(
+      existingProjects.map((p) => p.fileName.toLowerCase()),
+    );
+    
+    let inserted = 0;
+    let skipped = 0;
+    const skippedFileNames: string[] = [];
+    
+    for (const project of args.projects) {
+      // Check if fileName already exists (case-insensitive)
+      if (existingFileNames.has(project.fileName.toLowerCase())) {
+        skipped++;
+        skippedFileNames.push(project.fileName);
+        continue;
+      }
+      
+      // Insert the project
+      await ctx.db.insert("projects", {
+        ...project,
+        deletedAt: undefined, // Ensure not deleted
+      });
+      
+      inserted++;
+      existingFileNames.add(project.fileName.toLowerCase());
+    }
+    
+    return {
+      inserted,
+      skipped,
+      skippedFileNames,
+      total: args.projects.length,
+    };
+  },
+});
