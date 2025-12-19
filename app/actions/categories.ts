@@ -117,6 +117,48 @@ export async function createCategoryAction(input: {
 }
 
 /**
+ * Delete a category (owner only)
+ *
+ * @param categoryId - Category ID to delete
+ * @returns Success response
+ */
+export async function deleteCategoryAction(categoryId: Id<"categories">): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    const authObj = await auth();
+    const { userId } = authObj;
+
+    if (!userId) {
+      return { success: false, error: "You must be signed in to delete categories" };
+    }
+
+    // Check if user is owner
+    const isOwner = await convex.query(api.userSettings.isUserOwner, { userId });
+    if (!isOwner) {
+      return {
+        success: false,
+        error: "Only owners can delete categories",
+      };
+    }
+
+    // Delete category in Convex
+    await convex.mutation(api.categories.deleteCategory, {
+      categoryId,
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting category:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
  * Update project category (for drag-and-drop)
  *
  * @param projectId - Project ID

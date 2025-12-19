@@ -2,6 +2,7 @@
 
 import { AdminUserList } from "@/components/admin/admin-user-list";
 import { AdminSharing } from "@/components/admin/admin-sharing";
+import { AdminCategories } from "@/components/admin/admin-categories";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Preloaded } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -26,7 +27,7 @@ export function AdminUser({
           <span className="gradient-emerald-text">Admin</span> Dashboard
         </h1>
         <p className="text-lg text-gray-600">
-          Manage user roles, permissions, and sharing groups. Only owners can access this page.
+          Manage user roles, permissions, sharing groups, and categories. Only owners can access this page.
         </p>
       </div>
 
@@ -35,6 +36,7 @@ export function AdminUser({
         <TabsList>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="sharing">Sharing Groups</TabsTrigger>
+          <TabsTrigger value="categories">Categories</TabsTrigger>
         </TabsList>
         <TabsContent value="users">
           <AdminUserList
@@ -44,6 +46,9 @@ export function AdminUser({
         </TabsContent>
         <TabsContent value="sharing">
           {userId && <AdminSharing adminId={userId} />}
+        </TabsContent>
+        <TabsContent value="categories">
+          <AdminCategories />
         </TabsContent>
       </Tabs>
     </div>

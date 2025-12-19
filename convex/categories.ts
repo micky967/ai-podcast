@@ -320,6 +320,80 @@ export const seedCategories = mutation({
 });
 
 /**
+ * Delete a category (owner only)
+ *
+ * Used by: Admin dashboard to delete categories
+ * 
+ * Note: This will also delete all subcategories and remove category assignments from projects
+ *
+ * @param categoryId - Category ID to delete
+ * @returns Success status
+ */
+export const deleteCategory = mutation({
+  args: {
+    categoryId: v.id("categories"),
+  },
+  handler: async (ctx, args) => {
+    // Get the category
+    const category = await ctx.db.get(args.categoryId);
+    
+    if (!category) {
+      throw new Error("Category not found");
+    }
+
+    // Get all subcategories of this category
+    const subcategories = await ctx.db
+      .query("categories")
+      .withIndex("by_parent", (q) => q.eq("parentId", args.categoryId))
+      .collect();
+
+    // Delete all subcategories first
+    for (const subcategory of subcategories) {
+      await ctx.db.delete(subcategory._id);
+    }
+
+    // Get all projects using this category or its subcategories
+    const allCategoryIds = [args.categoryId, ...subcategories.map((s) => s._id)];
+    
+    const projects = await ctx.db
+      .query("projects")
+      .filter((q) => 
+        q.or(
+          ...allCategoryIds.map((id) => 
+            q.or(
+              q.eq(q.field("categoryId"), id),
+              q.eq(q.field("subcategoryId"), id)
+            )
+          )
+        )
+      )
+      .collect();
+
+    // Remove category assignments from projects
+    for (const project of projects) {
+      const updates: any = {};
+      if (allCategoryIds.includes(project.categoryId as any)) {
+        updates.categoryId = undefined;
+      }
+      if (project.subcategoryId && allCategoryIds.includes(project.subcategoryId as any)) {
+        updates.subcategoryId = undefined;
+      }
+      if (Object.keys(updates).length > 0) {
+        await ctx.db.patch(project._id, {
+          ...updates,
+          updatedAt: Date.now(),
+        });
+      }
+    }
+
+    // Delete the category
+    await ctx.db.delete(args.categoryId);
+
+    return { success: true };
+  },
+});
+
+/**
  * Get project count for each category for a user
  *
  * Used by: Categories grid to show count of projects per category
