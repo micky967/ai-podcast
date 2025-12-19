@@ -10,7 +10,7 @@
 import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { FolderTree, Move } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 import { updateProjectCategoryAction } from "@/app/actions/categories";
 import { api } from "@/convex/_generated/api";
@@ -60,10 +60,24 @@ export function CategoryDropZone({ onDropComplete }: CategoryDropZoneProps) {
     setIsDragging(false);
 
     try {
-      const data = e.dataTransfer.getData("application/json");
-      if (!data) return;
+      // Try to get data from event, fallback to ref if event data is lost
+      let dragData = null;
+      try {
+        const data = e.dataTransfer.getData("application/json");
+        if (data) {
+          dragData = JSON.parse(data);
+        }
+      } catch {
+        // If event data is lost (e.g., during scroll), use ref
+        dragData = dragDataRef.current;
+      }
 
-      const { projectId, currentCategoryId } = JSON.parse(data) as {
+      if (!dragData) {
+        console.error("No drag data available");
+        return;
+      }
+
+      const { projectId, currentCategoryId } = dragData as {
         projectId: Id<"projects">;
         currentCategoryId?: Id<"categories">;
         currentSubcategoryId?: Id<"categories">;
@@ -88,11 +102,87 @@ export function CategoryDropZone({ onDropComplete }: CategoryDropZoneProps) {
       } else {
         toast.error(result.error || "Failed to move project");
       }
+      
+      // Clear ref after successful drop
+      dragDataRef.current = null;
     } catch (error) {
       console.error("Error handling drop:", error);
       toast.error("Failed to move project to category");
+      dragDataRef.current = null;
     }
   };
+
+  // Global drop handler as fallback (in case drop doesn't fire on drop zone when scrolled)
+  useEffect(() => {
+    const handleGlobalDrop = async (e: DragEvent) => {
+      // Only handle if we're dragging and the drop didn't happen on a drop zone
+      if (!isDragging || !draggedOverCategoryId) return;
+      
+      // Try to get data from event or ref
+      let dragData = null;
+      try {
+        const data = e.dataTransfer?.getData("application/json");
+        if (data) {
+          dragData = JSON.parse(data);
+        } else {
+          dragData = dragDataRef.current;
+        }
+      } catch {
+        dragData = dragDataRef.current;
+      }
+
+      if (!dragData) return;
+
+      try {
+        const { projectId, currentCategoryId } = dragData as {
+          projectId: Id<"projects">;
+          currentCategoryId?: Id<"categories">;
+        };
+
+        // Only handle if dropping on a different category
+        if (draggedOverCategoryId !== currentCategoryId) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          const result = await updateProjectCategoryAction({
+            projectId,
+            categoryId: draggedOverCategoryId,
+            subcategoryId: null,
+          });
+
+          if (result.success) {
+            toast.success("Project moved to category successfully");
+            onDropComplete?.();
+          } else {
+            toast.error(result.error || "Failed to move project");
+          }
+          
+          setIsDragging(false);
+          setDraggedOverCategoryId(null);
+          dragDataRef.current = null;
+        }
+      } catch (error) {
+        console.error("Error in global drop handler:", error);
+        setIsDragging(false);
+        setDraggedOverCategoryId(null);
+        dragDataRef.current = null;
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("drop", handleGlobalDrop, true); // Use capture phase
+      return () => {
+        window.removeEventListener("drop", handleGlobalDrop, true);
+      };
+    }
+  }, [isDragging, draggedOverCategoryId, onDropComplete]);
+
+  // Store drag data in ref to persist across scroll events
+  const dragDataRef = useRef<{
+    projectId: Id<"projects">;
+    currentCategoryId?: Id<"categories">;
+    currentSubcategoryId?: Id<"categories">;
+  } | null>(null);
 
   // Listen for drag events globally - only show drop zones when dragging projects
   useEffect(() => {
@@ -100,31 +190,44 @@ export function CategoryDropZone({ onDropComplete }: CategoryDropZoneProps) {
       // Only show drop zones if dragging a project (check for our data type)
       if (e.dataTransfer?.types.includes("application/json")) {
         setIsDragging(true);
+        // Store drag data immediately
+        try {
+          const data = e.dataTransfer.getData("application/json");
+          if (data) {
+            dragDataRef.current = JSON.parse(data);
+          }
+        } catch {
+          // Ignore parse errors
+        }
       }
     };
 
     const handleGlobalDragEnd = () => {
       setIsDragging(false);
       setDraggedOverCategoryId(null);
+      dragDataRef.current = null;
     };
 
     const handleGlobalDragOver = (e: DragEvent) => {
       // Keep drop zones visible while dragging
+      // Prevent default to allow drop
       if (e.dataTransfer?.types.includes("application/json")) {
+        e.preventDefault();
+        e.stopPropagation();
         setIsDragging(true);
       }
     };
 
     if (typeof window !== "undefined") {
-      window.addEventListener("dragenter", handleGlobalDragEnter);
-      window.addEventListener("dragover", handleGlobalDragOver);
-      window.addEventListener("dragend", handleGlobalDragEnd);
-      window.addEventListener("drop", handleGlobalDragEnd);
+      window.addEventListener("dragenter", handleGlobalDragEnter, true);
+      window.addEventListener("dragover", handleGlobalDragOver, true);
+      window.addEventListener("dragend", handleGlobalDragEnd, true);
+      window.addEventListener("drop", handleGlobalDragEnd, true);
       return () => {
-        window.removeEventListener("dragenter", handleGlobalDragEnter);
-        window.removeEventListener("dragover", handleGlobalDragOver);
-        window.removeEventListener("dragend", handleGlobalDragEnd);
-        window.removeEventListener("drop", handleGlobalDragEnd);
+        window.removeEventListener("dragenter", handleGlobalDragEnter, true);
+        window.removeEventListener("dragover", handleGlobalDragOver, true);
+        window.removeEventListener("dragend", handleGlobalDragEnd, true);
+        window.removeEventListener("drop", handleGlobalDragEnd, true);
       };
     }
   }, []);
@@ -135,10 +238,10 @@ export function CategoryDropZone({ onDropComplete }: CategoryDropZoneProps) {
 
   return (
     <>
-      {/* Sticky drop zone that appears when dragging */}
+      {/* Fixed overlay drop zone that appears when dragging - always accessible */}
       {isDragging && (
-        <div className="sticky top-4 z-50 mb-6">
-          <Card className="glass-card p-4 shadow-xl border-2 border-emerald-400">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] w-full max-w-6xl px-4 pointer-events-none">
+          <Card className="glass-card p-4 shadow-2xl border-2 border-emerald-400 pointer-events-auto">
             <div className="flex items-center gap-2 mb-4">
               <Move className="h-5 w-5 text-emerald-600" />
               <h3 className="font-semibold text-lg">Drop project into a category</h3>
@@ -147,9 +250,27 @@ export function CategoryDropZone({ onDropComplete }: CategoryDropZoneProps) {
               {mainCategories.map((category) => (
                 <div
                   key={category._id}
-                  onDragOver={(e) => handleDragOver(e, category._id)}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, category._id)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDragOver(e, category._id);
+                  }}
+                  onDragEnter={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDragOver(e, category._id);
+                  }}
+                  onDragLeave={(e) => {
+                    // Only clear if we're actually leaving the element (not entering a child)
+                    if (e.currentTarget === e.target) {
+                      handleDragLeave();
+                    }
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDrop(e, category._id);
+                  }}
                   className={cn(
                     "p-3 rounded-lg border-2 border-dashed transition-all cursor-pointer",
                     draggedOverCategoryId === category._id
