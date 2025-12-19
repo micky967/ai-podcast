@@ -9,23 +9,32 @@ import { deleteCategoryAction } from "@/app/actions/categories";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 
 export function AdminCategories() {
   const [deletingCategoryId, setDeletingCategoryId] = useState<Id<"categories"> | null>(null);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<{
+    id: Id<"categories">;
+    name: string;
+  } | null>(null);
 
   // Get all categories
   const mainCategories = useQuery(api.categories.getMainCategories);
 
-  const handleDelete = async (categoryId: Id<"categories">) => {
-    if (!confirm("Are you sure you want to delete this category? This will also delete all subcategories and remove category assignments from projects.")) {
-      return;
-    }
+  const handleDeleteClick = (categoryId: Id<"categories">, categoryName: string) => {
+    setCategoryToDelete({ id: categoryId, name: categoryName });
+    setConfirmDialogOpen(true);
+  };
 
-    setDeletingCategoryId(categoryId);
+  const handleDeleteConfirm = async () => {
+    if (!categoryToDelete) return;
+
+    setDeletingCategoryId(categoryToDelete.id);
     try {
-      const result = await deleteCategoryAction(categoryId);
+      const result = await deleteCategoryAction(categoryToDelete.id);
       if (result.success) {
         toast.success("Category deleted successfully");
       } else {
@@ -38,6 +47,7 @@ export function AdminCategories() {
       );
     } finally {
       setDeletingCategoryId(null);
+      setCategoryToDelete(null);
     }
   };
 
@@ -80,12 +90,28 @@ export function AdminCategories() {
             <CategoryCard
               key={category._id}
               category={category}
-              onDelete={handleDelete}
+              onDelete={handleDeleteClick}
               isDeleting={deletingCategoryId === category._id}
             />
           ))}
         </div>
       )}
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmDialogOpen}
+        onOpenChange={setConfirmDialogOpen}
+        title="Delete Category"
+        description={
+          categoryToDelete
+            ? `Are you sure you want to delete "${categoryToDelete.name}"? This will also delete all subcategories and remove category assignments from projects. This action cannot be undone.`
+            : ""
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDeleteConfirm}
+        variant="destructive"
+      />
     </div>
   );
 }
@@ -97,7 +123,7 @@ interface CategoryCardProps {
     description?: string;
     slug: string;
   };
-  onDelete: (categoryId: Id<"categories">) => void;
+  onDelete: (categoryId: Id<"categories">, categoryName: string) => void;
   isDeleting: boolean;
 }
 
@@ -108,10 +134,8 @@ function CategoryCard({ category, onDelete, isDeleting }: CategoryCardProps) {
   );
   const [deletingSubcategoryId, setDeletingSubcategoryId] = useState<Id<"categories"> | null>(null);
 
-  const handleSubcategoryDelete = async (subcategoryId: Id<"categories">) => {
-    setDeletingSubcategoryId(subcategoryId);
-    await onDelete(subcategoryId);
-    setDeletingSubcategoryId(null);
+  const handleSubcategoryDelete = (subcategoryId: Id<"categories">, subcategoryName: string) => {
+    onDelete(subcategoryId, subcategoryName);
   };
 
   return (
@@ -137,7 +161,7 @@ function CategoryCard({ category, onDelete, isDeleting }: CategoryCardProps) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onDelete(category._id)}
+            onClick={() => onDelete(category._id, category.name)}
             disabled={isDeleting}
             className="text-red-600 hover:text-red-700 hover:bg-red-50"
           >
@@ -165,7 +189,7 @@ function CategoryCard({ category, onDelete, isDeleting }: CategoryCardProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleSubcategoryDelete(sub._id)}
+                    onClick={() => handleSubcategoryDelete(sub._id, sub.name)}
                     disabled={deletingSubcategoryId === sub._id || isDeleting}
                     className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
