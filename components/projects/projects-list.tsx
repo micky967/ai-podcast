@@ -50,6 +50,17 @@ export function ProjectsList({
   // This hook must be called on every render, even if we don't use the result
   const preloadedResult = usePreloadedQuery(preloadedProjects as any);
 
+  // Reactive query for the same data - this will update when projects change
+  // Use this to ensure UI updates when projects are modified (e.g., category changes)
+  const reactiveQueryResult = useQuery(
+    api.projects.listUserProjects,
+    !searchQuery.trim() && !categoryId && userId && filter === "all"
+      ? {
+          userId,
+        }
+      : "skip"
+  );
+
   // When searching, load ALL projects for client-side filtering
   const allProjectsForSearch = useQuery(
     api.projects.getAllUserProjects,
@@ -89,27 +100,41 @@ export function ProjectsList({
 
   // Always call useMemo unconditionally
   // Determine which result to use based on conditions
-  // Use preloaded for category pages or when filter is "all"
+  // Use reactive query for "all" filter to ensure updates when projects change
+  // Use preloaded for category pages
   // Use dynamic query result when filter is not "all"
   const projectsResult = useMemo(() => {
-    if (categoryId || filter === "all") {
+    if (categoryId) {
       return preloadedResult;
+    }
+    if (filter === "all") {
+      // Use reactive query if available (for real-time updates), otherwise fall back to preloaded
+      return reactiveQueryResult || preloadedResult;
     }
     return (
       dynamicQueryResult || { page: [], continueCursor: null, isDone: true }
     );
-  }, [categoryId, filter, preloadedResult, dynamicQueryResult]);
+  }, [categoryId, filter, preloadedResult, reactiveQueryResult, dynamicQueryResult]);
 
-  // Initialize allLoadedProjects with first page (only for non-category pages)
+  // Initialize and update allLoadedProjects with first page (only for non-category pages)
+  // Update when reactive query changes to ensure real-time updates
   useEffect(() => {
     if (
       !searchQuery.trim() &&
       !categoryId &&
-      projectsResult.page &&
-      allLoadedProjects.length === 0
+      projectsResult.page
     ) {
-      setAllLoadedProjects(projectsResult.page || []);
-      setPaginationCursor(projectsResult.continueCursor || undefined);
+      // If we have a reactive query result, use it to keep data fresh
+      // Otherwise use preloaded result for initial load
+      if (reactiveQueryResult) {
+        // Use reactive query result - this will update when projects change
+        setAllLoadedProjects(reactiveQueryResult.page || []);
+        setPaginationCursor(reactiveQueryResult.continueCursor || undefined);
+      } else if (allLoadedProjects.length === 0) {
+        // Initial load from preloaded result
+        setAllLoadedProjects(projectsResult.page || []);
+        setPaginationCursor(projectsResult.continueCursor || undefined);
+      }
     }
     // Reset when category changes
     if (categoryId) {
@@ -121,7 +146,7 @@ export function ProjectsList({
     projectsResult.continueCursor,
     searchQuery,
     categoryId,
-    allLoadedProjects.length,
+    reactiveQueryResult,
   ]);
 
   // Load more projects when paginated query result changes
