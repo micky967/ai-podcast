@@ -3,8 +3,16 @@ import { preloadQuery } from "convex/nextjs";
 import { redirect } from "next/navigation";
 import { ProjectsList } from "@/components/projects/projects-list";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 
-export default async function ProjectsPage() {
+interface ProjectsPageProps {
+  searchParams: Promise<{
+    category?: string;
+    project?: string;
+  }>;
+}
+
+export default async function ProjectsPage({ searchParams }: ProjectsPageProps) {
   const { userId } = await auth();
 
   // Redirect if not authenticated (shouldn't happen with middleware, but for safety)
@@ -12,10 +20,32 @@ export default async function ProjectsPage() {
     redirect("/");
   }
 
-  // Preload projects data on the server
-  const preloadedProjects = await preloadQuery(api.projects.listUserProjects, {
-    userId,
-  });
+  const params = await searchParams;
+  const categoryId = params.category as Id<"categories"> | undefined;
 
-  return <ProjectsList preloadedProjects={preloadedProjects} />;
+  // Preload projects data on the server
+  // Use category-specific query if category is provided
+  const preloadedProjects = categoryId
+    ? await preloadQuery(api.projects.listUserProjectsByCategory, {
+        userId,
+        categoryId,
+      })
+    : await preloadQuery(api.projects.listUserProjects, {
+        userId,
+      });
+
+  // Preload category data if category is provided
+  const preloadedCategory = categoryId
+    ? await preloadQuery(api.categories.getCategory, {
+        categoryId,
+      })
+    : undefined;
+
+  return (
+    <ProjectsList
+      preloadedProjects={preloadedProjects}
+      categoryId={categoryId}
+      preloadedCategory={preloadedCategory}
+    />
+  );
 }

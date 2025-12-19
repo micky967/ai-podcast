@@ -40,7 +40,9 @@ export function ProjectsList({
   // Filter state (only for non-category pages)
   const [filter, setFilter] = useState<"all" | "own" | "shared">("all");
   // Pagination state
-  const [paginationCursor, setPaginationCursor] = useState<string | null | undefined>(undefined);
+  const [paginationCursor, setPaginationCursor] = useState<
+    string | null | undefined
+  >(undefined);
   const [allLoadedProjects, setAllLoadedProjects] = useState<any[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
@@ -51,9 +53,7 @@ export function ProjectsList({
   // When searching, load ALL projects for client-side filtering
   const allProjectsForSearch = useQuery(
     api.projects.getAllUserProjects,
-    searchQuery.trim() && userId && !categoryId
-      ? { userId }
-      : "skip"
+    searchQuery.trim() && userId && !categoryId ? { userId } : "skip"
   );
 
   // Always call useQuery hook unconditionally, but conditionally skip it
@@ -72,7 +72,11 @@ export function ProjectsList({
   // Paginated query for loading more projects (only when explicitly loading more)
   const paginatedQueryResult = useQuery(
     api.projects.listUserProjects,
-    !searchQuery.trim() && !categoryId && userId && paginationCursor !== null && paginationCursor !== undefined
+    !searchQuery.trim() &&
+      !categoryId &&
+      userId &&
+      paginationCursor !== null &&
+      paginationCursor !== undefined
       ? {
           userId,
           paginationOpts: {
@@ -96,13 +100,29 @@ export function ProjectsList({
     );
   }, [categoryId, filter, preloadedResult, dynamicQueryResult]);
 
-  // Initialize allLoadedProjects with first page
+  // Initialize allLoadedProjects with first page (only for non-category pages)
   useEffect(() => {
-    if (!searchQuery.trim() && !categoryId && projectsResult.page && allLoadedProjects.length === 0) {
+    if (
+      !searchQuery.trim() &&
+      !categoryId &&
+      projectsResult.page &&
+      allLoadedProjects.length === 0
+    ) {
       setAllLoadedProjects(projectsResult.page || []);
       setPaginationCursor(projectsResult.continueCursor || undefined);
     }
-  }, [projectsResult.page, projectsResult.continueCursor, searchQuery, categoryId, allLoadedProjects.length]);
+    // Reset when category changes
+    if (categoryId) {
+      setAllLoadedProjects([]);
+      setPaginationCursor(undefined);
+    }
+  }, [
+    projectsResult.page,
+    projectsResult.continueCursor,
+    searchQuery,
+    categoryId,
+    allLoadedProjects.length,
+  ]);
 
   // Load more projects when paginated query result changes
   useEffect(() => {
@@ -111,7 +131,9 @@ export function ProjectsList({
         // Add new projects (deduplicate by _id)
         setAllLoadedProjects((prev) => {
           const existingIds = new Set(prev.map((p: any) => p._id));
-          const newProjects = paginatedQueryResult.page.filter((p: any) => !existingIds.has(p._id));
+          const newProjects = paginatedQueryResult.page.filter(
+            (p: any) => !existingIds.has(p._id)
+          );
           return [...prev, ...newProjects];
         });
         // Set cursor to null if no more results, otherwise use the continueCursor
@@ -143,9 +165,17 @@ export function ProjectsList({
     if (searchQuery.trim() && allProjectsForSearch) {
       return allProjectsForSearch;
     }
-    
-    // Otherwise use loaded projects (paginated)
-    const projects = allLoadedProjects.length > 0 ? allLoadedProjects : (projectsResult.page || []);
+
+    // For category pages, always use the preloaded result directly (already filtered by category)
+    if (categoryId) {
+      return projectsResult.page || [];
+    }
+
+    // Otherwise use loaded projects (paginated) for non-category pages
+    const projects =
+      allLoadedProjects.length > 0
+        ? allLoadedProjects
+        : projectsResult.page || [];
     const seen = new Set<string>();
     return projects.filter((project: any) => {
       const id = String(project._id);
@@ -155,7 +185,13 @@ export function ProjectsList({
       seen.add(id);
       return true;
     });
-  }, [allLoadedProjects, projectsResult.page, searchQuery, allProjectsForSearch]);
+  }, [
+    allLoadedProjects,
+    projectsResult.page,
+    searchQuery,
+    allProjectsForSearch,
+    categoryId,
+  ]);
 
   // Filter projects based on search query (case-insensitive)
   // ONLY searches project displayName and fileName - nothing else
@@ -193,27 +229,37 @@ export function ProjectsList({
   const hasProjects = filteredProjects.length > 0;
   // Check if there are more projects to load
   // Use the most recent query result's continueCursor or isDone flag
-  const isDone = paginatedQueryResult?.isDone !== undefined
-    ? paginatedQueryResult.isDone
-    : (projectsResult.isDone !== undefined ? projectsResult.isDone : false);
+  const isDone =
+    paginatedQueryResult?.isDone !== undefined
+      ? paginatedQueryResult.isDone
+      : projectsResult.isDone !== undefined
+      ? projectsResult.isDone
+      : false;
 
-  const currentContinueCursor = paginatedQueryResult?.continueCursor !== undefined
-    ? paginatedQueryResult.continueCursor
-    : (allLoadedProjects.length > 0
-        ? paginationCursor
-        : projectsResult.continueCursor);
+  const currentContinueCursor =
+    paginatedQueryResult?.continueCursor !== undefined
+      ? paginatedQueryResult.continueCursor
+      : allLoadedProjects.length > 0
+      ? paginationCursor
+      : projectsResult.continueCursor;
 
   // Only show "Load More" if not done and cursor exists
-  const hasMore = !searchQuery.trim() && !categoryId && !isDone && currentContinueCursor !== null && currentContinueCursor !== undefined;
+  const hasMore =
+    !searchQuery.trim() &&
+    !categoryId &&
+    !isDone &&
+    currentContinueCursor !== null &&
+    currentContinueCursor !== undefined;
 
   // Load more projects
   const handleLoadMore = () => {
     // Get the current cursor from the most recent query result
-    const currentCursor = paginatedQueryResult?.continueCursor !== undefined
-      ? paginatedQueryResult.continueCursor
-      : (allLoadedProjects.length > 0
-          ? paginationCursor
-          : projectsResult.continueCursor);
+    const currentCursor =
+      paginatedQueryResult?.continueCursor !== undefined
+        ? paginatedQueryResult.continueCursor
+        : allLoadedProjects.length > 0
+        ? paginationCursor
+        : projectsResult.continueCursor;
 
     if (currentCursor && !isLoadingMore && currentCursor !== null) {
       setIsLoadingMore(true);
@@ -327,7 +373,8 @@ export function ProjectsList({
               {/* Page Info */}
               {allLoadedProjects.length > 0 && (
                 <div className="text-sm text-gray-600">
-                  Showing {allLoadedProjects.length} project{allLoadedProjects.length !== 1 ? "s" : ""}
+                  Showing {allLoadedProjects.length} project
+                  {allLoadedProjects.length !== 1 ? "s" : ""}
                   {hasMore && " (more available)"}
                 </div>
               )}
