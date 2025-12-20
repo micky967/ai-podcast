@@ -92,20 +92,30 @@ export function ProjectsList({
   );
 
   // Paginated query for loading more projects (only when explicitly loading more)
+  // Use listUserProjects for "all" filter, listUserProjectsWithShared for "own"/"shared"
   const paginatedQueryResult = useQuery(
-    api.projects.listUserProjects,
+    filter === "all" ? api.projects.listUserProjects : api.projects.listUserProjectsWithShared,
     !searchQuery.trim() &&
       !categoryId &&
       userId &&
       paginationCursor !== null &&
       paginationCursor !== undefined
-      ? {
-          userId,
-          paginationOpts: {
-            numItems: 20,
-            cursor: paginationCursor,
-          },
-        }
+      ? filter === "all"
+        ? {
+            userId,
+            paginationOpts: {
+              numItems: 20,
+              cursor: paginationCursor,
+            },
+          }
+        : {
+            userId,
+            filter,
+            paginationOpts: {
+              numItems: 20,
+              cursor: paginationCursor,
+            },
+          }
       : "skip"
   );
 
@@ -126,33 +136,50 @@ export function ProjectsList({
     return (
       dynamicQueryResult || { page: [], continueCursor: null, isDone: true }
     );
-  }, [categoryId, filter, preloadedResult, reactiveQueryResult, reactiveCategoryQuery, dynamicQueryResult]);
+  }, [
+    categoryId,
+    filter,
+    preloadedResult,
+    reactiveQueryResult,
+    reactiveCategoryQuery,
+    dynamicQueryResult,
+  ]);
 
   // Initialize and update allLoadedProjects with first page (only for non-category pages)
   // Update when reactive query changes to ensure real-time updates
   useEffect(() => {
-    if (
-      !searchQuery.trim() &&
-      !categoryId &&
-      projectsResult.page
-    ) {
+    if (!searchQuery.trim() && !categoryId) {
       // Only update from reactive query if filter is "all"
       if (filter === "all" && reactiveQueryResult) {
-        // Use reactive query result - this will update when projects change
-        setAllLoadedProjects(reactiveQueryResult.page || []);
+        // Always sync first page with reactive query for real-time updates
+        // Preserve any additional pages loaded via pagination
+        setAllLoadedProjects((prev) => {
+          const firstPage = reactiveQueryResult.page || [];
+          // If we have paginated results, merge them (deduplicate)
+          if (prev.length > firstPage.length) {
+            const firstPageIds = new Set(firstPage.map((p: any) => p._id));
+            const additionalPages = prev.filter((p: any) => !firstPageIds.has(p._id));
+            return [...firstPage, ...additionalPages];
+          }
+          // Otherwise just use the reactive query result
+          return firstPage;
+        });
         setPaginationCursor(reactiveQueryResult.continueCursor || undefined);
       } else if (filter !== "all" && dynamicQueryResult) {
         // Use dynamic query result for filtered views
-        setAllLoadedProjects(dynamicQueryResult.page || []);
-        setPaginationCursor(dynamicQueryResult.continueCursor || undefined);
-      } else if (allLoadedProjects.length === 0) {
+        // Only update if we don't have accumulated results yet (first page)
+        if (allLoadedProjects.length === 0 || paginationCursor === undefined) {
+          setAllLoadedProjects(dynamicQueryResult.page || []);
+          setPaginationCursor(dynamicQueryResult.continueCursor || undefined);
+        }
+      } else if (allLoadedProjects.length === 0 && projectsResult.page) {
         // Initial load from preloaded result
         setAllLoadedProjects(projectsResult.page || []);
         setPaginationCursor(projectsResult.continueCursor || undefined);
       }
     }
     // Reset when category or filter changes
-    if (categoryId || (filter !== "all" && !dynamicQueryResult)) {
+    if (categoryId) {
       setAllLoadedProjects([]);
       setPaginationCursor(undefined);
     }
@@ -165,9 +192,11 @@ export function ProjectsList({
     reactiveQueryResult,
     dynamicQueryResult,
     allLoadedProjects.length,
+    paginationCursor,
   ]);
 
   // Load more projects when paginated query result changes
+  // Accumulate results for both "all" and filtered views
   useEffect(() => {
     if (paginatedQueryResult) {
       if (paginatedQueryResult.page && paginatedQueryResult.page.length > 0) {
@@ -202,6 +231,14 @@ export function ProjectsList({
     }
   }, [searchQuery]);
 
+  // Reset pagination when filter changes
+  useEffect(() => {
+    if (!categoryId && !searchQuery.trim()) {
+      setAllLoadedProjects([]);
+      setPaginationCursor(undefined);
+    }
+  }, [filter, categoryId, searchQuery]);
+
   // Deduplicate projects by _id to prevent duplicate key errors
   const allProjects = useMemo(() => {
     // If searching, use all projects from search query
@@ -214,16 +251,37 @@ export function ProjectsList({
       return reactiveCategoryQuery?.page || projectsResult.page || [];
     }
 
-    // For filtered views (my files, shared), use dynamicQueryResult directly
-    if (filter !== "all" && dynamicQueryResult) {
-      return dynamicQueryResult.page || [];
+    // For filtered views (my files, shared), use accumulated results if available
+    // Otherwise use dynamicQueryResult directly
+    // If it's loading (undefined), return empty array to show loading state
+    if (filter !== "all") {
+      // If we have accumulated results (from pagination), use those
+      if (allLoadedProjects.length > 0) {
+        return allLoadedProjects;
+      }
+      // Otherwise use dynamicQueryResult directly (first page)
+      if (dynamicQueryResult) {
+        return dynamicQueryResult.page || [];
+      }
+      // Still loading - return empty array
+      return [];
     }
 
-    // For "all" filter, use loaded projects (paginated)
-    const projects =
-      allLoadedProjects.length > 0
-        ? allLoadedProjects
-        : projectsResult.page || [];
+    // For "all" filter, always use reactive query result for first page (real-time updates)
+    // Then append any additional pages from pagination
+    const firstPage = reactiveQueryResult?.page || projectsResult.page || [];
+    const hasPaginatedResults = allLoadedProjects.length > firstPage.length;
+
+    // If we have paginated results, merge them (reactive first page + paginated pages)
+    // Otherwise just use the reactive query result
+    const projects = hasPaginatedResults
+      ? (() => {
+          const firstPageIds = new Set(firstPage.map((p: any) => p._id));
+          const additionalPages = allLoadedProjects.filter((p: any) => !firstPageIds.has(p._id));
+          return [...firstPage, ...additionalPages];
+        })()
+      : firstPage;
+
     const seen = new Set<string>();
     return projects.filter((project: any) => {
       const id = String(project._id);
@@ -242,6 +300,7 @@ export function ProjectsList({
     filter,
     dynamicQueryResult,
     reactiveCategoryQuery,
+    reactiveQueryResult,
   ]);
 
   // Filter projects based on search query (case-insensitive)
