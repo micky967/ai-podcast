@@ -115,9 +115,10 @@ ${isDocument
    - Cover all factual information from the podcast/audio content
    - Ensure comprehensive coverage of all major topics, concepts, and key information
    - Each flashcard should test distinct, valuable information
-   - If you run out of unique topics, create variations or deeper questions on covered topics to reach exactly 50
-   - DO NOT stop at 45, 46, 47, 48, or 49 - you MUST generate exactly 50 flashcards
-   - Verify you have exactly 50 flashcards before finalizing your response`}
+   - CRITICAL: Each question must be UNIQUE. Do NOT repeat the same question or create variations of the same question.
+   - If you run out of unique content to create questions from, STOP generating questions. It is better to have fewer unique questions than duplicate questions.
+   - DO NOT create duplicate questions even if it means having fewer than 50 flashcards
+   - Verify all questions are unique before finalizing your response`}
    
    ${isDocument 
      ? `CRITICAL REQUIREMENTS FOR DOCUMENTS:
@@ -132,6 +133,8 @@ ${isDocument
    - Questions must be specific to what THIS document covers
    - Convert specific examples into general knowledge questions, but the underlying facts must come from this document
    - DO NOT use phrases like "discussed", "mentioned", "presented with", "noted in case", "in the case study", "the patient", "case 1/2/3", "shown in", etc.
+   - CRITICAL: Each question must be UNIQUE. Do NOT repeat the same question or create variations of the same question.
+   - If you run out of unique content to create questions from, STOP generating questions. It is better to have fewer unique questions than duplicate questions.
    - Focus on WHAT the document is talking about, not WHERE it came from or HOW it was presented
    
    EXTRACTION PROCESS FOR DOCUMENTS:
@@ -473,14 +476,8 @@ Return ONLY the ${missingCount} additional flashcards as a JSON array with "ques
           console.error("Failed to generate additional flashcards:", error);
         }
 
-        // If we still don't have 50, pad with generic but useful questions
-        while (engagement.commentStarters.length < 50) {
-          const remaining = 50 - engagement.commentStarters.length;
-          engagement.commentStarters.push({
-            question: `What is a key concept or fact from this content that you should remember?`,
-            answer: `Review the transcript to identify important concepts, facts, or principles discussed. Focus on understanding the main ideas and supporting details.`,
-          });
-        }
+        // Don't pad with generic questions - deduplication will handle ensuring uniqueness
+        // It's better to have fewer unique questions than duplicate generic ones
       }
       
       // If we got more than 50 (shouldn't happen due to schema max), trim to 50
@@ -500,6 +497,9 @@ Return ONLY the ${missingCount} additional flashcards as a JSON array with "ques
 
     // POST-PROCESSING: Filter out questions with forbidden content
     engagement = filterForbiddenQuestions(engagement, isDocument, expectedCount);
+
+    // POST-PROCESSING: Remove duplicate questions
+    engagement = deduplicateQuestions(engagement);
 
     return engagement;
   } catch (error) {
@@ -529,9 +529,94 @@ Return ONLY the ${missingCount} additional flashcards as a JSON array with "ques
       },
     };
     
-    // Apply filter to error fallback as well
-    return filterForbiddenQuestions(errorEngagement, false, 50);
+    // Apply filter and deduplication to error fallback as well
+    const filtered = filterForbiddenQuestions(errorEngagement, false, 50);
+    return deduplicateQuestions(filtered);
   }
+}
+
+/**
+ * Removes duplicate questions by comparing question text (case-insensitive, normalized)
+ * Stops at the first occurrence of each unique question
+ */
+function deduplicateQuestions(engagement: Engagement): Engagement {
+  const seen = new Set<string>();
+  const uniqueQuestions: Array<{ question: string; answer: string }> = [];
+
+  for (const item of engagement.commentStarters) {
+    // Normalize both question and answer text for comparison
+    const normalizedQuestion = item.question
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, " ");
+    
+    const normalizedAnswer = item.answer
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, " ");
+
+    // Create a combined key for question+answer to catch duplicates where either is the same
+    const combinedKey = `${normalizedQuestion}|||${normalizedAnswer}`;
+    
+    // Also check if this is a generic padding question (has the generic answer text)
+    const isGenericPadding = normalizedAnswer.includes("review the clinical content to identify important medical concepts") ||
+                             normalizedAnswer.includes("review the transcript to identify important concepts") ||
+                             normalizedQuestion.includes("what is a key concept") ||
+                             normalizedQuestion.includes("what is a key clinical concept");
+
+    // Check if we've seen this exact question+answer combination
+    if (seen.has(combinedKey) || isGenericPadding) {
+      console.log(`[DEDUPE] Removed duplicate/generic question: "${item.question.substring(0, 60)}..."`);
+      continue;
+    }
+
+    // Check for near-duplicates (questions that are 90%+ similar)
+    let isDuplicate = false;
+    for (const seenKey of seen) {
+      const [seenQuestion, seenAnswer] = seenKey.split("|||");
+      
+      // Check question similarity
+      const questionSimilarity = calculateSimilarity(normalizedQuestion, seenQuestion);
+      // Check answer similarity
+      const answerSimilarity = calculateSimilarity(normalizedAnswer, seenAnswer);
+      
+      // If either question or answer is very similar, consider it a duplicate
+      if (questionSimilarity > 0.9 || answerSimilarity > 0.9) {
+        isDuplicate = true;
+        console.log(`[DEDUPE] Removed similar question: "${item.question.substring(0, 60)}..." (Q-sim: ${(questionSimilarity * 100).toFixed(1)}%, A-sim: ${(answerSimilarity * 100).toFixed(1)}%)`);
+        break;
+      }
+    }
+
+    if (!isDuplicate) {
+      seen.add(combinedKey);
+      uniqueQuestions.push(item);
+    }
+  }
+
+  console.log(`[DEDUPE] Removed ${engagement.commentStarters.length - uniqueQuestions.length} duplicate questions. Remaining: ${uniqueQuestions.length} unique questions.`);
+
+  return {
+    ...engagement,
+    commentStarters: uniqueQuestions,
+  };
+}
+
+/**
+ * Calculate similarity between two strings using a simple word overlap metric
+ * Returns a value between 0 and 1, where 1 is identical
+ */
+function calculateSimilarity(str1: string, str2: string): number {
+  const words1 = new Set(str1.split(/\s+/).filter(w => w.length > 2)); // Ignore short words
+  const words2 = new Set(str2.split(/\s+/).filter(w => w.length > 2));
+
+  if (words1.size === 0 && words2.size === 0) return 1;
+  if (words1.size === 0 || words2.size === 0) return 0;
+
+  const intersection = new Set([...words1].filter(w => words2.has(w)));
+  const union = new Set([...words1, ...words2]);
+
+  return intersection.size / union.size;
 }
 
 /**
@@ -608,17 +693,10 @@ function filterForbiddenQuestions(
     return true;
   });
 
-  // If we filtered out too many questions, pad with generic clinical questions
+  // Don't pad with generic questions - deduplication will handle ensuring uniqueness
+  // It's better to have fewer unique questions than duplicate generic ones
   if (filteredQuestions.length < expectedCount) {
-    const missing = expectedCount - filteredQuestions.length;
-    console.log(`[FILTERED] Filtered out ${engagement.commentStarters.length - filteredQuestions.length} questions. Adding ${missing} generic clinical questions.`);
-    
-    for (let i = 0; i < missing; i++) {
-      filteredQuestions.push({
-        question: `What is a key clinical concept or medical fact from this content?`,
-        answer: `Review the clinical content to identify important medical concepts, diagnostic criteria, treatment protocols, or management strategies discussed. Focus on understanding the medical information presented.`,
-      });
-    }
+    console.log(`[FILTERED] Filtered out ${engagement.commentStarters.length - filteredQuestions.length} questions. Remaining: ${filteredQuestions.length} unique questions (expected: ${expectedCount}).`);
   }
 
   console.log(`[FILTERED] Filtered ${engagement.commentStarters.length - filteredQuestions.length} questions with forbidden content. Remaining: ${filteredQuestions.length} questions.`);

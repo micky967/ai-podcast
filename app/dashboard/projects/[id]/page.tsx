@@ -29,6 +29,7 @@ import { TranscriptTab } from "@/components/project-tabs/transcript-tab";
 import { YouTubeTimestampsTab } from "@/components/project-tabs/youtube-timestamps-tab";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -67,6 +68,7 @@ export default function ProjectDetailPage() {
   const [editedName, setEditedName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Tab state for mobile dropdown
   const [activeTab, setActiveTab] = useState("summary");
@@ -115,20 +117,18 @@ export default function ProjectDetailPage() {
     }
   };
 
-  // Handle delete
-  const handleDelete = async () => {
+  // Handle delete click - opens confirmation dialog
+  const handleDeleteClick = () => {
     // Prevent deletion if not owner
     if (isOwner !== true) {
       toast.error("You can only delete your own projects");
       return;
     }
+    setShowDeleteConfirm(true);
+  };
 
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this project? This action cannot be undone."
-    );
-
-    if (!confirmed) return;
-
+  // Handle delete confirmation - performs actual deletion
+  const handleDeleteConfirm = async () => {
     setIsDeleting(true);
     try {
       await deleteProjectAction(projectId);
@@ -281,7 +281,7 @@ export default function ProjectDetailPage() {
             )}
             <Button
               size="lg"
-              onClick={handleDelete}
+              onClick={handleDeleteClick}
               disabled={isDeleting}
               className="gradient-emerald text-white hover-glow px-4 sm:px-6 transition-all"
             >
@@ -303,6 +303,18 @@ export default function ProjectDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Delete Project"
+        description="Are you sure you want to delete this project? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDeleteConfirm}
+        variant="destructive"
+      />
 
       <div className="grid gap-6">
         <ProjectStatusCard project={project} />
