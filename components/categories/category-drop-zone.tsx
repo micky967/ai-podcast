@@ -73,7 +73,7 @@ export function CategoryDropZone({ onDropComplete }: CategoryDropZoneProps) {
       }
 
       if (!dragData) {
-        console.error("No drag data available");
+        toast.error("Failed to get project data. Please try again.");
         return;
       }
 
@@ -112,11 +112,25 @@ export function CategoryDropZone({ onDropComplete }: CategoryDropZoneProps) {
     }
   };
 
+  // Use refs to track state for global handlers (avoid stale closures)
+  const isDraggingRef = useRef(false);
+  const draggedOverCategoryIdRef = useRef<Id<"categories"> | null>(null);
+  
+  useEffect(() => {
+    isDraggingRef.current = isDragging;
+  }, [isDragging]);
+  
+  useEffect(() => {
+    draggedOverCategoryIdRef.current = draggedOverCategoryId;
+  }, [draggedOverCategoryId]);
+
   // Global drop handler as fallback (in case drop doesn't fire on drop zone when scrolled)
   useEffect(() => {
     const handleGlobalDrop = async (e: DragEvent) => {
       // Only handle if we're dragging and the drop didn't happen on a drop zone
-      if (!isDragging || !draggedOverCategoryId) return;
+      if (!isDraggingRef.current || !draggedOverCategoryIdRef.current) {
+        return;
+      }
       
       // Try to get data from event or ref
       let dragData = null;
@@ -131,7 +145,9 @@ export function CategoryDropZone({ onDropComplete }: CategoryDropZoneProps) {
         dragData = dragDataRef.current;
       }
 
-      if (!dragData) return;
+      if (!dragData) {
+        return;
+      }
 
       try {
         const { projectId, currentCategoryId } = dragData as {
@@ -140,13 +156,13 @@ export function CategoryDropZone({ onDropComplete }: CategoryDropZoneProps) {
         };
 
         // Only handle if dropping on a different category
-        if (draggedOverCategoryId !== currentCategoryId) {
+        if (draggedOverCategoryIdRef.current !== currentCategoryId) {
           e.preventDefault();
           e.stopPropagation();
           
           const result = await updateProjectCategoryAction({
             projectId,
-            categoryId: draggedOverCategoryId,
+            categoryId: draggedOverCategoryIdRef.current,
             subcategoryId: null,
           });
 
@@ -175,7 +191,7 @@ export function CategoryDropZone({ onDropComplete }: CategoryDropZoneProps) {
         window.removeEventListener("drop", handleGlobalDrop, true);
       };
     }
-  }, [isDragging, draggedOverCategoryId, onDropComplete]);
+  }, [onDropComplete]);
 
   // Store drag data in ref to persist across scroll events
   const dragDataRef = useRef<{
@@ -214,20 +230,27 @@ export function CategoryDropZone({ onDropComplete }: CategoryDropZoneProps) {
       if (e.dataTransfer?.types.includes("application/json")) {
         e.preventDefault();
         e.stopPropagation();
+        e.dataTransfer.dropEffect = "move";
         setIsDragging(true);
       }
+    };
+
+    const handleGlobalDrop = (e: DragEvent) => {
+      // Prevent default to stop browser from navigating away
+      e.preventDefault();
+      e.stopPropagation();
     };
 
     if (typeof window !== "undefined") {
       window.addEventListener("dragenter", handleGlobalDragEnter, true);
       window.addEventListener("dragover", handleGlobalDragOver, true);
       window.addEventListener("dragend", handleGlobalDragEnd, true);
-      window.addEventListener("drop", handleGlobalDragEnd, true);
+      window.addEventListener("drop", handleGlobalDrop, true);
       return () => {
         window.removeEventListener("dragenter", handleGlobalDragEnter, true);
         window.removeEventListener("dragover", handleGlobalDragOver, true);
         window.removeEventListener("dragend", handleGlobalDragEnd, true);
-        window.removeEventListener("drop", handleGlobalDragEnd, true);
+        window.removeEventListener("drop", handleGlobalDrop, true);
       };
     }
   }, []);
@@ -253,6 +276,7 @@ export function CategoryDropZone({ onDropComplete }: CategoryDropZoneProps) {
                   onDragOver={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    e.dataTransfer.dropEffect = "move";
                     handleDragOver(e, category._id);
                   }}
                   onDragEnter={(e) => {

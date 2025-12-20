@@ -175,7 +175,9 @@ export function ProjectsList({
         setAllLoadedProjects((prev) => {
           // If we have paginated results, merge them (deduplicate)
           if (prev.length > filteredPage.length) {
-            const filteredPageIds = new Set(filteredPage.map((p: any) => p._id));
+            const filteredPageIds = new Set(
+              filteredPage.map((p: any) => p._id)
+            );
             const additionalPages = prev.filter(
               (p: any) => !filteredPageIds.has(p._id)
             );
@@ -201,8 +203,10 @@ export function ProjectsList({
     searchQuery,
     categoryId,
     filter,
-    reactiveQueryResult,
-    dynamicQueryResult,
+    reactiveQueryResult?.page, // Use .page to ensure we detect changes
+    reactiveQueryResult?.continueCursor,
+    dynamicQueryResult?.page, // Use .page to ensure we detect changes
+    dynamicQueryResult?.continueCursor,
   ]);
 
   // Load more projects when paginated query result changes
@@ -250,40 +254,48 @@ export function ProjectsList({
   }, [filter, categoryId, searchQuery]);
 
   // Deduplicate projects by _id to prevent duplicate key errors
+  // IMPORTANT: Always prefer reactive query results for real-time updates
   const allProjects = useMemo(() => {
     // If searching, use all projects from search query
     if (searchQuery.trim() && allProjectsForSearch) {
       return allProjectsForSearch;
     }
 
-    // For category pages, use reactive query if available (for real-time updates)
+    // For category pages, ALWAYS use reactive query if available (for real-time updates)
     if (categoryId) {
-      return reactiveCategoryQuery?.page || projectsResult.page || [];
+      // Prefer reactive query - it will update immediately when projects change
+      if (reactiveCategoryQuery?.page) {
+        return reactiveCategoryQuery.page;
+      }
+      // Fallback to preloaded result
+      return projectsResult.page || [];
     }
 
-    // For filtered views (my files, shared), use accumulated results if available
-    // Otherwise use dynamicQueryResult directly
-    // IMPORTANT: Don't show projects when loading - wait for dynamicQueryResult
+    // For filtered views (my files, shared), use reactive query directly
     if (filter !== "all") {
-      // Always prefer accumulated results (includes pagination)
-      if (allLoadedProjects.length > 0) {
-        return allLoadedProjects;
-      }
-      // If dynamicQueryResult is available, use it
-      if (dynamicQueryResult) {
-        return dynamicQueryResult.page || [];
+      // Always prefer reactive query result for real-time updates
+      if (dynamicQueryResult?.page) {
+        // Merge with paginated results if we have them
+        if (allLoadedProjects.length > dynamicQueryResult.page.length) {
+          const reactiveIds = new Set(dynamicQueryResult.page.map((p: any) => p._id));
+          const additionalPages = allLoadedProjects.filter(
+            (p: any) => !reactiveIds.has(p._id)
+          );
+          return [...dynamicQueryResult.page, ...additionalPages];
+        }
+        return dynamicQueryResult.page;
       }
       // Still loading - return empty array (don't show stale data)
       return [];
     }
 
-    // For "all" filter, always use reactive query result for first page (real-time updates)
-    // Then append any additional pages from pagination
+    // For "all" filter, ALWAYS use reactive query result for first page (real-time updates)
+    // This ensures UI updates immediately when projects change (e.g., category updates)
     const firstPage = reactiveQueryResult?.page || projectsResult.page || [];
     const hasPaginatedResults = allLoadedProjects.length > firstPage.length;
 
     // If we have paginated results, merge them (reactive first page + paginated pages)
-    // Otherwise just use the reactive query result
+    // Otherwise just use the reactive query result directly
     const projects = hasPaginatedResults
       ? (() => {
           const firstPageIds = new Set(firstPage.map((p: any) => p._id));
@@ -310,9 +322,9 @@ export function ProjectsList({
     allProjectsForSearch,
     categoryId,
     filter,
-    dynamicQueryResult,
-    reactiveCategoryQuery,
-    reactiveQueryResult,
+    dynamicQueryResult?.page,
+    reactiveCategoryQuery?.page,
+    reactiveQueryResult?.page,
   ]);
 
   // Filter projects based on search query (case-insensitive)
@@ -454,7 +466,9 @@ export function ProjectsList({
           <div className="grid gap-4 @container">
             {filteredProjects.map((project: any) => (
               <div
-                key={project._id}
+                key={`${project._id}-${project.categoryId || "none"}-${
+                  project.updatedAt
+                }`}
                 ref={
                   highlightProjectId === project._id
                     ? highlightedElementRef

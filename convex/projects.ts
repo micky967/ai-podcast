@@ -819,11 +819,37 @@ export const updateProjectCategory = mutation({
     }
 
     // Update category
-    await ctx.db.patch(args.projectId, {
-      categoryId: args.categoryId,
-      subcategoryId: args.subcategoryId,
+    const updateData: any = {
       updatedAt: Date.now(),
-    });
+    };
+
+    if (args.categoryId !== undefined) {
+      updateData.categoryId = args.categoryId;
+    } else {
+      // Explicitly set to undefined to clear the category
+      updateData.categoryId = undefined;
+    }
+
+    if (args.subcategoryId !== undefined) {
+      updateData.subcategoryId = args.subcategoryId;
+    } else {
+      // Explicitly set to undefined to clear the subcategory
+      updateData.subcategoryId = undefined;
+    }
+
+    await ctx.db.patch(args.projectId, updateData);
+
+    // Verify the update worked
+    const updatedProject = await ctx.db.get(args.projectId);
+    if (!updatedProject) {
+      throw new Error("Failed to verify project update");
+    }
+
+    return {
+      success: true,
+      categoryId: updatedProject.categoryId,
+      subcategoryId: updatedProject.subcategoryId,
+    };
   },
 });
 
@@ -853,26 +879,40 @@ export const listUserProjectsByCategory = query({
   handler: async (ctx, args) => {
     const numItems = args.paginationOpts?.numItems ?? 20;
 
-    // Build query - filter by user first
-    let projects = await ctx.db
-      .query("projects")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .filter((q) => q.eq(q.field("deletedAt"), undefined))
-      .collect();
+    let projects;
 
-    // Filter by subcategory if provided (most specific)
-    if (args.subcategoryId) {
-      projects = projects.filter((p) => p.subcategoryId === args.subcategoryId);
-    }
-    // Otherwise, filter by main category if provided
-    else if (args.categoryId) {
-      projects = projects.filter((p) => p.categoryId === args.categoryId);
+    // Use the by_user_and_category index if categoryId is provided for better reactivity
+    if (args.categoryId) {
+      projects = await ctx.db
+        .query("projects")
+        .withIndex("by_user_and_category", (q) =>
+          q.eq("userId", args.userId).eq("categoryId", args.categoryId)
+        )
+        .filter((q) => q.eq(q.field("deletedAt"), undefined))
+        .collect();
+
+      // Filter by subcategory if provided (most specific)
+      if (args.subcategoryId) {
+        projects = projects.filter((p) => p.subcategoryId === args.subcategoryId);
+      }
+    } else {
+      // No category filter - use by_user index
+      projects = await ctx.db
+        .query("projects")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .filter((q) => q.eq(q.field("deletedAt"), undefined))
+        .collect();
+
+      // Filter by subcategory if provided
+      if (args.subcategoryId) {
+        projects = projects.filter((p) => p.subcategoryId === args.subcategoryId);
+      }
     }
 
     // Sort by newest first
     projects.sort((a, b) => b.createdAt - a.createdAt);
 
-    // Manual pagination (since we're filtering in memory)
+    // Manual pagination (since we might be filtering subcategories in memory)
     const cursor = args.paginationOpts?.cursor;
     const startIndex = cursor ? parseInt(cursor, 10) : 0;
     const endIndex = startIndex + numItems;

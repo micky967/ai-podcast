@@ -11,6 +11,7 @@ import { updateProjectCategoryAction } from "@/app/actions/categories";
 import { CategoryBadge } from "@/components/category-badge";
 import { CompactProgress } from "@/components/projects/compact-progress";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { formatDuration, formatFileSize, formatSmartDate } from "@/lib/format";
 import {
@@ -27,14 +28,15 @@ interface ProjectCardProps {
   highlightProjectId?: string;
 }
 
-export function ProjectCard({ 
-  project, 
+export function ProjectCard({
+  project,
   isOnAllProjectsPage = false,
-  highlightProjectId 
+  highlightProjectId,
 }: ProjectCardProps) {
   const { has, userId: currentUserId } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const router = useRouter();
 
   // Check if user has Ultra plan (required for drag-and-drop)
@@ -47,11 +49,14 @@ export function ProjectCard({
   const handleDragStart = (e: React.DragEvent) => {
     setIsDragging(true);
     e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("application/json", JSON.stringify({
-      projectId: project._id,
-      currentCategoryId: project.categoryId,
-      currentSubcategoryId: project.subcategoryId,
-    }));
+    e.dataTransfer.setData(
+      "application/json",
+      JSON.stringify({
+        projectId: project._id,
+        currentCategoryId: project.categoryId,
+        currentSubcategoryId: project.subcategoryId,
+      })
+    );
     // Add visual feedback
     if (e.currentTarget instanceof HTMLElement) {
       e.currentTarget.style.opacity = "0.5";
@@ -68,17 +73,14 @@ export function ProjectCard({
   const StatusIcon = getStatusIcon(project.status);
   const processingPhase = getProcessingPhaseLabel(project);
 
-  const handleDelete = async (e: React.MouseEvent) => {
+  const handleDeleteClick = (e: React.MouseEvent) => {
     // Prevent navigation to detail page
     e.preventDefault();
     e.stopPropagation();
+    setShowDeleteConfirm(true);
+  };
 
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this project? This action cannot be undone.",
-    );
-
-    if (!confirmed) return;
-
+  const handleDeleteConfirm = async () => {
     setIsDeleting(true);
     try {
       const result = await deleteProjectAction(project._id);
@@ -91,9 +93,9 @@ export function ProjectCard({
     } catch (error) {
       console.error("Delete error:", error);
       toast.error(
-        error instanceof Error 
-          ? `Failed to delete project: ${error.message}` 
-          : "Failed to delete project. Please check server logs and try again.",
+        error instanceof Error
+          ? `Failed to delete project: ${error.message}`
+          : "Failed to delete project. Please check server logs and try again."
       );
       setIsDeleting(false);
     }
@@ -127,12 +129,13 @@ export function ProjectCard({
           project.status === "processing" &&
             "ring-2 ring-emerald-400 shadow-emerald-200 shadow-lg",
           project.status === "failed" && "ring-2 ring-red-400",
-          isHighlighted && "ring-4 ring-blue-500 shadow-blue-300 shadow-xl animate-pulse",
-          isDragging && "opacity-50",
+          isHighlighted &&
+            "ring-4 ring-blue-500 shadow-blue-300 shadow-xl animate-pulse",
+          isDragging && "opacity-50"
         )}
       >
-        <Link 
-          href={getHref()} 
+        <Link
+          href={getHref()}
           className="block"
           prefetch={true}
           onMouseEnter={handleMouseEnter}
@@ -143,125 +146,140 @@ export function ProjectCard({
             }
           }}
         >
-        <div className="p-4 sm:p-5 md:p-6 lg:p-7">
-          <div className="flex items-start gap-3 sm:gap-4 md:gap-5">
-            {/* File Icon - larger, animated */}
-            <div className="rounded-2xl gradient-emerald p-3 sm:p-4 md:p-5 shrink-0 group-hover:scale-110 transition-transform shadow-lg">
-              <FileAudio className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-white" />
-            </div>
+          <div className="p-4 sm:p-5 md:p-6 lg:p-7">
+            <div className="flex items-start gap-3 sm:gap-4 md:gap-5">
+              {/* File Icon - larger, animated */}
+              <div className="rounded-2xl gradient-emerald p-3 sm:p-4 md:p-5 shrink-0 group-hover:scale-110 transition-transform shadow-lg">
+                <FileAudio className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-white" />
+              </div>
 
-            {/* Project Info */}
-            <div className="flex-1 min-w-0 overflow-hidden space-y-3">
-              {/* Title + Status + Delete */}
-              <div className="flex items-start justify-between gap-2 sm:gap-3 md:gap-4">
-                <div className="flex-1 min-w-0 overflow-hidden">
-                  <div className="flex items-center gap-2 mb-1">
-                    {isSharedProject && (
-                      <Badge className="text-xs bg-red-500 text-white hover:bg-red-600">
-                        Shared
+              {/* Project Info */}
+              <div className="flex-1 min-w-0 overflow-hidden space-y-3">
+                {/* Title + Status + Delete */}
+                <div className="flex items-start justify-between gap-2 sm:gap-3 md:gap-4">
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                    <div className="flex items-center gap-2 mb-1">
+                      {isSharedProject && (
+                        <Badge className="text-xs bg-red-500 text-white hover:bg-red-600">
+                          Shared
+                        </Badge>
+                      )}
+                    </div>
+                    <h3 className="font-extrabold text-lg md:text-xl lg:text-2xl wrap-break-word hyphens-auto group-hover:text-emerald-600 transition-colors leading-snug break-words">
+                      {project.displayName || project.fileName}
+                    </h3>
+                    <p className="text-sm text-gray-600 mt-2 font-medium">
+                      {formatSmartDate(project.createdAt)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                    {project.status !== "completed" && (
+                      <Badge
+                        variant={getStatusVariant(project.status)}
+                        className={cn(
+                          "flex items-center gap-1 sm:gap-2 h-9 md:h-10 text-xs sm:text-sm md:text-base px-2 sm:px-3 md:px-4 whitespace-nowrap font-bold shadow-md",
+                          project.status === "processing" &&
+                            "gradient-emerald text-white animate-pulse-emerald"
+                        )}
+                      >
+                        <StatusIcon
+                          className={`h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 flex-shrink-0 ${
+                            project.status === "processing"
+                              ? "animate-spin"
+                              : ""
+                          }`}
+                        />
+                        <span className="hidden md:inline">
+                          {processingPhase}
+                        </span>
+                        <span className="md:hidden text-xs sm:text-sm">
+                          {project.status === "processing"
+                            ? project.jobStatus?.transcription === "running"
+                              ? "Trans"
+                              : "Gen"
+                            : project.status}
+                        </span>
                       </Badge>
                     )}
+                    {/* Only show delete button for own projects, not shared projects */}
+                    {!isSharedProject && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteClick}
+                        disabled={isDeleting}
+                        className="h-10 w-10 rounded-full bg-red-50 hover:bg-red-100 flex items-center justify-center transition-all hover:scale-110 disabled:opacity-50"
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="h-5 w-5 animate-spin text-red-600" />
+                        ) : (
+                          <Trash2 className="h-5 w-5 text-red-600" />
+                        )}
+                      </button>
+                    )}
                   </div>
-                  <h3 className="font-extrabold text-lg md:text-xl lg:text-2xl wrap-break-word hyphens-auto group-hover:text-emerald-600 transition-colors leading-snug break-words">
-                    {project.displayName || project.fileName}
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-2 font-medium">
-                    {formatSmartDate(project.createdAt)}
-                  </p>
                 </div>
-                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                  {project.status !== "completed" && (
-                    <Badge
-                      variant={getStatusVariant(project.status)}
-                      className={cn(
-                        "flex items-center gap-1 sm:gap-2 h-9 md:h-10 text-xs sm:text-sm md:text-base px-2 sm:px-3 md:px-4 whitespace-nowrap font-bold shadow-md",
-                        project.status === "processing" &&
-                          "gradient-emerald text-white animate-pulse-emerald",
-                      )}
-                    >
-                      <StatusIcon
-                        className={`h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 flex-shrink-0 ${project.status === "processing" ? "animate-spin" : ""}`}
-                      />
-                      <span className="hidden md:inline">
-                        {processingPhase}
-                      </span>
-                      <span className="md:hidden text-xs sm:text-sm">
-                        {project.status === "processing"
-                          ? project.jobStatus?.transcription === "running"
-                            ? "Trans"
-                            : "Gen"
-                          : project.status}
-                      </span>
+
+                {/* Category Badge */}
+                {(project.categoryId || project.subcategoryId) && (
+                  <div className="pt-1">
+                    <CategoryBadge
+                      categoryId={project.categoryId}
+                      subcategoryId={project.subcategoryId}
+                      variant="compact"
+                    />
+                  </div>
+                )}
+
+                {/* Metadata with badges */}
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                  <Badge className="text-xs font-semibold bg-emerald-100 text-emerald-700 border-emerald-200">
+                    {formatFileSize(project.fileSize)}
+                  </Badge>
+                  <Badge className="text-xs font-semibold bg-emerald-100 text-emerald-700 border-emerald-200 uppercase">
+                    {project.fileFormat}
+                  </Badge>
+                  {project.fileDuration && (
+                    <Badge className="text-xs font-semibold bg-emerald-100 text-emerald-700 border-emerald-200">
+                      {formatDuration(project.fileDuration)}
                     </Badge>
                   )}
-                  {/* Only show delete button for own projects, not shared projects */}
-                  {!isSharedProject && (
-                    <button
-                      type="button"
-                      onClick={handleDelete}
-                      disabled={isDeleting}
-                      className="h-10 w-10 rounded-full bg-red-50 hover:bg-red-100 flex items-center justify-center transition-all hover:scale-110 disabled:opacity-50"
-                    >
-                      {isDeleting ? (
-                        <Loader2 className="h-5 w-5 animate-spin text-red-600" />
-                      ) : (
-                        <Trash2 className="h-5 w-5 text-red-600" />
-                      )}
-                    </button>
-                  )}
                 </div>
-              </div>
 
-              {/* Category Badge */}
-              {(project.categoryId || project.subcategoryId) && (
-                <div className="pt-1">
-                  <CategoryBadge
-                    categoryId={project.categoryId}
-                    subcategoryId={project.subcategoryId}
-                    variant="compact"
-                  />
-                </div>
-              )}
+                {/* Progress Indicator for Processing */}
+                {project.status === "processing" && project.jobStatus && (
+                  <div className="pt-2">
+                    <CompactProgress
+                      jobStatus={project.jobStatus}
+                      fileDuration={project.fileDuration}
+                      createdAt={project.createdAt}
+                    />
+                  </div>
+                )}
 
-              {/* Metadata with badges */}
-              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                <Badge className="text-xs font-semibold bg-emerald-100 text-emerald-700 border-emerald-200">
-                  {formatFileSize(project.fileSize)}
-                </Badge>
-                <Badge className="text-xs font-semibold bg-emerald-100 text-emerald-700 border-emerald-200 uppercase">
-                  {project.fileFormat}
-                </Badge>
-                {project.fileDuration && (
-                  <Badge className="text-xs font-semibold bg-emerald-100 text-emerald-700 border-emerald-200">
-                    {formatDuration(project.fileDuration)}
-                  </Badge>
+                {/* Error Message */}
+                {project.status === "failed" && project.error && (
+                  <div className="mt-2 p-4 rounded-xl bg-red-50 border-2 border-red-200">
+                    <p className="text-sm text-red-700 font-semibold">
+                      {project.error.message}
+                    </p>
+                  </div>
                 )}
               </div>
-
-              {/* Progress Indicator for Processing */}
-              {project.status === "processing" && project.jobStatus && (
-                <div className="pt-2">
-                  <CompactProgress
-                    jobStatus={project.jobStatus}
-                    fileDuration={project.fileDuration}
-                    createdAt={project.createdAt}
-                  />
-                </div>
-              )}
-
-              {/* Error Message */}
-              {project.status === "failed" && project.error && (
-                <div className="mt-2 p-4 rounded-xl bg-red-50 border-2 border-red-200">
-                  <p className="text-sm text-red-700 font-semibold">
-                    {project.error.message}
-                  </p>
-                </div>
-              )}
             </div>
           </div>
-        </div>
         </Link>
       </div>
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Delete Project"
+        description="Are you sure you want to delete this project? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDeleteConfirm}
+        variant="destructive"
+      />
     </div>
   );
 }

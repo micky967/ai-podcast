@@ -191,11 +191,12 @@ export async function updateProjectCategoryAction(input: {
     }
 
     // Update category in Convex (validates ownership)
+    // Handle null explicitly - convert null to undefined for Convex
     await convex.mutation(api.projects.updateProjectCategory, {
       projectId: input.projectId,
       userId,
-      categoryId: input.categoryId || undefined,
-      subcategoryId: input.subcategoryId || undefined,
+      categoryId: input.categoryId ?? undefined,
+      subcategoryId: input.subcategoryId ?? undefined,
     });
 
     return { success: true };
