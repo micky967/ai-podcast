@@ -107,7 +107,8 @@ export function CategoriesGrid({ preloadedCategories }: CategoriesGridProps) {
               )}
             </div>
             {/* Project count badge in bottom right */}
-            {categoryCounts && categoryCounts[category._id] > 0 && (
+            {/* Show count if categoryCounts is loaded and count exists (even if 0, but only show if > 0) */}
+            {categoryCounts !== undefined && categoryCounts[category._id] !== undefined && categoryCounts[category._id] > 0 && (
               <div className="absolute bottom-3 right-3 bg-emerald-600 text-white text-xs font-semibold px-2 py-1 rounded-full">
                 {categoryCounts[category._id]}
               </div>

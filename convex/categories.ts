@@ -218,10 +218,12 @@ export const createUserCategory = mutation({
 
     const now = Date.now();
 
+    // Explicitly set parentId to undefined (not just omit it) for main categories
+    // This ensures consistency with seeded categories
     const categoryId = await ctx.db.insert("categories", {
       name: args.name,
       slug: slug,
-      parentId: args.parentId,
+      parentId: args.parentId ?? undefined,
       order: maxOrder + 1,
       description: args.description,
       createdAt: now,

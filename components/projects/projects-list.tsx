@@ -94,7 +94,9 @@ export function ProjectsList({
   // Paginated query for loading more projects (only when explicitly loading more)
   // Use listUserProjects for "all" filter, listUserProjectsWithShared for "own"/"shared"
   const paginatedQueryResult = useQuery(
-    filter === "all" ? api.projects.listUserProjects : api.projects.listUserProjectsWithShared,
+    filter === "all"
+      ? api.projects.listUserProjects
+      : api.projects.listUserProjectsWithShared,
     !searchQuery.trim() &&
       !categoryId &&
       userId &&
@@ -151,14 +153,16 @@ export function ProjectsList({
     if (!searchQuery.trim() && !categoryId) {
       // Only update from reactive query if filter is "all"
       if (filter === "all" && reactiveQueryResult) {
-        // Always sync first page with reactive query for real-time updates
-        // Preserve any additional pages loaded via pagination
+        // ALWAYS sync first page with reactive query for real-time updates
+        // This ensures UI updates immediately when projects change (e.g., category updates)
+        const firstPage = reactiveQueryResult.page || [];
         setAllLoadedProjects((prev) => {
-          const firstPage = reactiveQueryResult.page || [];
           // If we have paginated results, merge them (deduplicate)
           if (prev.length > firstPage.length) {
             const firstPageIds = new Set(firstPage.map((p: any) => p._id));
-            const additionalPages = prev.filter((p: any) => !firstPageIds.has(p._id));
+            const additionalPages = prev.filter(
+              (p: any) => !firstPageIds.has(p._id)
+            );
             return [...firstPage, ...additionalPages];
           }
           // Otherwise just use the reactive query result
@@ -166,19 +170,27 @@ export function ProjectsList({
         });
         setPaginationCursor(reactiveQueryResult.continueCursor || undefined);
       } else if (filter !== "all" && dynamicQueryResult) {
-        // Use dynamic query result for filtered views
-        // Only update if we don't have accumulated results yet (first page)
-        if (allLoadedProjects.length === 0 || paginationCursor === undefined) {
-          setAllLoadedProjects(dynamicQueryResult.page || []);
-          setPaginationCursor(dynamicQueryResult.continueCursor || undefined);
-        }
+        // For filtered views, always sync with dynamicQueryResult for real-time updates
+        const filteredPage = dynamicQueryResult.page || [];
+        setAllLoadedProjects((prev) => {
+          // If we have paginated results, merge them (deduplicate)
+          if (prev.length > filteredPage.length) {
+            const filteredPageIds = new Set(filteredPage.map((p: any) => p._id));
+            const additionalPages = prev.filter(
+              (p: any) => !filteredPageIds.has(p._id)
+            );
+            return [...filteredPage, ...additionalPages];
+          }
+          return filteredPage;
+        });
+        setPaginationCursor(dynamicQueryResult.continueCursor || undefined);
       } else if (allLoadedProjects.length === 0 && projectsResult.page) {
         // Initial load from preloaded result
         setAllLoadedProjects(projectsResult.page || []);
         setPaginationCursor(projectsResult.continueCursor || undefined);
       }
     }
-    // Reset when category or filter changes
+    // Reset when category changes
     if (categoryId) {
       setAllLoadedProjects([]);
       setPaginationCursor(undefined);
@@ -191,8 +203,6 @@ export function ProjectsList({
     filter,
     reactiveQueryResult,
     dynamicQueryResult,
-    allLoadedProjects.length,
-    paginationCursor,
   ]);
 
   // Load more projects when paginated query result changes
@@ -253,17 +263,17 @@ export function ProjectsList({
 
     // For filtered views (my files, shared), use accumulated results if available
     // Otherwise use dynamicQueryResult directly
-    // If it's loading (undefined), return empty array to show loading state
+    // IMPORTANT: Don't show projects when loading - wait for dynamicQueryResult
     if (filter !== "all") {
-      // If we have accumulated results (from pagination), use those
+      // Always prefer accumulated results (includes pagination)
       if (allLoadedProjects.length > 0) {
         return allLoadedProjects;
       }
-      // Otherwise use dynamicQueryResult directly (first page)
+      // If dynamicQueryResult is available, use it
       if (dynamicQueryResult) {
         return dynamicQueryResult.page || [];
       }
-      // Still loading - return empty array
+      // Still loading - return empty array (don't show stale data)
       return [];
     }
 
@@ -277,7 +287,9 @@ export function ProjectsList({
     const projects = hasPaginatedResults
       ? (() => {
           const firstPageIds = new Set(firstPage.map((p: any) => p._id));
-          const additionalPages = allLoadedProjects.filter((p: any) => !firstPageIds.has(p._id));
+          const additionalPages = allLoadedProjects.filter(
+            (p: any) => !firstPageIds.has(p._id)
+          );
           return [...firstPage, ...additionalPages];
         })()
       : firstPage;
