@@ -61,6 +61,17 @@ export function ProjectsList({
       : "skip"
   );
 
+  // Reactive query for category pages to ensure updates when projects change
+  const reactiveCategoryQuery = useQuery(
+    api.projects.listUserProjectsByCategory,
+    categoryId && userId && !searchQuery.trim()
+      ? {
+          userId,
+          categoryId,
+        }
+      : "skip"
+  );
+
   // When searching, load ALL projects for client-side filtering
   const allProjectsForSearch = useQuery(
     api.projects.getAllUserProjects,
@@ -101,11 +112,12 @@ export function ProjectsList({
   // Always call useMemo unconditionally
   // Determine which result to use based on conditions
   // Use reactive query for "all" filter to ensure updates when projects change
-  // Use preloaded for category pages
+  // Use reactive query for category pages to ensure updates when projects change
   // Use dynamic query result when filter is not "all"
   const projectsResult = useMemo(() => {
     if (categoryId) {
-      return preloadedResult;
+      // Use reactive category query if available (for real-time updates), otherwise fall back to preloaded
+      return reactiveCategoryQuery || preloadedResult;
     }
     if (filter === "all") {
       // Use reactive query if available (for real-time updates), otherwise fall back to preloaded
@@ -114,7 +126,7 @@ export function ProjectsList({
     return (
       dynamicQueryResult || { page: [], continueCursor: null, isDone: true }
     );
-  }, [categoryId, filter, preloadedResult, reactiveQueryResult, dynamicQueryResult]);
+  }, [categoryId, filter, preloadedResult, reactiveQueryResult, reactiveCategoryQuery, dynamicQueryResult]);
 
   // Initialize and update allLoadedProjects with first page (only for non-category pages)
   // Update when reactive query changes to ensure real-time updates
@@ -124,20 +136,23 @@ export function ProjectsList({
       !categoryId &&
       projectsResult.page
     ) {
-      // If we have a reactive query result, use it to keep data fresh
-      // Otherwise use preloaded result for initial load
-      if (reactiveQueryResult) {
+      // Only update from reactive query if filter is "all"
+      if (filter === "all" && reactiveQueryResult) {
         // Use reactive query result - this will update when projects change
         setAllLoadedProjects(reactiveQueryResult.page || []);
         setPaginationCursor(reactiveQueryResult.continueCursor || undefined);
+      } else if (filter !== "all" && dynamicQueryResult) {
+        // Use dynamic query result for filtered views
+        setAllLoadedProjects(dynamicQueryResult.page || []);
+        setPaginationCursor(dynamicQueryResult.continueCursor || undefined);
       } else if (allLoadedProjects.length === 0) {
         // Initial load from preloaded result
         setAllLoadedProjects(projectsResult.page || []);
         setPaginationCursor(projectsResult.continueCursor || undefined);
       }
     }
-    // Reset when category changes
-    if (categoryId) {
+    // Reset when category or filter changes
+    if (categoryId || (filter !== "all" && !dynamicQueryResult)) {
       setAllLoadedProjects([]);
       setPaginationCursor(undefined);
     }
@@ -146,7 +161,10 @@ export function ProjectsList({
     projectsResult.continueCursor,
     searchQuery,
     categoryId,
+    filter,
     reactiveQueryResult,
+    dynamicQueryResult,
+    allLoadedProjects.length,
   ]);
 
   // Load more projects when paginated query result changes
@@ -191,12 +209,17 @@ export function ProjectsList({
       return allProjectsForSearch;
     }
 
-    // For category pages, always use the preloaded result directly (already filtered by category)
+    // For category pages, use reactive query if available (for real-time updates)
     if (categoryId) {
-      return projectsResult.page || [];
+      return reactiveCategoryQuery?.page || projectsResult.page || [];
     }
 
-    // Otherwise use loaded projects (paginated) for non-category pages
+    // For filtered views (my files, shared), use dynamicQueryResult directly
+    if (filter !== "all" && dynamicQueryResult) {
+      return dynamicQueryResult.page || [];
+    }
+
+    // For "all" filter, use loaded projects (paginated)
     const projects =
       allLoadedProjects.length > 0
         ? allLoadedProjects
@@ -216,6 +239,9 @@ export function ProjectsList({
     searchQuery,
     allProjectsForSearch,
     categoryId,
+    filter,
+    dynamicQueryResult,
+    reactiveCategoryQuery,
   ]);
 
   // Filter projects based on search query (case-insensitive)
