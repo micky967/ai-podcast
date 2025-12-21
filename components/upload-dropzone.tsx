@@ -163,14 +163,15 @@ export function UploadDropzone({
             }
           }}
         >
-          {/* Native file input with NO accept attribute - allows file manager on mobile */}
+          {/* Native file input with file extensions (not MIME types) - allows file manager on mobile */}
           <input
             ref={nativeInputRef}
             type="file"
+            accept=".pdf,.doc,.docx,.txt,.mp3,.m4a,.wav,.wave,.aac,.ogg,.oga,.opus,.webm,.flac,.3gp,.3g2"
             onChange={handleNativeFileChange}
             className="hidden"
             disabled={disabled}
-            // No accept attribute = file manager will appear on mobile
+            // Using file extensions (not MIME types) + NO capture attribute = file manager appears
           />
           
           <div className="flex flex-col items-center gap-6">
