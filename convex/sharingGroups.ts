@@ -10,6 +10,7 @@
 
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 
 /**
  * Create a new sharing group
@@ -1210,7 +1211,7 @@ export const getAcceptedRequestsForRequester = query({
     );
 
     const groupMap = new Map(
-      groups.filter((g): g is { groupId: string; groupName: string } => g !== null)
+      groups.filter((g): g is { groupId: Id<"sharingGroups">; groupName: string } => g !== null)
         .map((g) => [g.groupId, g.groupName])
     );
 
