@@ -82,10 +82,14 @@ export function ProjectCard({
 
   const handleDeleteConfirm = async () => {
     setIsDeleting(true);
+    setShowDeleteConfirm(false); // Close dialog immediately
     try {
       const result = await deleteProjectAction(project._id);
       if (result?.success) {
         toast.success("Project deleted successfully");
+        setIsDeleting(false); // Reset loading state
+        // Refresh the page to ensure UI updates immediately
+        window.location.reload();
       } else {
         toast.error("Failed to delete project. Please check server logs.");
         setIsDeleting(false);

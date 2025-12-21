@@ -556,13 +556,45 @@ export const listUserProjectsWithShared = query({
     try {
       const numItems = args.paginationOpts?.numItems ?? 20;
       const filter = args.filter ?? "all";
+      const cursor = args.paginationOpts?.cursor;
+      const startIndex = cursor ? parseInt(cursor, 10) : 0;
 
-      // Get user's own projects
-      const ownProjects = await ctx.db
-        .query("projects")
-        .withIndex("by_user", (q) => q.eq("userId", args.userId))
-        .filter((q) => q.eq(q.field("deletedAt"), undefined))
-        .collect();
+      // For "own" filter, optimize by early return
+      if (filter === "own") {
+        const ownProjects = await ctx.db
+          .query("projects")
+          .withIndex("by_user", (q) => q.eq("userId", args.userId))
+          .filter((q) => q.eq(q.field("deletedAt"), undefined))
+          .collect();
+
+        // Sort by newest first
+        ownProjects.sort((a, b) => b.createdAt - a.createdAt);
+
+        // Manual pagination
+        const endIndex = startIndex + numItems;
+        const paginatedProjects = ownProjects.slice(startIndex, endIndex);
+        const hasMore = endIndex < ownProjects.length;
+
+        return {
+          page: paginatedProjects,
+          continueCursor: hasMore ? endIndex.toString() : null,
+          isDone: !hasMore,
+        };
+      }
+
+      // For "shared" or "all" filters, we need to fetch shared projects
+      // Get user's own projects (only if filter is "all")
+      // Limit to 200 projects for initial load to improve performance
+      let ownProjects: Doc<"projects">[] = [];
+      if (filter === "all") {
+        // For "all" filter, limit own projects to avoid loading everything
+        // This is a reasonable limit that should cover most users' needs
+        ownProjects = await ctx.db
+          .query("projects")
+          .withIndex("by_user", (q) => q.eq("userId", args.userId))
+          .filter((q) => q.eq(q.field("deletedAt"), undefined))
+          .take(200);
+      }
 
       // Get groups where user is an active member
       let memberGroups: Doc<"groupMembers">[] = [];
@@ -601,17 +633,20 @@ export const listUserProjectsWithShared = query({
       console.log(`[listUserProjectsWithShared] Found ${uniqueOwnerIds.length} unique group owners:`, uniqueOwnerIds);
 
       // Get shared projects (from group owners)
+      // Limit to a reasonable number per owner to avoid loading too much data
       let sharedProjects: Doc<"projects">[][] = [];
       if (uniqueOwnerIds.length > 0) {
         try {
           sharedProjects = await Promise.all(
             uniqueOwnerIds.map(async (ownerId) => {
               try {
+                // Limit to 50 projects per owner to avoid excessive memory usage
+                // This prevents loading thousands of projects when user has many shared groups
                 const projects = await ctx.db
                   .query("projects")
                   .withIndex("by_user", (q) => q.eq("userId", ownerId))
                   .filter((q) => q.eq(q.field("deletedAt"), undefined))
-                  .collect();
+                  .take(50);
                 console.log(`[listUserProjectsWithShared] Found ${projects.length} projects for owner ${ownerId}`);
                 return projects;
               } catch (err) {
@@ -630,11 +665,8 @@ export const listUserProjectsWithShared = query({
       console.log(`[listUserProjectsWithShared] Total shared projects found: ${flattenedShared.length}, filter: ${filter}`);
 
       // Combine and filter based on filter type
-      let allProjects: typeof ownProjects = [];
-      if (filter === "own") {
-        allProjects = ownProjects;
-        console.log(`[listUserProjectsWithShared] Filter "own": ${allProjects.length} projects`);
-      } else if (filter === "shared") {
+      let allProjects: Doc<"projects">[] = [];
+      if (filter === "shared") {
         allProjects = flattenedShared;
         console.log(`[listUserProjectsWithShared] Filter "shared": ${allProjects.length} projects`);
       } else {
@@ -654,8 +686,6 @@ export const listUserProjectsWithShared = query({
       allProjects.sort((a, b) => b.createdAt - a.createdAt);
 
       // Manual pagination
-      const cursor = args.paginationOpts?.cursor;
-      const startIndex = cursor ? parseInt(cursor, 10) : 0;
       const endIndex = startIndex + numItems;
       const paginatedProjects = allProjects.slice(startIndex, endIndex);
       const hasMore = endIndex < allProjects.length;

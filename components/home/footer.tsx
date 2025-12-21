@@ -88,7 +88,7 @@ export function Footer() {
           {/* Bottom bar */}
           <div className="pt-8 border-t border-gray-200 space-y-1">
             <p className="text-center text-sm text-gray-600">
-              Project by <span className="font-bold">Manjit Lider</span>.
+              Project by <span className="font-bold">TechDevsNZ</span>.
             </p>
             <div className="flex items-center justify-center gap-1">
               <p className="text-center text-sm text-gray-600 font-extrabold">

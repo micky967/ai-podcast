@@ -170,16 +170,24 @@ export function ProjectsList({
         // For filtered views, always sync with dynamicQueryResult for real-time updates
         const filteredPage = dynamicQueryResult.page || [];
         setAllLoadedProjects((prev) => {
-          // If we have paginated results, merge them (deduplicate)
+          // Get IDs from the reactive query result (first page) - these are the current valid projects
+          const reactivePageIds = new Set(filteredPage.map((p: any) => p._id));
+
+          // If we have paginated results, merge them
+          // The reactive query result is the source of truth for the first page
           if (prev.length > filteredPage.length) {
-            const filteredPageIds = new Set(
-              filteredPage.map((p: any) => p._id)
-            );
+            // Get projects from prev that are:
+            // 1. NOT in the reactive page (these are additional pages)
+            // 2. NOT deleted (deletedAt is undefined/null)
             const additionalPages = prev.filter(
-              (p: any) => !filteredPageIds.has(p._id)
+              (p: any) => !reactivePageIds.has(p._id) && !p.deletedAt
             );
+            // Use reactive page as first page (source of truth) + additional pages
+            // This ensures deleted projects are removed from both first page and paginated pages
             return [...filteredPage, ...additionalPages];
           }
+          // No paginated results yet, just use the reactive query result
+          // This will automatically remove deleted projects
           return filteredPage;
         });
         setPaginationCursor(dynamicQueryResult.continueCursor || undefined);
@@ -272,16 +280,28 @@ export function ProjectsList({
     if (filter !== "all") {
       // Always prefer reactive query result for real-time updates
       if (dynamicQueryResult?.page) {
-        // Merge with paginated results if we have them
-        if (allLoadedProjects.length > dynamicQueryResult.page.length) {
-          const reactiveIds = new Set(
-            dynamicQueryResult.page.map((p: any) => p._id)
-          );
+        // Get IDs from reactive query (these are the current valid projects in first page)
+        const reactiveIds = new Set(
+          dynamicQueryResult.page.map((p: any) => p._id)
+        );
+
+        // Check if we have additional pages (projects in allLoadedProjects not in reactive page)
+        const hasAdditionalPages = allLoadedProjects.some(
+          (p: any) => !reactiveIds.has(p._id) && !p.deletedAt
+        );
+
+        if (hasAdditionalPages) {
+          // Only keep projects from allLoadedProjects that are:
+          // 1. NOT in the reactive page (these are additional pages)
+          // 2. NOT deleted (deletedAt is undefined/null)
+          // The reactive page is the source of truth for the first page (removes deleted projects)
           const additionalPages = allLoadedProjects.filter(
-            (p: any) => !reactiveIds.has(p._id)
+            (p: any) => !reactiveIds.has(p._id) && !p.deletedAt
           );
           return [...dynamicQueryResult.page, ...additionalPages];
         }
+        // No paginated results, just return the reactive query result
+        // This will automatically exclude deleted projects
         return dynamicQueryResult.page;
       }
       // Still loading - return empty array (don't show stale data)
@@ -307,6 +327,11 @@ export function ProjectsList({
 
     const seen = new Set<string>();
     return projects.filter((project: any) => {
+      // Filter out deleted projects
+      if (project.deletedAt) {
+        return false;
+      }
+      // Deduplicate by _id
       const id = String(project._id);
       if (seen.has(id)) {
         return false;
