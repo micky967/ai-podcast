@@ -252,6 +252,7 @@ export function UploadDropzone({
             </div>
           </div>
         </div>
+        </div>
       )}
 
       {/* Error message display - shows for both mobile and desktop */}
