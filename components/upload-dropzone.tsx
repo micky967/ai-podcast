@@ -217,7 +217,7 @@ export function UploadDropzone({
           {/* Hidden file input (accessibility) - desktop only */}
           <input {...getInputProps()} />
 
-        <div className="flex flex-col items-center gap-6">
+          <div className="flex flex-col items-center gap-6">
           {/* Icon indicator */}
           <div
             className={cn(
@@ -251,7 +251,7 @@ export function UploadDropzone({
               </p>
             </div>
           </div>
-        </div>
+          </div>
         </div>
       )}
 
