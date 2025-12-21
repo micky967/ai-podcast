@@ -16,9 +16,11 @@ import { respondToJoinRequestAction, acceptInvitationAction, declineInvitationAc
 import { toast } from "sonner";
 import { getCurrentPlan } from "@/lib/client-tier-utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useRouter } from "next/navigation";
 
 export function JoinRequestsNotification() {
   const { userId, has } = useAuth();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [requestNames, setRequestNames] = useState<Map<string, string>>(new Map());
   const [respondingRequests, setRespondingRequests] = useState<Set<string>>(new Set());
@@ -47,6 +49,12 @@ export function JoinRequestsNotification() {
   // Query even when closed to show indicator badge
   const recentResponses = useQuery(
     api.sharingGroups.getRecentRequestResponses,
+    userId ? { userId } : "skip"
+  );
+
+  // Get accepted requests where user was the requester (for green badge notification)
+  const acceptedRequestsForRequester = useQuery(
+    api.sharingGroups.getAcceptedRequestsForRequester,
     userId ? { userId } : "skip"
   );
   
@@ -146,6 +154,25 @@ export function JoinRequestsNotification() {
     getViewedResponseIdsFromStorage()
   );
 
+  // Track which accepted request IDs have been viewed (for requester notifications)
+  const getViewedAcceptedRequestIdsFromStorage = (): Set<string> => {
+    if (typeof window === "undefined" || !userId) return new Set();
+    try {
+      const stored = localStorage.getItem(`viewedAcceptedRequestIds_${userId}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return new Set(Array.isArray(parsed) ? parsed : []);
+      }
+    } catch (error) {
+      console.error("Error reading viewedAcceptedRequestIds from localStorage:", error);
+    }
+    return new Set();
+  };
+
+  const [viewedAcceptedRequestIds, setViewedAcceptedRequestIds] = useState<Set<string>>(() => 
+    getViewedAcceptedRequestIdsFromStorage()
+  );
+
   // Save viewedResponseIds to localStorage whenever it changes
   useEffect(() => {
     if (typeof window === "undefined" || !userId) return;
@@ -156,6 +183,17 @@ export function JoinRequestsNotification() {
       console.error("Error saving viewedResponseIds to localStorage:", error);
     }
   }, [viewedResponseIds, userId]);
+
+  // Save viewedAcceptedRequestIds to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window === "undefined" || !userId) return;
+    try {
+      const array = Array.from(viewedAcceptedRequestIds);
+      localStorage.setItem(`viewedAcceptedRequestIds_${userId}`, JSON.stringify(array));
+    } catch (error) {
+      console.error("Error saving viewedAcceptedRequestIds to localStorage:", error);
+    }
+  }, [viewedAcceptedRequestIds, userId]);
 
   // Check if there are recent responses to show
   // Mark responses as viewed when modal is opened
@@ -169,12 +207,26 @@ export function JoinRequestsNotification() {
         return updated;
       });
     }
-  }, [open, recentResponses]);
+    if (open && acceptedRequestsForRequester && acceptedRequestsForRequester.length > 0) {
+      // When modal opens, mark all current accepted requests as viewed
+      const currentAcceptedRequestIds = new Set(acceptedRequestsForRequester.map((r) => r.requestId));
+      setViewedAcceptedRequestIds((prev) => {
+        const updated = new Set(prev);
+        currentAcceptedRequestIds.forEach((id) => updated.add(id));
+        return updated;
+      });
+    }
+  }, [open, recentResponses, acceptedRequestsForRequester]);
 
   // Check if there are any unviewed recent responses
   const hasRecentResponses = recentResponses && recentResponses.length > 0;
   const hasUnviewedRecentResponses = hasRecentResponses && 
     recentResponses.some((r) => !viewedResponseIds.has(r.requestId));
+
+  // Check if there are any unviewed accepted requests (where user was requester)
+  const hasAcceptedRequests = acceptedRequestsForRequester && acceptedRequestsForRequester.length > 0;
+  const hasUnviewedAcceptedRequests = hasAcceptedRequests && 
+    acceptedRequestsForRequester.some((r) => !viewedAcceptedRequestIds.has(r.requestId));
 
   // Fetch requester names (for both pending requests and recent responses)
   useEffect(() => {
@@ -340,8 +392,17 @@ export function JoinRequestsNotification() {
             </Badge>
           )}
           {/* Show indicator if there are recent responses but no pending requests */}
-          {/* Show green badge only if there are unviewed recent responses and no pending requests */}
-          {pendingCount === 0 && hasUnviewedRecentResponses && (
+          {/* Show green badge if there are unviewed accepted requests (user was requester) */}
+          {pendingCount === 0 && hasUnviewedAcceptedRequests && (
+            <Badge
+              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-green-500 text-white text-xs font-bold border-2 border-white"
+              title="You've been accepted to a group"
+            >
+              !
+            </Badge>
+          )}
+          {/* Show green badge for owner's recent responses if no accepted requests */}
+          {pendingCount === 0 && !hasUnviewedAcceptedRequests && hasUnviewedRecentResponses && (
             <Badge
               className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-green-500 text-white text-xs font-bold border-2 border-white"
               title="Recent activity"
@@ -372,13 +433,60 @@ export function JoinRequestsNotification() {
               <Skeleton className="h-20 w-full" />
               <Skeleton className="h-20 w-full" />
             </div>
-          ) : pendingRequests.length === 0 && (!recentResponses || recentResponses.length === 0) ? (
+          ) : pendingRequests.length === 0 && (!recentResponses || recentResponses.length === 0) && (!acceptedRequestsForRequester || acceptedRequestsForRequester.length === 0) ? (
             <div className="p-4 text-center text-sm text-gray-500">
               No pending requests
             </div>
           ) : (
             <>
-              {/* Recent Responses Section */}
+              {/* Accepted Requests Section (where user was requester) */}
+              {acceptedRequestsForRequester && acceptedRequestsForRequester.length > 0 && (
+                <div className="divide-y border-b">
+                  <h4 className="px-4 py-2 text-sm font-semibold bg-green-50 text-green-900 sticky top-0">
+                    You've Been Accepted
+                  </h4>
+                  {acceptedRequestsForRequester.map((acceptedRequest) => {
+                    const timeAgo = acceptedRequest.respondedAt
+                      ? new Date(acceptedRequest.respondedAt).toLocaleTimeString()
+                      : "";
+                    const isViewed = viewedAcceptedRequestIds.has(acceptedRequest.requestId);
+                    return (
+                      <div 
+                        key={acceptedRequest.requestId} 
+                        className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${!isViewed ? 'bg-green-50/50' : ''}`}
+                        onClick={() => {
+                          // Mark as viewed
+                          setViewedAcceptedRequestIds((prev) => {
+                            const updated = new Set(prev);
+                            updated.add(acceptedRequest.requestId);
+                            return updated;
+                          });
+                          // Navigate to shared files
+                          router.push('/dashboard/projects?filter=shared');
+                          setOpen(false);
+                        }}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="font-medium text-sm text-green-700">
+                              ✓ You've been accepted to join
+                            </p>
+                            <p className="text-xs text-gray-600 mt-1">
+                              <span className="font-medium">"{acceptedRequest.groupName}"</span>
+                              {timeAgo && <span className="ml-2">• {timeAgo}</span>}
+                            </p>
+                            <p className="text-xs text-green-600 mt-1 italic">
+                              Click to view shared files
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              
+              {/* Recent Responses Section (for owners) */}
               {recentResponses && recentResponses.length > 0 && (
                 <div className="divide-y border-b">
                   <h4 className="px-4 py-2 text-sm font-semibold bg-green-50 text-green-900 sticky top-0">

@@ -1166,6 +1166,67 @@ export const getRecentRequestResponses = query({
 });
 
 /**
+ * Get accepted requests where the user was the requester
+ * 
+ * Used by: Notification component to show when user's join request was accepted
+ * 
+ * @param userId - User ID (the requester)
+ * @param since - Optional timestamp (defaults to 24 hours ago)
+ * @returns Array of accepted requests with group info
+ */
+export const getAcceptedRequestsForRequester = query({
+  args: {
+    userId: v.string(),
+    since: v.optional(v.number()), // Timestamp - defaults to 24 hours ago
+  },
+  handler: async (ctx, args) => {
+    const normalizedUserId = args.userId.trim();
+    
+    // Default to last 24 hours if not specified
+    const since = args.since || Date.now() - 24 * 60 * 60 * 1000;
+
+    // Get all requests where this user was the requester
+    const allRequests = await ctx.db
+      .query("groupJoinRequests")
+      .withIndex("by_requester", (q) => q.eq("requesterId", normalizedUserId))
+      .collect();
+
+    // Filter for accepted requests with respondedAt >= since
+    const acceptedRequests = allRequests.filter(
+      (r) => r.status === "accepted" && r.respondedAt && r.respondedAt >= since
+    );
+
+    if (acceptedRequests.length === 0) {
+      return [];
+    }
+
+    // Get group info for each request
+    const groupIds = [...new Set(acceptedRequests.map((r) => r.groupId))];
+    const groups = await Promise.all(
+      groupIds.map(async (groupId) => {
+        const group = await ctx.db.get(groupId);
+        return group ? { groupId, groupName: group.name || "Unnamed Group" } : null;
+      })
+    );
+
+    const groupMap = new Map(
+      groups.filter((g): g is { groupId: string; groupName: string } => g !== null)
+        .map((g) => [g.groupId, g.groupName])
+    );
+
+    // Sort by respondedAt (most recent first)
+    acceptedRequests.sort((a, b) => (b.respondedAt || 0) - (a.respondedAt || 0));
+
+    return acceptedRequests.map((r) => ({
+      requestId: r._id,
+      groupId: r.groupId,
+      groupName: groupMap.get(r.groupId) || "Unnamed Group",
+      respondedAt: r.respondedAt || r.requestedAt,
+    }));
+  },
+});
+
+/**
  * Respond to a join request (accept or reject)
  *
  * Used by: Server action when owner accepts/rejects request

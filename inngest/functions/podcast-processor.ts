@@ -182,6 +182,7 @@ export const podcastProcessor = inngest.createFunction(
           projectId,
           contentGeneration: "running",
         });
+        console.log(`[STATUS] Content generation started for project ${projectId}`);
       });
 
       // Step 2: Run AI generation tasks in parallel based on plan
@@ -307,8 +308,13 @@ export const podcastProcessor = inngest.createFunction(
         }
       }
 
-      // Run all enabled jobs in parallel
+      // Run all enabled jobs in parallel with timeout protection
+      console.log(`[JOB EXECUTION] Starting ${jobs.length} parallel jobs: [${jobNames.join(", ")}]`);
+      const startTime = Date.now();
+      
       const results = await Promise.allSettled(jobs);
+      const executionTime = Date.now() - startTime;
+      console.log(`[JOB EXECUTION] All jobs completed in ${executionTime}ms`);
 
       // Extract successful results based on plan
       // Build results object dynamically based on what was run
@@ -318,6 +324,7 @@ export const podcastProcessor = inngest.createFunction(
         const jobName = jobNames[idx];
         if (result.status === "fulfilled") {
           generatedContent[jobName] = result.value;
+          console.log(`[JOB SUCCESS] ${jobName} completed successfully`);
         }
       });
 
@@ -333,9 +340,13 @@ export const podcastProcessor = inngest.createFunction(
               : String(result.reason);
 
           jobErrors[jobName] = errorMessage;
-          console.error(`Failed to generate ${jobName}:`, result.reason);
+          console.error(`[JOB FAILED] ${jobName}:`, result.reason);
         }
       });
+      
+      if (Object.keys(jobErrors).length > 0) {
+        console.warn(`[JOB ERRORS] ${Object.keys(jobErrors).length} job(s) failed: [${Object.keys(jobErrors).join(", ")}]`);
+      }
 
       // Save errors to Convex if any jobs failed
       if (Object.keys(jobErrors).length > 0) {
