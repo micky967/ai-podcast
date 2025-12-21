@@ -64,57 +64,39 @@ export function UploadDropzone({
     );
   }, []);
 
-  // Ref to the file input element for direct manipulation on mobile
-  const inputRef = useRef<HTMLInputElement>(null);
+  // Allowed file extensions for validation
+  const allowedExtensions = useMemo(() => [
+    ".mp3", ".m4a", ".wav", ".wave", ".aac", ".ogg", ".oga", ".opus", ".webm", ".flac", ".3gp", ".3g2",
+    ".pdf", ".doc", ".docx", ".txt"
+  ], []);
 
-  // On mobile, remove accept attribute directly from the DOM after react-dropzone applies it
-  // Use MutationObserver to catch when react-dropzone adds the accept attribute
-  useEffect(() => {
-    if (!isMobile || !inputRef.current) return;
+  // Ref to the native file input for mobile (bypasses react-dropzone)
+  const nativeInputRef = useRef<HTMLInputElement>(null);
 
-    const input = inputRef.current;
-    
-    // Remove accept and capture attributes immediately
-    const removeAttributes = () => {
-      input.removeAttribute("accept");
-      input.removeAttribute("capture");
-    };
-
-    // Remove immediately
-    removeAttributes();
-
-    // Watch for when react-dropzone adds the accept attribute back
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === "attributes" && 
-            (mutation.attributeName === "accept" || mutation.attributeName === "capture")) {
-          removeAttributes();
+  // Handle native file input change on mobile
+  const handleNativeFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        // Validate file extension
+        const fileName = file.name.toLowerCase();
+        const isValid = allowedExtensions.some(ext => fileName.endsWith(ext));
+        if (isValid) {
+          onFileSelect(file);
         }
-      });
-    });
+        // Reset input to allow selecting the same file again
+        if (nativeInputRef.current) {
+          nativeInputRef.current.value = "";
+        }
+      }
+    },
+    [onFileSelect, allowedExtensions]
+  );
 
-    // Observe attribute changes
-    observer.observe(input, {
-      attributes: true,
-      attributeFilter: ["accept", "capture"],
-    });
-
-    // Also check periodically (fallback)
-    const interval = setInterval(removeAttributes, 100);
-
-    return () => {
-      observer.disconnect();
-      clearInterval(interval);
-    };
-  }, [isMobile]);
-
-  // On mobile, don't restrict accept to allow file manager access
-  // We'll validate file types manually in onDrop
   // On desktop, use specific MIME types for better browser validation
   const acceptConfig = useMemo(() => {
     if (isMobile) {
-      // Mobile: No accept restriction - allows file manager to appear
-      // File type validation happens in onDrop callback
+      // Mobile: Don't use react-dropzone at all - we use native input
       return undefined;
     } else {
       // Desktop: All formats with specific MIME types
@@ -141,38 +123,19 @@ export function UploadDropzone({
     }
   }, [isMobile]);
 
-  // Allowed file extensions for validation
-  const allowedExtensions = useMemo(() => [
-    ".mp3", ".m4a", ".wav", ".wave", ".aac", ".ogg", ".oga", ".opus", ".webm", ".flac", ".3gp", ".3g2",
-    ".pdf", ".doc", ".docx", ".txt"
-  ], []);
-
-  // react-dropzone configuration and state
+  // react-dropzone configuration and state (desktop only)
   const { getRootProps, getInputProps, isDragActive, fileRejections } =
     useDropzone({
-      onDrop: useCallback(
-        (acceptedFiles: File[], rejectedFiles: any[]) => {
-          if (acceptedFiles.length > 0) {
-            const file = acceptedFiles[0];
-            // On mobile, validate file extension manually since we don't restrict accept
-            if (isMobile) {
-              const fileName = file.name.toLowerCase();
-              const isValid = allowedExtensions.some(ext => fileName.endsWith(ext));
-              if (!isValid) {
-                // File type not allowed - show error
-                return;
-              }
-            }
-            onFileSelect(file);
-          }
-        },
-        [onFileSelect, isMobile, allowedExtensions]
-      ),
-      // Accept configuration: undefined on mobile, specific on desktop
+      onDrop,
+      // Accept configuration: only used on desktop
       accept: acceptConfig,
       maxSize, // File size limit (validates before upload)
       maxFiles: 1, // Only allow single file selection
       disabled, // Disable dropzone during upload
+      // Disable react-dropzone on mobile - we use native input instead
+      noClick: isMobile,
+      noKeyboard: isMobile,
+      noDrag: isMobile,
     });
 
   // Extract first rejection error for display
@@ -180,31 +143,79 @@ export function UploadDropzone({
 
   return (
     <div className="w-full">
-      <div
-        {...getRootProps()}
-        className={cn(
-          // Base styles: Dashed border, clickable, transitions
-          "border-3 border-dashed rounded-2xl p-16 text-center cursor-pointer transition-all",
-          "border-emerald-300 hover:border-emerald-500 hover:bg-emerald-50/50",
-          // Drag active state (file hovering over dropzone)
-          isDragActive &&
-            "border-emerald-600 bg-emerald-50 scale-[1.02] shadow-xl",
-          // Disabled state
-          disabled && "opacity-50 cursor-not-allowed",
-          // Error state
-          errorMessage && "border-red-400 bg-red-50/30",
-          // Hover glow effect
-          !disabled && "hover-glow",
-        )}
-      >
-        {/* Hidden file input (accessibility) */}
-        <input 
-          ref={inputRef}
-          {...getInputProps({
-            // On mobile, we'll remove accept attribute via useEffect
-            // This prevents mobile browsers from restricting to camera/microphone only
-          })} 
-        />
+      {/* On mobile, use native file input that bypasses react-dropzone's accept */}
+      {isMobile ? (
+        <div
+          className={cn(
+            // Base styles: Dashed border, clickable, transitions
+            "border-3 border-dashed rounded-2xl p-16 text-center cursor-pointer transition-all",
+            "border-emerald-300 hover:border-emerald-500 hover:bg-emerald-50/50",
+            // Disabled state
+            disabled && "opacity-50 cursor-not-allowed",
+            // Error state
+            errorMessage && "border-red-400 bg-red-50/30",
+            // Hover glow effect
+            !disabled && "hover-glow",
+          )}
+          onClick={() => {
+            if (!disabled && nativeInputRef.current) {
+              nativeInputRef.current.click();
+            }
+          }}
+        >
+          {/* Native file input with NO accept attribute - allows file manager on mobile */}
+          <input
+            ref={nativeInputRef}
+            type="file"
+            onChange={handleNativeFileChange}
+            className="hidden"
+            disabled={disabled}
+            // No accept attribute = file manager will appear on mobile
+          />
+          
+          <div className="flex flex-col items-center gap-6">
+            {/* Icon indicator */}
+            <div className="rounded-3xl p-8 transition-all glass-card">
+              <FileText className="h-16 w-16 text-emerald-600" />
+            </div>
+
+            {/* Instructions and info */}
+            <div className="space-y-3">
+              <p className="text-2xl font-bold text-gray-900">
+                Tap to select a file
+              </p>
+              <p className="text-base text-gray-600">Choose from your files</p>
+              <div className="pt-2 space-y-1">
+                <p className="text-sm text-gray-500 font-medium">
+                  Supports: MP3, WAV, M4A, FLAC, OGG, AAC, PDF, DOC, DOCX, TXT
+                </p>
+                <p className="text-sm text-gray-500 font-semibold">
+                  Maximum file size: {Math.round(maxSize / (1024 * 1024))}MB
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div
+          {...getRootProps()}
+          className={cn(
+            // Base styles: Dashed border, clickable, transitions
+            "border-3 border-dashed rounded-2xl p-16 text-center cursor-pointer transition-all",
+            "border-emerald-300 hover:border-emerald-500 hover:bg-emerald-50/50",
+            // Drag active state (file hovering over dropzone)
+            isDragActive &&
+              "border-emerald-600 bg-emerald-50 scale-[1.02] shadow-xl",
+            // Disabled state
+            disabled && "opacity-50 cursor-not-allowed",
+            // Error state
+            errorMessage && "border-red-400 bg-red-50/30",
+            // Hover glow effect
+            !disabled && "hover-glow",
+          )}
+        >
+          {/* Hidden file input (accessibility) - desktop only */}
+          <input {...getInputProps()} />
 
         <div className="flex flex-col items-center gap-6">
           {/* Icon indicator */}
@@ -241,9 +252,9 @@ export function UploadDropzone({
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Error message display */}
+      {/* Error message display - shows for both mobile and desktop */}
       {errorMessage && (
         <div className="mt-4 p-4 rounded-xl bg-red-50 border border-red-200">
           <p className="text-sm text-red-600 font-medium">{errorMessage}</p>
