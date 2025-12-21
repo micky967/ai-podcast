@@ -151,7 +151,7 @@ export function UploadDropzone({
   const { getRootProps, getInputProps, isDragActive, fileRejections } =
     useDropzone({
       onDrop: useCallback(
-        (acceptedFiles: File[], rejectedFiles) => {
+        (acceptedFiles: File[], rejectedFiles: any[]) => {
           if (acceptedFiles.length > 0) {
             const file = acceptedFiles[0];
             // On mobile, validate file extension manually since we don't restrict accept
