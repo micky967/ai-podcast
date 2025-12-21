@@ -25,7 +25,7 @@
 "use client";
 
 import { FileAudio, FileText, Upload } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { MAX_FILE_SIZE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -64,12 +64,61 @@ export function UploadDropzone({
     );
   }, []);
 
-  // react-dropzone configuration and state
-  const { getRootProps, getInputProps, isDragActive, fileRejections } =
-    useDropzone({
-      onDrop,
-      // Accept configuration: Exhaustive list for cross-browser compatibility
-      accept: {
+  // Ref to the file input element for direct manipulation on mobile
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // On mobile, remove accept attribute directly from the DOM after react-dropzone applies it
+  // Use MutationObserver to catch when react-dropzone adds the accept attribute
+  useEffect(() => {
+    if (!isMobile || !inputRef.current) return;
+
+    const input = inputRef.current;
+    
+    // Remove accept and capture attributes immediately
+    const removeAttributes = () => {
+      input.removeAttribute("accept");
+      input.removeAttribute("capture");
+    };
+
+    // Remove immediately
+    removeAttributes();
+
+    // Watch for when react-dropzone adds the accept attribute back
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === "attributes" && 
+            (mutation.attributeName === "accept" || mutation.attributeName === "capture")) {
+          removeAttributes();
+        }
+      });
+    });
+
+    // Observe attribute changes
+    observer.observe(input, {
+      attributes: true,
+      attributeFilter: ["accept", "capture"],
+    });
+
+    // Also check periodically (fallback)
+    const interval = setInterval(removeAttributes, 100);
+
+    return () => {
+      observer.disconnect();
+      clearInterval(interval);
+    };
+  }, [isMobile]);
+
+  // On mobile, don't restrict accept to allow file manager access
+  // We'll validate file types manually in onDrop
+  // On desktop, use specific MIME types for better browser validation
+  const acceptConfig = useMemo(() => {
+    if (isMobile) {
+      // Mobile: No accept restriction - allows file manager to appear
+      // File type validation happens in onDrop callback
+      return undefined;
+    } else {
+      // Desktop: All formats with specific MIME types
+      return {
         // Audio formats
         "audio/mpeg": [".mp3"], // MP3
         "audio/x-m4a": [".m4a"], // M4A (iOS/Apple)
@@ -88,7 +137,39 @@ export function UploadDropzone({
         "application/msword": [".doc"], // DOC (Word 97-2003)
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"], // DOCX
         "text/plain": [".txt"], // TXT
-      },
+      };
+    }
+  }, [isMobile]);
+
+  // Allowed file extensions for validation
+  const allowedExtensions = useMemo(() => [
+    ".mp3", ".m4a", ".wav", ".wave", ".aac", ".ogg", ".oga", ".opus", ".webm", ".flac", ".3gp", ".3g2",
+    ".pdf", ".doc", ".docx", ".txt"
+  ], []);
+
+  // react-dropzone configuration and state
+  const { getRootProps, getInputProps, isDragActive, fileRejections } =
+    useDropzone({
+      onDrop: useCallback(
+        (acceptedFiles: File[], rejectedFiles) => {
+          if (acceptedFiles.length > 0) {
+            const file = acceptedFiles[0];
+            // On mobile, validate file extension manually since we don't restrict accept
+            if (isMobile) {
+              const fileName = file.name.toLowerCase();
+              const isValid = allowedExtensions.some(ext => fileName.endsWith(ext));
+              if (!isValid) {
+                // File type not allowed - show error
+                return;
+              }
+            }
+            onFileSelect(file);
+          }
+        },
+        [onFileSelect, isMobile, allowedExtensions]
+      ),
+      // Accept configuration: undefined on mobile, specific on desktop
+      accept: acceptConfig,
       maxSize, // File size limit (validates before upload)
       maxFiles: 1, // Only allow single file selection
       disabled, // Disable dropzone during upload
@@ -118,14 +199,10 @@ export function UploadDropzone({
       >
         {/* Hidden file input (accessibility) */}
         <input 
+          ref={inputRef}
           {...getInputProps({
-            // On mobile, override accept to use file extensions only (no MIME types)
+            // On mobile, we'll remove accept attribute via useEffect
             // This prevents mobile browsers from restricting to camera/microphone only
-            // File extensions allow file managers and document pickers to appear
-            ...(isMobile ? {
-              accept: ".mp3,.m4a,.wav,.wave,.aac,.ogg,.oga,.opus,.webm,.flac,.3gp,.3g2,.pdf,.doc,.docx,.txt",
-              capture: undefined, // Explicitly remove capture to allow file manager
-            } : {}),
           })} 
         />
 
