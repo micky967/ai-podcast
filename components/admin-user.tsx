@@ -3,19 +3,32 @@
 import { AdminUserList } from "@/components/admin/admin-user-list";
 import { AdminSharing } from "@/components/admin/admin-sharing";
 import { AdminCategories } from "@/components/admin/admin-categories";
+import { AdminLoggedInUsers } from "@/components/admin/admin-logged-in-users";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Preloaded } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@clerk/nextjs";
 
+interface UserWithInfo {
+  userId: string;
+  role: string;
+  createdAt: number;
+  name: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+}
+
 interface AdminUserProps {
   preloadedIsAdmin: Preloaded<typeof api.userSettings.isUserAdmin>;
   preloadedUsers: Preloaded<typeof api.userSettings.listAllUsers>;
+  usersWithInfo?: UserWithInfo[];
 }
 
 export function AdminUser({
   preloadedIsAdmin,
   preloadedUsers,
+  usersWithInfo,
 }: AdminUserProps) {
   const { userId } = useAuth();
 
@@ -35,6 +48,7 @@ export function AdminUser({
       <Tabs defaultValue="users" className="w-full">
         <TabsList>
           <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="logged-in">Logged In</TabsTrigger>
           <TabsTrigger value="sharing">Sharing Groups</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
         </TabsList>
@@ -42,7 +56,11 @@ export function AdminUser({
           <AdminUserList
             preloadedIsAdmin={preloadedIsAdmin}
             preloadedUsers={preloadedUsers}
+            usersWithInfo={usersWithInfo}
           />
+        </TabsContent>
+        <TabsContent value="logged-in">
+          {userId && <AdminLoggedInUsers adminUserId={userId} />}
         </TabsContent>
         <TabsContent value="sharing">
           {userId && <AdminSharing adminId={userId} />}

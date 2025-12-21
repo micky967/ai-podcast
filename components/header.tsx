@@ -10,6 +10,7 @@ import { DashboardNav } from "@/components/dashboard-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { JoinRequestsNotification } from "@/components/sharing/join-requests-notification";
+import { UserActivityTracker } from "@/components/user-activity-tracker";
 
 export function Header() {
   const { isSignedIn, userId } = useAuth();
@@ -227,6 +228,7 @@ export function Header() {
           </div>
         </div>
       </div>
+      <UserActivityTracker />
     </header>
   );
 }

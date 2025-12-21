@@ -293,9 +293,11 @@ export default defineSchema({
     // Metadata
     updatedAt: v.number(), // Last modification time
     createdAt: v.number(), // Settings creation time
+    lastActiveAt: v.optional(v.number()), // Last activity time (for tracking logged-in users)
   })
     .index("by_user", ["userId"]) // Lookup settings by user ID
-    .index("by_role", ["role"]), // Find all admins or users by role
+    .index("by_role", ["role"]) // Find all admins or users by role
+    .index("by_last_active", ["lastActiveAt"]), // Find users by last activity time
 
   // Categories - hierarchical structure for organizing projects by medical specialty
   categories: defineTable({
@@ -368,4 +370,13 @@ export default defineSchema({
     .index("by_recipient", ["recipientId"]) // Find shares received by user
     .index("by_status", ["status"]) // Find pending/accepted shares
     .index("by_requester_and_recipient", ["requesterId", "recipientId"]), // Check if share exists
+
+  // User Sessions - tracks active user sessions for logged-in users
+  sessions: defineTable({
+    userId: v.string(), // Clerk user ID
+    createdAt: v.number(), // Session creation time
+    expiresAt: v.number(), // Session expiration time (24 hours from creation)
+  })
+    .index("by_user", ["userId"]) // Find sessions by user
+    .index("by_expires_at", ["expiresAt"]), // Find expired sessions for cleanup
 });

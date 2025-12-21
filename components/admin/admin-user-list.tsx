@@ -19,14 +19,26 @@ import {
 import { Shield, User, Loader2, Crown } from "lucide-react";
 import { toast } from "sonner";
 
+interface UserWithInfo {
+  userId: string;
+  role: string;
+  createdAt: number;
+  name: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+}
+
 interface AdminUserListProps {
   preloadedIsAdmin: Preloaded<typeof api.userSettings.isUserAdmin>;
   preloadedUsers: Preloaded<typeof api.userSettings.listAllUsers>;
+  usersWithInfo?: UserWithInfo[];
 }
 
 export function AdminUserList({
   preloadedIsAdmin,
   preloadedUsers,
+  usersWithInfo,
 }: AdminUserListProps) {
   const { userId } = useAuth();
   const [changingRoles, setChangingRoles] = useState<Set<string>>(new Set());
@@ -61,6 +73,30 @@ export function AdminUserList({
       </Card>
     );
   }
+
+  if (usersList === undefined) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Merge usersList with usersWithInfo to get names and emails
+  const usersWithMergedInfo = usersList.map((user) => {
+    const userInfo = usersWithInfo?.find((info) => info.userId === user.userId);
+    return {
+      ...user,
+      name: userInfo?.name || user.userId,
+      email: userInfo?.email || null,
+      firstName: userInfo?.firstName || null,
+      lastName: userInfo?.lastName || null,
+    };
+  });
 
   const handleRoleChangeClick = (
     targetUserId: string,
@@ -122,18 +158,6 @@ export function AdminUserList({
     });
   };
 
-  if (usersList === undefined) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   if (usersList === null || usersList.length === 0) {
     return (
       <Card>
@@ -145,7 +169,7 @@ export function AdminUserList({
   }
 
   // Sort users: owners first, then admins, then by creation date
-  const sortedUsers = [...usersList].sort((a, b) => {
+  const sortedUsers = [...usersWithMergedInfo].sort((a, b) => {
     // Owners always first
     if (a.role === "owner" && b.role !== "owner") return -1;
     if (a.role !== "owner" && b.role === "owner") return 1;
@@ -223,10 +247,20 @@ export function AdminUserList({
                         <User className="h-5 w-5 text-muted-foreground" />
                       )}
                       <div>
-                        <div className="flex items-center gap-2">
-                          <code className="text-sm font-mono bg-muted px-2 py-0.5 rounded">
-                            {user.userId}
-                          </code>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex flex-col gap-1">
+                            <div className="font-semibold text-base">
+                              {user.name || user.userId}
+                            </div>
+                            {user.email && (
+                              <div className="text-sm text-muted-foreground">
+                                {user.email}
+                              </div>
+                            )}
+                            <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded">
+                              {user.userId}
+                            </code>
+                          </div>
                           {isCurrentUser && (
                             <Badge variant="outline" className="text-xs">
                               You

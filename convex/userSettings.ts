@@ -363,3 +363,134 @@ export const listAllUsers = query({
   },
 });
 
+/**
+ * Update user's last activity timestamp
+ *
+ * Used by: Client-side hooks/middleware to track when users are active
+ * This helps determine which users are currently logged in
+ *
+ * @param userId - User ID to update activity for
+ */
+export const updateUserActivity = mutation({
+  args: {
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+
+    // Find existing settings
+    const existing = await ctx.db
+      .query("userSettings")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .first();
+
+    if (existing) {
+      // Update lastActiveAt
+      await ctx.db.patch(existing._id, {
+        lastActiveAt: now,
+      });
+    } else {
+      // Create new settings if they don't exist
+      await ctx.db.insert("userSettings", {
+        userId: args.userId,
+        role: "user",
+        createdAt: now,
+        updatedAt: now,
+        lastActiveAt: now,
+      });
+    }
+  },
+});
+
+/**
+ * Clear user's activity timestamp (when they sign out)
+ *
+ * Used by: Client-side when user signs out to immediately remove them from logged-in list
+ *
+ * @param userId - User ID to clear activity for
+ */
+export const clearUserActivity = mutation({
+  args: {
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Find existing settings
+    const existing = await ctx.db
+      .query("userSettings")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .first();
+
+    if (existing) {
+      // Clear lastActiveAt to indicate user is signed out
+      await ctx.db.patch(existing._id, {
+        lastActiveAt: undefined,
+      });
+      console.log(`[clearUserActivity] Cleared activity for user ${args.userId}`);
+    }
+  },
+});
+
+/**
+ * Get all currently logged-in users (active within last 15 minutes)
+ *
+ * Used by: Admin dashboard to show who is currently logged in
+ *
+ * Security: Only owners can query this
+ *
+ * @param adminUserId - The owner requesting the list (for verification)
+ * @returns Array of users who have been active within the last 15 minutes
+ */
+export const getLoggedInUsers = query({
+  args: {
+    adminUserId: v.string(), // Owner requesting the list (for verification)
+  },
+  handler: async (ctx, args) => {
+    // Verify that the requester is an owner
+    const ownerSettings = await ctx.db
+      .query("userSettings")
+      .withIndex("by_user", (q) => q.eq("userId", args.adminUserId))
+      .first();
+
+    if (ownerSettings?.role !== "owner") {
+      throw new Error("Unauthorized: Only owners can view logged-in users");
+    }
+
+    // Get users active within the last 15 minutes (900,000 ms)
+    const now = Date.now();
+    const fifteenMinutesAgo = now - 15 * 60 * 1000;
+
+    console.log(`[getLoggedInUsers] Current time: ${now}, 15 minutes ago: ${fifteenMinutesAgo}`);
+
+    // Get all user settings
+    const allSettings = await ctx.db.query("userSettings").collect();
+
+    console.log(`[getLoggedInUsers] Total users in database: ${allSettings.length}`);
+
+    // Filter to only users active within last 15 minutes
+    const loggedInUsers = allSettings.filter((settings) => {
+      const isActive = settings.lastActiveAt && settings.lastActiveAt >= fifteenMinutesAgo;
+      if (isActive) {
+        console.log(`[getLoggedInUsers] Active user: ${settings.userId}, lastActiveAt: ${settings.lastActiveAt}, time ago: ${now - (settings.lastActiveAt || 0)}ms`);
+      }
+      return isActive;
+    });
+
+    console.log(`[getLoggedInUsers] Found ${loggedInUsers.length} logged-in users`);
+
+    // Sort by most recent activity first
+    loggedInUsers.sort((a, b) => {
+      const aTime = a.lastActiveAt || 0;
+      const bTime = b.lastActiveAt || 0;
+      return bTime - aTime;
+    });
+
+    // Return users with their roles
+    return loggedInUsers.map((settings) => ({
+      userId: settings.userId,
+      role: settings.role ?? "user",
+      lastActiveAt: settings.lastActiveAt || 0,
+      createdAt: settings.createdAt,
+    }));
+  },
+});
+

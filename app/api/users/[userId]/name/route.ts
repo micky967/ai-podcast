@@ -27,6 +27,7 @@ export async function GET(
 
     return NextResponse.json({
       name,
+      email: user.emailAddresses[0]?.emailAddress || null,
       imageUrl: user.imageUrl || null,
       firstName: user.firstName || null,
       lastName: user.lastName || null,
