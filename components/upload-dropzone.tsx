@@ -25,7 +25,7 @@
 "use client";
 
 import { FileAudio, FileText, Upload } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useDropzone } from "react-dropzone";
 import { MAX_FILE_SIZE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -56,13 +56,19 @@ export function UploadDropzone({
     [onFileSelect],
   );
 
+  // Detect if we're on a mobile device
+  const isMobile = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    );
+  }, []);
+
   // react-dropzone configuration and state
   const { getRootProps, getInputProps, isDragActive, fileRejections } =
     useDropzone({
       onDrop,
       // Accept configuration: Exhaustive list for cross-browser compatibility
-      // Note: On mobile, we need to explicitly include file extensions to allow
-      // access to file managers and document pickers, not just camera/media
       accept: {
         // Audio formats
         "audio/mpeg": [".mp3"], // MP3
@@ -113,11 +119,13 @@ export function UploadDropzone({
         {/* Hidden file input (accessibility) */}
         <input 
           {...getInputProps({
-            // Explicitly prevent mobile from defaulting to camera/microphone only
-            // This ensures file manager and document picker are accessible
-            capture: undefined, // Remove any capture attribute that might restrict to camera/mic
-            // Add explicit accept string for better mobile compatibility
-            accept: ".mp3,.m4a,.wav,.wave,.aac,.ogg,.oga,.opus,.webm,.flac,.3gp,.3g2,.pdf,.doc,.docx,.txt,audio/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+            // On mobile, override accept to use file extensions only (no MIME types)
+            // This prevents mobile browsers from restricting to camera/microphone only
+            // File extensions allow file managers and document pickers to appear
+            ...(isMobile ? {
+              accept: ".mp3,.m4a,.wav,.wave,.aac,.ogg,.oga,.opus,.webm,.flac,.3gp,.3g2,.pdf,.doc,.docx,.txt",
+              capture: undefined, // Explicitly remove capture to allow file manager
+            } : {}),
           })} 
         />
 
