@@ -61,6 +61,8 @@ export function UploadDropzone({
     useDropzone({
       onDrop,
       // Accept configuration: Exhaustive list for cross-browser compatibility
+      // Note: On mobile, we need to explicitly include file extensions to allow
+      // access to file managers and document pickers, not just camera/media
       accept: {
         // Audio formats
         "audio/mpeg": [".mp3"], // MP3
@@ -109,7 +111,15 @@ export function UploadDropzone({
         )}
       >
         {/* Hidden file input (accessibility) */}
-        <input {...getInputProps()} />
+        <input 
+          {...getInputProps({
+            // Explicitly prevent mobile from defaulting to camera/microphone only
+            // This ensures file manager and document picker are accessible
+            capture: undefined, // Remove any capture attribute that might restrict to camera/mic
+            // Add explicit accept string for better mobile compatibility
+            accept: ".mp3,.m4a,.wav,.wave,.aac,.ogg,.oga,.opus,.webm,.flac,.3gp,.3g2,.pdf,.doc,.docx,.txt,audio/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+          })} 
+        />
 
         <div className="flex flex-col items-center gap-6">
           {/* Icon indicator */}
