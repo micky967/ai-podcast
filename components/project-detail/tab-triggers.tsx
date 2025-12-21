@@ -7,8 +7,8 @@
 
 "use client";
 
-import React from "react";
-import { useAuth } from "@clerk/nextjs";
+import React, { useEffect, useRef } from "react";
+import { useAuth, useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { AlertCircle, Lock } from "lucide-react";
 import { SelectItem } from "@/components/ui/select";
@@ -33,12 +33,48 @@ export function MobileTabItem({
   isShared = false,
 }: TabTriggerItemProps) {
   const { userId, has } = useAuth();
+  const { user } = useUser();
+  const previousPlanRef = useRef<string | null>(null);
 
   // Check if user is owner - owners bypass plan restrictions
   const isOwner = useQuery(
     api.userSettings.isUserOwner,
     userId ? { userId } : "skip"
   );
+
+  // Detect plan changes and refresh to update Clerk session
+  // Only refreshes when plan actually changes (not on every render)
+  useEffect(() => {
+    if (user && has) {
+      const currentPlanKey = has({ plan: "ultra" })
+        ? "ultra"
+        : has({ plan: "pro" })
+        ? "pro"
+        : "free";
+
+      // Only refresh when plan actually changes (not on every render)
+      if (
+        previousPlanRef.current !== null &&
+        previousPlanRef.current !== currentPlanKey
+      ) {
+        const timer = setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+        return () => clearTimeout(timer);
+      }
+
+      if (previousPlanRef.current !== currentPlanKey) {
+        previousPlanRef.current = currentPlanKey;
+      }
+    } else if (!previousPlanRef.current && user) {
+      const currentPlanKey = has?.({ plan: "ultra" })
+        ? "ultra"
+        : has?.({ plan: "pro" })
+        ? "pro"
+        : "free";
+      previousPlanRef.current = currentPlanKey;
+    }
+  }, [user, has]);
 
   const hasError =
     tab.errorKey &&
@@ -104,12 +140,48 @@ export function DesktopTabTrigger({
   isShared = false,
 }: TabTriggerItemProps) {
   const { userId, has } = useAuth();
+  const { user } = useUser();
+  const previousPlanRef = useRef<string | null>(null);
 
   // Check if user is owner - owners bypass plan restrictions
   const isOwner = useQuery(
     api.userSettings.isUserOwner,
     userId ? { userId } : "skip"
   );
+
+  // Detect plan changes and refresh to update Clerk session
+  // Only refreshes when plan actually changes (not on every render)
+  useEffect(() => {
+    if (user && has) {
+      const currentPlanKey = has({ plan: "ultra" })
+        ? "ultra"
+        : has({ plan: "pro" })
+        ? "pro"
+        : "free";
+
+      // Only refresh when plan actually changes (not on every render)
+      if (
+        previousPlanRef.current !== null &&
+        previousPlanRef.current !== currentPlanKey
+      ) {
+        const timer = setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+        return () => clearTimeout(timer);
+      }
+
+      if (previousPlanRef.current !== currentPlanKey) {
+        previousPlanRef.current = currentPlanKey;
+      }
+    } else if (!previousPlanRef.current && user) {
+      const currentPlanKey = has?.({ plan: "ultra" })
+        ? "ultra"
+        : has?.({ plan: "pro" })
+        ? "pro"
+        : "free";
+      previousPlanRef.current = currentPlanKey;
+    }
+  }, [user, has]);
 
   const hasError =
     tab.errorKey &&

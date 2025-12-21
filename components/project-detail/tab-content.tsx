@@ -1,7 +1,8 @@
 "use client";
 
-import { Protect, useAuth } from "@clerk/nextjs";
+import { Protect, useAuth, useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
+import { useEffect, useRef } from "react";
 import type { RetryableJob } from "@/app/actions/retry-job";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -50,6 +51,8 @@ export function TabContent({
   isShared = false,
 }: TabContentProps) {
   const { userId, has } = useAuth();
+  const { user } = useUser();
+  const previousPlanRef = useRef<string | null>(null);
 
   // Check if user is owner - owners bypass plan restrictions
   const isOwner = useQuery(
@@ -59,6 +62,43 @@ export function TabContent({
 
   // Get current plan for upgrade prompts
   const currentPlan = getCurrentPlan(has as any);
+
+  // Detect plan changes and refresh the page to update Clerk session
+  // Only refreshes when plan actually changes (not on every render)
+  useEffect(() => {
+    if (user && has) {
+      const currentPlanKey = has({ plan: "ultra" })
+        ? "ultra"
+        : has({ plan: "pro" })
+        ? "pro"
+        : "free";
+
+      // Only refresh when plan actually changes (not on every render)
+      if (
+        previousPlanRef.current !== null &&
+        previousPlanRef.current !== currentPlanKey
+      ) {
+        // Small delay to ensure Clerk has updated, then refresh once
+        const timer = setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+        return () => clearTimeout(timer);
+      }
+
+      // Update previous plan only if it's different (prevents re-triggering)
+      if (previousPlanRef.current !== currentPlanKey) {
+        previousPlanRef.current = currentPlanKey;
+      }
+    } else if (!previousPlanRef.current && user) {
+      // Initialize on first load
+      const currentPlanKey = has?.({ plan: "ultra" })
+        ? "ultra"
+        : has?.({ plan: "pro" })
+        ? "pro"
+        : "free";
+      previousPlanRef.current = currentPlanKey;
+    }
+  }, [user, has]);
 
   // Helper to wrap content with feature gating if needed
   // Owners and shared project viewers bypass all plan/role restrictions

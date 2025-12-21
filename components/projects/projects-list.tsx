@@ -52,11 +52,13 @@ export function ProjectsList({
 
   // Reactive query for the same data - this will update when projects change
   // Use this to ensure UI updates when projects are modified (e.g., category changes)
+  // For "all" filter, use listUserProjectsWithShared to include both own and shared projects
   const reactiveQueryResult = useQuery(
-    api.projects.listUserProjects,
+    api.projects.listUserProjectsWithShared,
     !searchQuery.trim() && !categoryId && userId && filter === "all"
       ? {
           userId,
+          filter: "all",
         }
       : "skip"
   );
@@ -72,10 +74,15 @@ export function ProjectsList({
       : "skip"
   );
 
-  // When searching, load ALL projects for client-side filtering
+  // When searching, load ALL projects for client-side filtering (respects current filter)
   const allProjectsForSearch = useQuery(
-    api.projects.getAllUserProjects,
-    searchQuery.trim() && userId && !categoryId ? { userId } : "skip"
+    api.projects.getAllUserProjectsWithShared,
+    searchQuery.trim() && userId && !categoryId
+      ? {
+          userId,
+          filter, // Respect the current filter (all, own, or shared)
+        }
+      : "skip"
   );
 
   // Always call useQuery hook unconditionally, but conditionally skip it
@@ -92,32 +99,22 @@ export function ProjectsList({
   );
 
   // Paginated query for loading more projects (only when explicitly loading more)
-  // Use listUserProjects for "all" filter, listUserProjectsWithShared for "own"/"shared"
+  // Always use listUserProjectsWithShared (it handles all filters including "all")
   const paginatedQueryResult = useQuery(
-    filter === "all"
-      ? api.projects.listUserProjects
-      : api.projects.listUserProjectsWithShared,
+    api.projects.listUserProjectsWithShared,
     !searchQuery.trim() &&
       !categoryId &&
       userId &&
       paginationCursor !== null &&
       paginationCursor !== undefined
-      ? filter === "all"
-        ? {
-            userId,
-            paginationOpts: {
-              numItems: 20,
-              cursor: paginationCursor,
-            },
-          }
-        : {
-            userId,
-            filter,
-            paginationOpts: {
-              numItems: 20,
-              cursor: paginationCursor,
-            },
-          }
+      ? {
+          userId,
+          filter,
+          paginationOpts: {
+            numItems: 20,
+            cursor: paginationCursor,
+          },
+        }
       : "skip"
   );
 
@@ -277,7 +274,9 @@ export function ProjectsList({
       if (dynamicQueryResult?.page) {
         // Merge with paginated results if we have them
         if (allLoadedProjects.length > dynamicQueryResult.page.length) {
-          const reactiveIds = new Set(dynamicQueryResult.page.map((p: any) => p._id));
+          const reactiveIds = new Set(
+            dynamicQueryResult.page.map((p: any) => p._id)
+          );
           const additionalPages = allLoadedProjects.filter(
             (p: any) => !reactiveIds.has(p._id)
           );

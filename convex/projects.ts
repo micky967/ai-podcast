@@ -553,82 +553,127 @@ export const listUserProjectsWithShared = query({
     ),
   },
   handler: async (ctx, args) => {
-    const numItems = args.paginationOpts?.numItems ?? 20;
-    const filter = args.filter ?? "all";
+    try {
+      const numItems = args.paginationOpts?.numItems ?? 20;
+      const filter = args.filter ?? "all";
 
-    // Get user's own projects
-    const ownProjects = await ctx.db
-      .query("projects")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .filter((q) => q.eq(q.field("deletedAt"), undefined))
-      .collect();
+      // Get user's own projects
+      const ownProjects = await ctx.db
+        .query("projects")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .filter((q) => q.eq(q.field("deletedAt"), undefined))
+        .collect();
 
-    // Get groups where user is an active member
-    const memberGroups = await ctx.db
-      .query("groupMembers")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .filter((q) => q.eq(q.field("status"), "active"))
-      .collect();
+      // Get groups where user is an active member
+      let memberGroups: Doc<"groupMembers">[] = [];
+      try {
+        memberGroups = await ctx.db
+          .query("groupMembers")
+          .withIndex("by_user", (q) => q.eq("userId", args.userId))
+          .filter((q) => q.eq(q.field("status"), "active"))
+          .collect();
+        console.log(`[listUserProjectsWithShared] User ${args.userId} is member of ${memberGroups.length} groups`);
+      } catch (err) {
+        console.error("[listUserProjectsWithShared] Error querying groupMembers:", err);
+        // If groupMembers table doesn't exist or has issues, continue with empty array
+        memberGroups = [];
+      }
 
-    // Get group owner IDs
-    const groupIds = memberGroups.map((m) => m.groupId);
-    const groups = await Promise.all(
-      groupIds.map((id) => ctx.db.get(id)),
-    );
+      // Get group owner IDs (filter out deleted groups)
+      const groupIds = memberGroups.map((m) => m.groupId);
+      const groups = await Promise.all(
+        groupIds.map(async (id) => {
+          try {
+            return await ctx.db.get(id);
+          } catch (err) {
+            console.error(`[listUserProjectsWithShared] Error getting group ${id}:`, err);
+            return null;
+          }
+        }),
+      );
 
-    const ownerIds = groups
-      .filter((g) => g !== null)
-      .map((g) => g!.ownerId);
+      const ownerIds = groups
+        .filter((g): g is Doc<"sharingGroups"> => g !== null)
+        .map((g) => g.ownerId);
 
-    // Get shared projects (from group owners)
-    const sharedProjects =
-      ownerIds.length > 0
-        ? await Promise.all(
-            ownerIds.map(async (ownerId) => {
-              return await ctx.db
-                .query("projects")
-                .withIndex("by_user", (q) => q.eq("userId", ownerId))
-                .filter((q) => q.eq(q.field("deletedAt"), undefined))
-                .collect();
+      // Remove duplicate owner IDs
+      const uniqueOwnerIds = [...new Set(ownerIds)];
+      console.log(`[listUserProjectsWithShared] Found ${uniqueOwnerIds.length} unique group owners:`, uniqueOwnerIds);
+
+      // Get shared projects (from group owners)
+      let sharedProjects: Doc<"projects">[][] = [];
+      if (uniqueOwnerIds.length > 0) {
+        try {
+          sharedProjects = await Promise.all(
+            uniqueOwnerIds.map(async (ownerId) => {
+              try {
+                const projects = await ctx.db
+                  .query("projects")
+                  .withIndex("by_user", (q) => q.eq("userId", ownerId))
+                  .filter((q) => q.eq(q.field("deletedAt"), undefined))
+                  .collect();
+                console.log(`[listUserProjectsWithShared] Found ${projects.length} projects for owner ${ownerId}`);
+                return projects;
+              } catch (err) {
+                console.error(`[listUserProjectsWithShared] Error querying projects for owner ${ownerId}:`, err);
+                return [];
+              }
             }),
-          )
-        : [];
-
-    const flattenedShared = sharedProjects.flat();
-
-    // Combine and filter based on filter type
-    let allProjects: typeof ownProjects = [];
-    if (filter === "own") {
-      allProjects = ownProjects;
-    } else if (filter === "shared") {
-      allProjects = flattenedShared;
-    } else {
-      // "all" - combine own and shared, remove duplicates
-      const projectIds = new Set<string>();
-      allProjects = [...ownProjects, ...flattenedShared].filter((p) => {
-        if (projectIds.has(p._id)) {
-          return false;
+          );
+        } catch (err) {
+          console.error("[listUserProjectsWithShared] Error getting shared projects:", err);
+          sharedProjects = [];
         }
-        projectIds.add(p._id);
-        return true;
-      });
+      }
+
+      const flattenedShared = sharedProjects.flat();
+      console.log(`[listUserProjectsWithShared] Total shared projects found: ${flattenedShared.length}, filter: ${filter}`);
+
+      // Combine and filter based on filter type
+      let allProjects: typeof ownProjects = [];
+      if (filter === "own") {
+        allProjects = ownProjects;
+        console.log(`[listUserProjectsWithShared] Filter "own": ${allProjects.length} projects`);
+      } else if (filter === "shared") {
+        allProjects = flattenedShared;
+        console.log(`[listUserProjectsWithShared] Filter "shared": ${allProjects.length} projects`);
+      } else {
+        // "all" - combine own and shared, remove duplicates
+        const projectIds = new Set<string>();
+        allProjects = [...ownProjects, ...flattenedShared].filter((p) => {
+          if (projectIds.has(p._id)) {
+            return false;
+          }
+          projectIds.add(p._id);
+          return true;
+        });
+        console.log(`[listUserProjectsWithShared] Filter "all": ${allProjects.length} projects (${ownProjects.length} own + ${flattenedShared.length} shared)`);
+      }
+
+      // Sort by newest first
+      allProjects.sort((a, b) => b.createdAt - a.createdAt);
+
+      // Manual pagination
+      const cursor = args.paginationOpts?.cursor;
+      const startIndex = cursor ? parseInt(cursor, 10) : 0;
+      const endIndex = startIndex + numItems;
+      const paginatedProjects = allProjects.slice(startIndex, endIndex);
+      const hasMore = endIndex < allProjects.length;
+
+      return {
+        page: paginatedProjects,
+        continueCursor: hasMore ? endIndex.toString() : null,
+        isDone: !hasMore,
+      };
+    } catch (error) {
+      console.error("[listUserProjectsWithShared] Error:", error);
+      // Return empty result on error instead of throwing
+      return {
+        page: [],
+        continueCursor: null,
+        isDone: true,
+      };
     }
-
-    // Sort by newest first
-    allProjects.sort((a, b) => b.createdAt - a.createdAt);
-
-    // Manual pagination
-    const cursor = args.paginationOpts?.cursor;
-    const startIndex = cursor ? parseInt(cursor, 10) : 0;
-    const endIndex = startIndex + numItems;
-    const paginatedProjects = allProjects.slice(startIndex, endIndex);
-    const hasMore = endIndex < allProjects.length;
-
-    return {
-      page: paginatedProjects,
-      continueCursor: hasMore ? endIndex.toString() : null,
-      isDone: !hasMore,
-    };
   },
 });
 
@@ -929,9 +974,11 @@ export const listUserProjectsByCategory = query({
 
 /**
  * Gets ALL projects for a user (for search functionality)
- * 
+ *
  * Used by: Projects list page when searching across all projects
  * Returns all projects without pagination for client-side filtering
+ *
+ * NOTE: This only returns user's own projects. For shared projects, use getAllUserProjectsWithShared
  */
 export const getAllUserProjects = query({
   args: {
@@ -944,6 +991,119 @@ export const getAllUserProjects = query({
       .filter((q) => q.eq(q.field("deletedAt"), undefined))
       .order("desc")
       .collect();
+  },
+});
+
+/**
+ * Gets ALL projects for a user including shared projects (for search functionality)
+ *
+ * Used by: Projects list page when searching across all projects with filter support
+ * Returns all projects without pagination for client-side filtering
+ *
+ * @param userId - User ID
+ * @param filter - Filter type: "own" | "shared" | "all" (default: "all")
+ */
+export const getAllUserProjectsWithShared = query({
+  args: {
+    userId: v.string(),
+    filter: v.optional(v.union(v.literal("own"), v.literal("shared"), v.literal("all"))),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const filter = args.filter ?? "all";
+
+      // Get user's own projects
+      const ownProjects = await ctx.db
+        .query("projects")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .filter((q) => q.eq(q.field("deletedAt"), undefined))
+        .collect();
+
+      // Get groups where user is an active member
+      let memberGroups: Doc<"groupMembers">[] = [];
+      try {
+        memberGroups = await ctx.db
+          .query("groupMembers")
+          .withIndex("by_user", (q) => q.eq("userId", args.userId))
+          .filter((q) => q.eq(q.field("status"), "active"))
+          .collect();
+      } catch (err) {
+        console.error("[getAllUserProjectsWithShared] Error querying groupMembers:", err);
+        memberGroups = [];
+      }
+
+      // Get group owner IDs (filter out deleted groups)
+      const groupIds = memberGroups.map((m) => m.groupId);
+      const groups = await Promise.all(
+        groupIds.map(async (id) => {
+          try {
+            return await ctx.db.get(id);
+          } catch (err) {
+            console.error(`[getAllUserProjectsWithShared] Error getting group ${id}:`, err);
+            return null;
+          }
+        }),
+      );
+
+      const ownerIds = groups
+        .filter((g): g is Doc<"sharingGroups"> => g !== null)
+        .map((g) => g.ownerId);
+
+      // Remove duplicate owner IDs
+      const uniqueOwnerIds = [...new Set(ownerIds)];
+
+      // Get shared projects (from group owners)
+      let sharedProjects: Doc<"projects">[][] = [];
+      if (uniqueOwnerIds.length > 0) {
+        try {
+          sharedProjects = await Promise.all(
+            uniqueOwnerIds.map(async (ownerId) => {
+              try {
+                return await ctx.db
+                  .query("projects")
+                  .withIndex("by_user", (q) => q.eq("userId", ownerId))
+                  .filter((q) => q.eq(q.field("deletedAt"), undefined))
+                  .collect();
+              } catch (err) {
+                console.error(`[getAllUserProjectsWithShared] Error querying projects for owner ${ownerId}:`, err);
+                return [];
+              }
+            }),
+          );
+        } catch (err) {
+          console.error("[getAllUserProjectsWithShared] Error getting shared projects:", err);
+          sharedProjects = [];
+        }
+      }
+
+      const flattenedShared = sharedProjects.flat();
+
+      // Combine and filter based on filter type
+      let allProjects: typeof ownProjects = [];
+      if (filter === "own") {
+        allProjects = ownProjects;
+      } else if (filter === "shared") {
+        allProjects = flattenedShared;
+      } else {
+        // "all" - combine own and shared, remove duplicates
+        const projectIds = new Set<string>();
+        allProjects = [...ownProjects, ...flattenedShared].filter((p) => {
+          if (projectIds.has(p._id)) {
+            return false;
+          }
+          projectIds.add(p._id);
+          return true;
+        });
+      }
+
+      // Sort by newest first
+      allProjects.sort((a, b) => b.createdAt - a.createdAt);
+
+      return allProjects;
+    } catch (error) {
+      console.error("[getAllUserProjectsWithShared] Error:", error);
+      return [];
+    }
   },
 });
 
