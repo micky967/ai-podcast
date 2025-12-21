@@ -1203,14 +1203,14 @@ export const getAcceptedRequestsForRequester = query({
 
     // Get group info for each request
     const groupIds = [...new Set(acceptedRequests.map((r) => r.groupId))];
-    const groups = await Promise.all(
+    const groups: Array<{ groupId: Id<"sharingGroups">; groupName: string } | null> = await Promise.all(
       groupIds.map(async (groupId) => {
         const group = await ctx.db.get(groupId);
         return group ? { groupId, groupName: group.name || "Unnamed Group" } : null;
       })
     );
 
-    const groupMap = new Map(
+    const groupMap = new Map<Id<"sharingGroups">, string>(
       groups.filter((g): g is { groupId: Id<"sharingGroups">; groupName: string } => g !== null)
         .map((g) => [g.groupId, g.groupName])
     );
