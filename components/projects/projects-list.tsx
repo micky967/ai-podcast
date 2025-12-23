@@ -453,7 +453,7 @@ export function ProjectsList({
   }
 
   return (
-    <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0 overflow-x-hidden pb-32 md:pb-10">
+    <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0 overflow-x-hidden" style={{ paddingBottom: typeof window !== 'undefined' && window.innerWidth < 768 ? '100px' : '40px' }}>
       {categoryId ? (
         <CategoryHeader
           categoryId={categoryId}

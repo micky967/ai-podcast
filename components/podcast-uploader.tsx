@@ -91,13 +91,6 @@ export function PodcastUploader() {
     if (isDocumentFile(file.type)) {
       setFileDuration(undefined);
       console.log("Document file selected - skipping duration extraction");
-      // Scroll to buttons on mobile after a short delay to ensure DOM is updated
-      setTimeout(() => {
-        const buttonsElement = document.getElementById("upload-buttons");
-        if (buttonsElement) {
-          buttonsElement.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        }
-      }, 100);
       return;
     }
 
@@ -114,14 +107,6 @@ export function PodcastUploader() {
       setFileDuration(estimated);
       console.log(`Using estimated duration: ${estimated} seconds`);
     }
-    
-    // Scroll to buttons on mobile after a short delay to ensure DOM is updated
-    setTimeout(() => {
-      const buttonsElement = document.getElementById("upload-buttons");
-      if (buttonsElement) {
-        buttonsElement.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      }
-    }, 100);
   };
 
   /**
@@ -215,7 +200,7 @@ export function PodcastUploader() {
   };
 
   return (
-    <div className="space-y-6 pb-24 md:pb-6">
+    <div className="space-y-6">
       {/* Show dropzone only when no file is selected */}
       {!selectedFile && uploadStatus === "idle" && (
         <UploadDropzone
@@ -249,14 +234,10 @@ export function PodcastUploader() {
 
           {/* Action buttons (show when idle or error) */}
           {(uploadStatus === "idle" || uploadStatus === "error") && (
-            <div 
-              className="flex gap-3 pb-4 md:pb-0 md:relative fixed md:static bottom-0 left-0 right-0 p-4 md:p-0 bg-white md:bg-transparent border-t md:border-t-0 shadow-lg md:shadow-none z-50 md:z-10"
-              id="upload-buttons"
-            >
+            <div className="flex gap-3" id="upload-buttons">
               <Button
                 onClick={handleUpload}
                 className="flex-1 min-h-[48px] text-base"
-                style={{ touchAction: 'manipulation' }}
                 disabled={!selectedCategoryId}
               >
                 {uploadStatus === "error" ? "Try Again" : "Start Upload"}
@@ -265,7 +246,6 @@ export function PodcastUploader() {
                 onClick={handleReset} 
                 variant="outline"
                 className="min-h-[48px] px-6 text-base"
-                style={{ touchAction: 'manipulation' }}
               >
                 Cancel
               </Button>

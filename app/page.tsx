@@ -7,7 +7,7 @@ import { PricingSection } from "@/components/home/pricing-section";
 
 export default function Home() {
   return (
-    <div className="">
+    <div className="pb-24 md:pb-0">
       <Header />
       <HeroSection />
       <FeaturesSection />

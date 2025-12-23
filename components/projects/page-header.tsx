@@ -31,6 +31,7 @@ export function PageHeader({
     const checkMobile = () => {
       const isMobileDevice = window.innerWidth < 768;
       setIsMobile(isMobileDevice);
+      console.log('[PageHeader] Mobile check:', { isMobileDevice, width: window.innerWidth });
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
@@ -150,7 +151,7 @@ export function PageHeader({
         </div>
       </div>
       
-      {/* Mobile buttons - rendered via portal at document root with pure inline styles */}
+      {/* Mobile buttons - always visible at bottom in portrait */}
       {mounted && isMobile && typeof window !== "undefined" && createPortal(
         <div 
           style={{ 
@@ -158,38 +159,19 @@ export function PageHeader({
             bottom: 0,
             left: 0,
             right: 0,
-            width: '100vw',
+            width: '100%',
+            maxWidth: '100%',
             backgroundColor: '#ffffff',
             borderTop: '1px solid #e5e7eb',
-            boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06)',
-            zIndex: 999999,
-            touchAction: 'manipulation',
-            WebkitTapHighlightColor: 'transparent',
-            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-            pointerEvents: 'auto'
+            boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.1)',
+            zIndex: 2147483647,
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)'
           }}
         >
           <div style={{ display: 'flex', gap: '8px', padding: '12px' }}>
             <button
               type="button"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                router.push("/dashboard/categories");
-              }}
-              onTouchStart={(e) => {
-                e.stopPropagation();
-              }}
-              onTouchEnd={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                router.push("/dashboard/categories");
-              }}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                router.push("/dashboard/categories");
-              }}
+              onClick={() => router.push("/dashboard/categories")}
               style={{
                 flex: 1,
                 display: 'flex',
@@ -204,12 +186,7 @@ export function PageHeader({
                 fontWeight: 600,
                 minHeight: '64px',
                 borderRadius: '6px',
-                touchAction: 'manipulation',
-                WebkitTapHighlightColor: 'transparent',
-                WebkitTouchCallout: 'none',
-                cursor: 'pointer',
-                pointerEvents: 'auto',
-                userSelect: 'none'
+                cursor: 'pointer'
               }}
             >
               <FolderTree style={{ width: '16px', height: '16px' }} />
@@ -217,24 +194,7 @@ export function PageHeader({
             </button>
             <button
               type="button"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                router.push("/dashboard/upload");
-              }}
-              onTouchStart={(e) => {
-                e.stopPropagation();
-              }}
-              onTouchEnd={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                router.push("/dashboard/upload");
-              }}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                router.push("/dashboard/upload");
-              }}
+              onClick={() => router.push("/dashboard/upload")}
               style={{
                 flex: 1,
                 display: 'flex',
@@ -249,12 +209,7 @@ export function PageHeader({
                 minHeight: '64px',
                 borderRadius: '6px',
                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                touchAction: 'manipulation',
-                WebkitTapHighlightColor: 'transparent',
-                WebkitTouchCallout: 'none',
                 cursor: 'pointer',
-                pointerEvents: 'auto',
-                userSelect: 'none',
                 border: 'none'
               }}
             >
