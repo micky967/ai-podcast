@@ -47,7 +47,7 @@ export function PageHeader({
   };
 
   return (
-    <div className="mb-12">
+    <div className="mb-12 pb-24 md:pb-0">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div className="flex-1">
           <h1 className="text-4xl md:text-5xl font-extrabold mb-3">
@@ -69,15 +69,17 @@ export function PageHeader({
             {getDescription()}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 fixed md:static bottom-0 left-0 right-0 p-4 md:p-0 bg-white md:bg-transparent border-t md:border-t-0 shadow-lg md:shadow-none z-50 md:z-auto">
           <Link 
             href="/dashboard/categories"
             prefetch={true}
             onMouseEnter={() => router.prefetch("/dashboard/categories")}
+            className="flex-1 md:flex-none"
           >
             <Button
               variant="outline"
-              className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-6 py-6 text-base"
+              className="w-full md:w-auto border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-6 py-6 text-base min-h-[48px]"
+              style={{ touchAction: 'manipulation' }}
             >
               <FolderTree className="mr-2 h-5 w-5" />
               Browse Categories
@@ -87,8 +89,12 @@ export function PageHeader({
             href="/dashboard/upload"
             prefetch={true}
             onMouseEnter={() => router.prefetch("/dashboard/upload")}
+            className="flex-1 md:flex-none"
           >
-            <Button className="gradient-emerald text-white hover-glow shadow-lg px-6 py-6 text-base">
+            <Button 
+              className="w-full md:w-auto gradient-emerald text-white hover-glow shadow-lg px-6 py-6 text-base min-h-[48px]"
+              style={{ touchAction: 'manipulation' }}
+            >
               <Upload className="mr-2 h-5 w-5" />
               New Upload
             </Button>
