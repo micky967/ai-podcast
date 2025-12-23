@@ -200,7 +200,7 @@ export function PodcastUploader() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-32 md:pb-6">
       {/* Show dropzone only when no file is selected */}
       {!selectedFile && uploadStatus === "idle" && (
         <UploadDropzone

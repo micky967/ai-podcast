@@ -51,7 +51,7 @@ export function HeroSection() {
           </div>
 
           {isSignedIn ? (
-            <div className="space-y-6">
+            <div className="space-y-6 pb-32 md:pb-0">
               <div className="glass-card-strong rounded-2xl p-8 hover-lift">
                 <PodcastUploader />
               </div>
@@ -126,10 +126,10 @@ export function HeroSection() {
                 boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.1)',
                 zIndex: 2147483647,
                 paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-                pointerEvents: 'auto'
+                pointerEvents: 'none'
               }}
             >
-              <div style={{ display: 'flex', gap: '8px', padding: '12px' }}>
+              <div style={{ display: 'flex', gap: '8px', padding: '12px', pointerEvents: 'auto' }}>
                 {isSignedIn ? (
                   <>
                     <a
