@@ -3,6 +3,8 @@
 import { FolderTree, Search, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,6 +23,19 @@ export function PageHeader({
   onFilterChange,
 }: PageHeaderProps) {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const checkMobile = () => {
+      const isMobileDevice = window.innerWidth < 768;
+      setIsMobile(isMobileDevice);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const getTitle = () => {
     switch (filter) {
@@ -135,34 +150,121 @@ export function PageHeader({
         </div>
       </div>
       
-      {/* Mobile buttons - fixed at bottom */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-2xl z-[99999] safe-area-inset-bottom">
-        <div className="flex gap-2 p-3">
-          <Button
-            variant="outline"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              router.push("/dashboard/categories");
-            }}
-            className="flex-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-3 py-5 text-sm font-semibold min-h-[52px]"
-          >
-            <FolderTree className="mr-1.5 h-4 w-4" />
-            <span className="hidden xs:inline">Browse </span>Categories
-          </Button>
-          <Button 
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              router.push("/dashboard/upload");
-            }}
-            className="flex-1 gradient-emerald text-white hover-glow shadow-lg px-3 py-5 text-sm font-semibold min-h-[52px]"
-          >
-            <Upload className="mr-1.5 h-4 w-4" />
-            New Upload
-          </Button>
-        </div>
-      </div>
+      {/* Mobile buttons - rendered via portal at document root with pure inline styles */}
+      {mounted && isMobile && typeof window !== "undefined" && createPortal(
+        <div 
+          style={{ 
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            width: '100vw',
+            backgroundColor: '#ffffff',
+            borderTop: '1px solid #e5e7eb',
+            boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06)',
+            zIndex: 999999,
+            touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'transparent',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            pointerEvents: 'auto'
+          }}
+        >
+          <div style={{ display: 'flex', gap: '8px', padding: '12px' }}>
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                router.push("/dashboard/categories");
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                router.push("/dashboard/categories");
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                router.push("/dashboard/categories");
+              }}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                border: '2px solid #a7f3d0',
+                color: '#047857',
+                backgroundColor: '#ffffff',
+                padding: '16px 12px',
+                fontSize: '14px',
+                fontWeight: 600,
+                minHeight: '64px',
+                borderRadius: '6px',
+                touchAction: 'manipulation',
+                WebkitTapHighlightColor: 'transparent',
+                WebkitTouchCallout: 'none',
+                cursor: 'pointer',
+                pointerEvents: 'auto',
+                userSelect: 'none'
+              }}
+            >
+              <FolderTree style={{ width: '16px', height: '16px' }} />
+              <span>Categories</span>
+            </button>
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                router.push("/dashboard/upload");
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                router.push("/dashboard/upload");
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                router.push("/dashboard/upload");
+              }}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                background: 'linear-gradient(to right, #10b981, #14b8a6)',
+                color: '#ffffff',
+                padding: '16px 12px',
+                fontSize: '14px',
+                fontWeight: 600,
+                minHeight: '64px',
+                borderRadius: '6px',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                touchAction: 'manipulation',
+                WebkitTapHighlightColor: 'transparent',
+                WebkitTouchCallout: 'none',
+                cursor: 'pointer',
+                pointerEvents: 'auto',
+                userSelect: 'none',
+                border: 'none'
+              }}
+            >
+              <Upload style={{ width: '16px', height: '16px' }} />
+              <span>Upload</span>
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   );
 }
