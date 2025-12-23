@@ -35,7 +35,7 @@ export function Header() {
     >
       <div className="container mx-auto px-1 sm:px-2 md:px-4 lg:px-6 overflow-hidden max-w-full">
         <div className="flex items-center justify-between h-14 sm:h-16 overflow-hidden max-w-full">
-          <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2 lg:gap-8 min-w-0 flex-shrink overflow-hidden max-w-[60%] sm:max-w-none">
+          <div className={`flex items-center gap-0.5 sm:gap-1 md:gap-2 lg:gap-8 min-w-0 flex-shrink overflow-hidden ${isDashboard ? 'max-w-[45%] md:max-w-none' : ''}`}>
             <Link
               href="/"
               className="flex items-center gap-0.5 sm:gap-1 md:gap-2.5 hover:opacity-90 transition-all duration-300 group min-w-0 flex-shrink"
@@ -58,7 +58,7 @@ export function Header() {
               <span
                 className={
                   isDashboard
-                    ? "text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl font-bold text-white tracking-tight whitespace-nowrap"
+                    ? "hidden md:inline text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl font-bold text-white tracking-tight whitespace-nowrap"
                     : "text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl font-bold gradient-emerald-text tracking-tight whitespace-nowrap"
                 }
               >
@@ -68,7 +68,7 @@ export function Header() {
 
             {/* Dashboard Navigation inline with logo */}
             {showDashboardNav && (
-              <div className="flex items-center pl-0.5 sm:pl-1 md:pl-2 lg:pl-4 border-l border-white/20 flex-shrink-0 overflow-hidden">
+              <div className="flex items-center pl-0 sm:pl-0.5 md:pl-1 lg:pl-2 xl:pl-4 border-l border-white/20 flex-shrink-0 overflow-hidden">
                 <DashboardNav />
               </div>
             )}

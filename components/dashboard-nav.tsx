@@ -31,7 +31,7 @@ export function DashboardNav() {
   };
 
   return (
-    <nav className="flex items-center gap-0.5 sm:gap-1 md:gap-2">
+    <nav className="flex items-center gap-0 sm:gap-0.5 md:gap-1 lg:gap-2">
       <Link
         href="/dashboard/projects"
         prefetch={true}
