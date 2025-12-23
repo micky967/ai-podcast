@@ -91,6 +91,13 @@ export function PodcastUploader() {
     if (isDocumentFile(file.type)) {
       setFileDuration(undefined);
       console.log("Document file selected - skipping duration extraction");
+      // Scroll to buttons on mobile after a short delay to ensure DOM is updated
+      setTimeout(() => {
+        const buttonsElement = document.getElementById("upload-buttons");
+        if (buttonsElement) {
+          buttonsElement.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+      }, 100);
       return;
     }
 
@@ -107,6 +114,14 @@ export function PodcastUploader() {
       setFileDuration(estimated);
       console.log(`Using estimated duration: ${estimated} seconds`);
     }
+    
+    // Scroll to buttons on mobile after a short delay to ensure DOM is updated
+    setTimeout(() => {
+      const buttonsElement = document.getElementById("upload-buttons");
+      if (buttonsElement) {
+        buttonsElement.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }, 100);
   };
 
   /**
@@ -200,7 +215,7 @@ export function PodcastUploader() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20 md:pb-6">
       {/* Show dropzone only when no file is selected */}
       {!selectedFile && uploadStatus === "idle" && (
         <UploadDropzone
@@ -234,15 +249,24 @@ export function PodcastUploader() {
 
           {/* Action buttons (show when idle or error) */}
           {(uploadStatus === "idle" || uploadStatus === "error") && (
-            <div className="flex gap-3">
+            <div 
+              className="flex gap-3 pb-4 relative z-10"
+              id="upload-buttons"
+            >
               <Button
                 onClick={handleUpload}
-                className="flex-1"
+                className="flex-1 min-h-[48px] text-base"
+                style={{ touchAction: 'manipulation' }}
                 disabled={!selectedCategoryId}
               >
                 {uploadStatus === "error" ? "Try Again" : "Start Upload"}
               </Button>
-              <Button onClick={handleReset} variant="outline">
+              <Button 
+                onClick={handleReset} 
+                variant="outline"
+                className="min-h-[48px] px-6 text-base"
+                style={{ touchAction: 'manipulation' }}
+              >
                 Cancel
               </Button>
             </div>
