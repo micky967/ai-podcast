@@ -31,7 +31,7 @@ export function DashboardNav() {
   };
 
   return (
-    <nav className="flex items-center gap-2">
+    <nav className="flex items-center gap-0.5 sm:gap-1 md:gap-2">
       <Link
         href="/dashboard/projects"
         prefetch={true}
@@ -41,13 +41,13 @@ export function DashboardNav() {
           variant="ghost"
           size="sm"
           className={cn(
-            "gap-2 transition-all duration-300 font-medium",
+            "gap-1 sm:gap-2 transition-all duration-300 font-medium px-1 sm:px-2 md:px-3",
             isActive("/dashboard/projects")
               ? "bg-white/95 text-emerald-600 hover:bg-white hover:scale-105 shadow-lg border border-white/20"
               : "text-white hover:bg-white/20 hover:scale-105"
           )}
         >
-          <FolderOpen className="h-4 w-4" />
+          <FolderOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           <span className="hidden lg:inline">Projects</span>
         </Button>
       </Link>
@@ -66,7 +66,7 @@ export function DashboardNav() {
               : "text-white hover:bg-white/20 hover:scale-105"
           )}
         >
-          <Upload className="h-4 w-4" />
+          <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           <span className="hidden lg:inline">Upload</span>
         </Button>
       </Link>
@@ -79,13 +79,13 @@ export function DashboardNav() {
           variant="ghost"
           size="sm"
           className={cn(
-            "gap-2 transition-all duration-300 font-medium",
+            "gap-1 sm:gap-2 transition-all duration-300 font-medium px-1 sm:px-2 md:px-3",
             isActive("/dashboard/sharing")
               ? "bg-white/95 text-emerald-600 hover:bg-white hover:scale-105 shadow-lg border border-white/20"
               : "text-white hover:bg-white/20 hover:scale-105"
           )}
         >
-          <Users className="h-4 w-4" />
+          <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           <span className="hidden lg:inline">Sharing</span>
         </Button>
       </Link>
@@ -98,13 +98,13 @@ export function DashboardNav() {
           variant="ghost"
           size="sm"
           className={cn(
-            "gap-2 transition-all duration-300 font-medium",
+            "gap-1 sm:gap-2 transition-all duration-300 font-medium px-1 sm:px-2 md:px-3",
             isActive("/dashboard/settings")
               ? "bg-white/95 text-emerald-600 hover:bg-white hover:scale-105 shadow-lg border border-white/20"
               : "text-white hover:bg-white/20 hover:scale-105"
           )}
         >
-          <Settings className="h-4 w-4" />
+          <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           <span className="hidden lg:inline">Settings</span>
         </Button>
       </Link>
@@ -117,14 +117,14 @@ export function DashboardNav() {
           <Button
             variant="ghost"
             size="sm"
-            className={cn(
-              "gap-2 transition-all duration-300 font-medium",
-              isActive("/dashboard/admin")
+              className={cn(
+                "gap-1 sm:gap-2 transition-all duration-300 font-medium px-1 sm:px-2 md:px-3",
+                isActive("/dashboard/admin")
                 ? "bg-white/95 text-emerald-600 hover:bg-white hover:scale-105 shadow-lg border border-white/20"
                 : "text-white hover:bg-white/20 hover:scale-105"
             )}
           >
-            <Shield className="h-4 w-4" />
+            <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             <span className="hidden lg:inline">Admin</span>
           </Button>
         </Link>

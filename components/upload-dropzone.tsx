@@ -103,11 +103,19 @@ export function UploadDropzone({
   const handleNativeFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      console.log('[UploadDropzone] File selected', { fileName: file?.name, fileType: file?.type, inputType: e.target.accept });
+      console.log("[UploadDropzone] File selected", {
+        fileName: file?.name,
+        fileType: file?.type,
+        inputType: e.target.accept,
+      });
       if (file) {
         const fileName = file.name.toLowerCase();
         const isValid = allowedExtensions.some((ext) => fileName.endsWith(ext));
-        console.log('[UploadDropzone] File validation', { fileName, isValid, allowedExtensions });
+        console.log("[UploadDropzone] File validation", {
+          fileName,
+          isValid,
+          allowedExtensions,
+        });
         if (isValid) {
           onFileSelect(file);
         }
@@ -205,18 +213,13 @@ export function UploadDropzone({
           {/* Document Upload Button */}
           <div
             className={cn(
-              "border-3 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all relative",
+              "border-3 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all",
               "border-blue-300 hover:border-blue-500 hover:bg-blue-50/50",
               disabled && "opacity-50 cursor-not-allowed",
               !disabled && "hover-glow"
             )}
-            style={{ zIndex: 1000 }}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              console.log('[UploadDropzone] Document button clicked', { disabled, hasRef: !!documentInputRef.current });
+            onClick={() => {
               if (!disabled && documentInputRef.current) {
-                console.log('[UploadDropzone] Triggering document input click');
                 documentInputRef.current.click();
               }
             }}
@@ -224,7 +227,7 @@ export function UploadDropzone({
             <input
               ref={documentInputRef}
               type="file"
-              accept=".pdf,.doc,.docx,.txt"
+              accept={documentExtensions.join(",")}
               onChange={handleNativeFileChange}
               className="hidden"
               disabled={disabled}
