@@ -47,39 +47,106 @@ export function PageHeader({
   };
 
   return (
-    <div className="mb-12 pb-24 md:pb-0">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-        <div className="flex-1">
-          <h1 className="text-4xl md:text-5xl font-extrabold mb-3">
-            {filter === "own" ? (
-              <>
-                My <span className="gradient-emerald-text">Projects</span>
-              </>
-            ) : filter === "shared" ? (
-              <>
-                <span className="gradient-emerald-text">Shared</span> Projects
-              </>
-            ) : (
-              <>
-                All <span className="gradient-emerald-text">Projects</span>
-              </>
-            )}
-          </h1>
-          <p className="text-lg text-gray-600">
-            {getDescription()}
-          </p>
+    <>
+      <div className="mb-12 pb-24 md:pb-0">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="flex-1">
+            <h1 className="text-4xl md:text-5xl font-extrabold mb-3">
+              {filter === "own" ? (
+                <>
+                  My <span className="gradient-emerald-text">Projects</span>
+                </>
+              ) : filter === "shared" ? (
+                <>
+                  <span className="gradient-emerald-text">Shared</span> Projects
+                </>
+              ) : (
+                <>
+                  All <span className="gradient-emerald-text">Projects</span>
+                </>
+              )}
+            </h1>
+            <p className="text-lg text-gray-600">
+              {getDescription()}
+            </p>
+          </div>
+          {/* Desktop buttons - hidden on mobile */}
+          <div className="hidden md:flex gap-3">
+            <Link 
+              href="/dashboard/categories"
+              prefetch={true}
+              onMouseEnter={() => router.prefetch("/dashboard/categories")}
+            >
+              <Button
+                variant="outline"
+                className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-6 py-6 text-base"
+              >
+                <FolderTree className="mr-2 h-5 w-5" />
+                Browse Categories
+              </Button>
+            </Link>
+            <Link 
+              href="/dashboard/upload"
+              prefetch={true}
+              onMouseEnter={() => router.prefetch("/dashboard/upload")}
+            >
+              <Button 
+                className="gradient-emerald text-white hover-glow shadow-lg px-6 py-6 text-base"
+              >
+                <Upload className="mr-2 h-5 w-5" />
+                New Upload
+              </Button>
+            </Link>
+          </div>
         </div>
-        <div className="flex gap-3 fixed md:static bottom-0 left-0 right-0 p-4 md:p-0 bg-white md:bg-transparent border-t md:border-t-0 shadow-lg md:shadow-none z-50 md:z-auto">
+      
+        {/* Filter and Search */}
+        <div className="mt-6 flex flex-col sm:flex-row gap-4">
+          {onFilterChange && (
+            <Tabs value={filter} onValueChange={(value) => onFilterChange(value as "own" | "shared" | "all")}>
+              <TabsList>
+                <TabsTrigger value="all">All Files</TabsTrigger>
+                <TabsTrigger value="own">My Files</TabsTrigger>
+                <TabsTrigger value="shared">Shared</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
+          {onSearchChange && (
+            <div className="relative max-w-md flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search projects by name..."
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="pl-10 pr-10 h-12 text-base border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400/50"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => onSearchChange("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Mobile buttons - fixed at bottom, separate from flex container */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-white border-t shadow-lg z-[100] pointer-events-auto">
+        <div className="flex gap-3">
           <Link 
             href="/dashboard/categories"
             prefetch={true}
-            onMouseEnter={() => router.prefetch("/dashboard/categories")}
-            className="flex-1 md:flex-none"
+            className="flex-1"
           >
             <Button
               variant="outline"
-              className="w-full md:w-auto border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-6 py-6 text-base min-h-[48px]"
-              style={{ touchAction: 'manipulation' }}
+              className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-4 py-6 text-base min-h-[48px]"
+              style={{ touchAction: 'manipulation', pointerEvents: 'auto' }}
             >
               <FolderTree className="mr-2 h-5 w-5" />
               Browse Categories
@@ -88,12 +155,11 @@ export function PageHeader({
           <Link 
             href="/dashboard/upload"
             prefetch={true}
-            onMouseEnter={() => router.prefetch("/dashboard/upload")}
-            className="flex-1 md:flex-none"
+            className="flex-1"
           >
             <Button 
-              className="w-full md:w-auto gradient-emerald text-white hover-glow shadow-lg px-6 py-6 text-base min-h-[48px]"
-              style={{ touchAction: 'manipulation' }}
+              className="w-full gradient-emerald text-white hover-glow shadow-lg px-4 py-6 text-base min-h-[48px]"
+              style={{ touchAction: 'manipulation', pointerEvents: 'auto' }}
             >
               <Upload className="mr-2 h-5 w-5" />
               New Upload
@@ -101,40 +167,6 @@ export function PageHeader({
           </Link>
         </div>
       </div>
-      
-      {/* Filter and Search */}
-      <div className="mt-6 flex flex-col sm:flex-row gap-4">
-        {onFilterChange && (
-          <Tabs value={filter} onValueChange={(value) => onFilterChange(value as "own" | "shared" | "all")}>
-            <TabsList>
-              <TabsTrigger value="all">All Files</TabsTrigger>
-              <TabsTrigger value="own">My Files</TabsTrigger>
-              <TabsTrigger value="shared">Shared</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        )}
-        {onSearchChange && (
-          <div className="relative max-w-md flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <Input
-              type="text"
-              placeholder="Search projects by name..."
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-10 pr-10 h-12 text-base border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400/50"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => onSearchChange("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+    </>
   );
 }
