@@ -215,7 +215,7 @@ export function PodcastUploader() {
   };
 
   return (
-    <div className="space-y-6 pb-20 md:pb-6">
+    <div className="space-y-6 pb-24 md:pb-6">
       {/* Show dropzone only when no file is selected */}
       {!selectedFile && uploadStatus === "idle" && (
         <UploadDropzone
@@ -250,7 +250,7 @@ export function PodcastUploader() {
           {/* Action buttons (show when idle or error) */}
           {(uploadStatus === "idle" || uploadStatus === "error") && (
             <div 
-              className="flex gap-3 pb-4 relative z-10"
+              className="flex gap-3 pb-4 md:pb-0 md:relative fixed md:static bottom-0 left-0 right-0 p-4 md:p-0 bg-white md:bg-transparent border-t md:border-t-0 shadow-lg md:shadow-none z-50 md:z-10"
               id="upload-buttons"
             >
               <Button
