@@ -135,24 +135,30 @@ export function PageHeader({
         </div>
       </div>
       
-      {/* Mobile buttons - fixed at bottom, separate from flex container */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-white border-t shadow-lg z-[9999]" style={{ touchAction: 'manipulation' }}>
-        <div className="flex gap-3">
+      {/* Mobile buttons - fixed at bottom */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-2xl z-[99999] safe-area-inset-bottom">
+        <div className="flex gap-2 p-3">
           <Button
             variant="outline"
-            onClick={() => router.push("/dashboard/categories")}
-            className="flex-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-4 py-6 text-base min-h-[48px]"
-            style={{ touchAction: 'manipulation' }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              router.push("/dashboard/categories");
+            }}
+            className="flex-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-3 py-5 text-sm font-semibold min-h-[52px]"
           >
-            <FolderTree className="mr-2 h-5 w-5" />
-            Browse Categories
+            <FolderTree className="mr-1.5 h-4 w-4" />
+            <span className="hidden xs:inline">Browse </span>Categories
           </Button>
           <Button 
-            onClick={() => router.push("/dashboard/upload")}
-            className="flex-1 gradient-emerald text-white hover-glow shadow-lg px-4 py-6 text-base min-h-[48px]"
-            style={{ touchAction: 'manipulation' }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              router.push("/dashboard/upload");
+            }}
+            className="flex-1 gradient-emerald text-white hover-glow shadow-lg px-3 py-5 text-sm font-semibold min-h-[52px]"
           >
-            <Upload className="mr-2 h-5 w-5" />
+            <Upload className="mr-1.5 h-4 w-4" />
             New Upload
           </Button>
         </div>
