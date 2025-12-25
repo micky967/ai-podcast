@@ -1,0 +1,1295 @@
+/**
+ * Convex Mutations and Queries for Project Management
+ *
+ * This module handles all database operations for podcast projects.
+ * Convex provides real-time reactivity - when these mutations run, all subscribed
+ * clients automatically receive updates without polling or manual cache invalidation.
+ *
+ * Architecture Pattern:
+ * - Mutations: Write operations called from Next.js server actions or Inngest functions
+ * - Queries: Read operations that React components subscribe to for real-time updates
+ * - All functions are fully type-safe with automatic TypeScript generation
+ *
+ * Real-time Flow:
+ * 1. Inngest calls mutation (e.g., updateJobStatus)
+ * 2. Convex updates database
+ * 3. All subscribed React components (useQuery) instantly re-render with new data
+ * 4. No WebSocket setup, polling, or manual state management required
+ */
+import { v } from "convex/values";
+import type { Doc } from "./_generated/dataModel";
+import { mutation, query } from "./_generated/server";
+
+/**
+ * Creates a new project record after file upload
+ *
+ * Called by: Next.js server action after Vercel Blob upload succeeds
+ *
+ * Flow:
+ * 1. User uploads file -> Vercel Blob
+ * 2. Server action creates project in Convex
+ * 3. Server action triggers Inngest workflow
+ * 4. Inngest updates this project as processing proceeds
+ *
+ * Design Decision: Initialize with all jobStatus as "pending" to avoid null checks in UI
+ */
+export const createProject = mutation({
+  args: {
+    userId: v.string(),
+    inputUrl: v.string(),
+    fileName: v.string(),
+    fileSize: v.number(),
+    fileDuration: v.optional(v.number()),
+    fileFormat: v.string(),
+    mimeType: v.string(),
+    categoryId: v.optional(v.id("categories")),
+    subcategoryId: v.optional(v.id("categories")),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+
+    // Insert new project with initial "uploaded" status
+    // Initialize jobStatus to "pending" so UI can track progress from the start
+    const projectId = await ctx.db.insert("projects", {
+      userId: args.userId,
+      inputUrl: args.inputUrl,
+      fileName: args.fileName,
+      fileSize: args.fileSize,
+      fileDuration: args.fileDuration,
+      fileFormat: args.fileFormat,
+      mimeType: args.mimeType,
+      categoryId: args.categoryId,
+      subcategoryId: args.subcategoryId,
+      status: "uploaded",
+      jobStatus: {
+        transcription: "pending",
+        contentGeneration: "pending",
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return projectId;
+  },
+});
+
+/**
+ * Updates the overall project status
+ *
+ * Called by: Inngest workflow at key milestones
+ * - "uploaded" -> "processing" when workflow starts
+ * - "processing" -> "completed" when all jobs finish successfully
+ * - Any status -> "failed" on error
+ *
+ * Real-time Impact: UI components subscribed to this project instantly reflect the new status
+ */
+export const updateProjectStatus = mutation({
+  args: {
+    projectId: v.id("projects"),
+    status: v.union(
+      v.literal("uploaded"),
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const updates: Partial<Doc<"projects">> = {
+      status: args.status,
+      updatedAt: Date.now(),
+    };
+
+    // Track completion time for analytics and billing
+    if (args.status === "completed") {
+      updates.completedAt = Date.now();
+    }
+
+    await ctx.db.patch(args.projectId, updates);
+  },
+});
+
+/**
+ * Saves the transcript from AssemblyAI
+ *
+ * Called by: Inngest transcription step after AssemblyAI completes
+ *
+ * Data Structure:
+ * - text: Full transcript as one string
+ * - segments: Time-coded chunks with word-level timing
+ * - speakers: Speaker diarization data (who said what)
+ *
+ * Design Decision: Store full transcript in Convex (not Blob) for:
+ * - Fast querying and display
+ * - Real-time updates as transcription completes
+ * - No additional HTTP request to load transcript
+ */
+export const saveTranscript = mutation({
+  args: {
+    projectId: v.id("projects"),
+    transcript: v.object({
+      text: v.string(),
+      segments: v.array(
+        v.object({
+          id: v.number(),
+          start: v.number(),
+          end: v.number(),
+          text: v.string(),
+          words: v.optional(
+            v.array(
+              v.object({
+                word: v.string(),
+                start: v.number(),
+                end: v.number(),
+              }),
+            ),
+          ),
+        }),
+      ),
+      speakers: v.optional(
+        v.array(
+          v.object({
+            speaker: v.string(),
+            start: v.number(),
+            end: v.number(),
+            text: v.string(),
+            confidence: v.number(),
+          }),
+        ),
+      ),
+      chapters: v.optional(
+        v.array(
+          v.object({
+            start: v.number(),
+            end: v.number(),
+            headline: v.string(),
+            summary: v.string(),
+            gist: v.string(),
+          }),
+        ),
+      ),
+    }),
+  },
+  handler: async (ctx, args) => {
+    // Store transcript directly in Convex for instant access
+    await ctx.db.patch(args.projectId, {
+      transcript: args.transcript,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/**
+ * Updates the job status for transcription or content generation phases
+ *
+ * Called by: Inngest workflow to track progress of individual phases
+ * - transcription: "pending" -> "running" -> "completed"/"failed"
+ * - contentGeneration: "pending" -> "running" -> "completed"/"failed"
+ *
+ * Real-time Impact: UI components instantly reflect phase progress
+ */
+export const updateJobStatus = mutation({
+  args: {
+    projectId: v.id("projects"),
+    transcription: v.optional(
+      v.union(
+        v.literal("pending"),
+        v.literal("running"),
+        v.literal("completed"),
+        v.literal("failed"),
+      ),
+    ),
+    contentGeneration: v.optional(
+      v.union(
+        v.literal("pending"),
+        v.literal("running"),
+        v.literal("completed"),
+        v.literal("failed"),
+      ),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    const updates: Partial<Doc<"projects">> = {
+      jobStatus: {
+        ...project.jobStatus,
+        ...(args.transcription && { transcription: args.transcription }),
+        ...(args.contentGeneration && {
+          contentGeneration: args.contentGeneration,
+        }),
+      },
+      updatedAt: Date.now(),
+    };
+
+    await ctx.db.patch(args.projectId, updates);
+  },
+});
+
+/**
+ * Saves all AI-generated content in a single atomic operation
+ *
+ * Called by: Inngest save-to-convex step after all parallel AI jobs complete
+ *
+ * Atomic Batch Update Pattern:
+ * - Receives results from 6 parallel AI generation steps
+ * - Writes all fields in one mutation for data consistency
+ * - UI subscribers receive one update with all new data at once
+ *
+ * Design Decision: Single mutation vs. multiple mutations
+ * - Pro: Atomic - all content appears together, no partial states
+ * - Pro: One database transaction = faster and more consistent
+ * - Con: Slightly delays UI updates until all jobs finish
+ * - Trade-off: Consistency over incremental updates (better UX for this use case)
+ */
+export const saveGeneratedContent = mutation({
+  args: {
+    projectId: v.id("projects"),
+    keyMoments: v.optional(
+      v.array(
+        v.object({
+          time: v.string(),
+          timestamp: v.number(),
+          text: v.string(),
+          description: v.string(),
+        }),
+      ),
+    ),
+    summary: v.optional(
+      v.object({
+        full: v.string(),
+        bullets: v.array(v.string()),
+        insights: v.array(v.string()),
+        tldr: v.string(),
+      }),
+    ),
+    socialPosts: v.optional(
+      v.object({
+        twitter: v.string(),
+        linkedin: v.string(),
+        instagram: v.string(),
+        tiktok: v.string(),
+        youtube: v.string(),
+        facebook: v.string(),
+      }),
+    ),
+    titles: v.optional(
+      v.object({
+        youtubeShort: v.array(v.string()),
+        youtubeLong: v.array(v.string()),
+        podcastTitles: v.array(v.string()),
+        seoKeywords: v.array(v.string()),
+      }),
+    ),
+    youtubeTimestamps: v.optional(
+      v.array(
+        v.object({
+          timestamp: v.string(),
+          description: v.string(),
+        }),
+      ),
+    ),
+    powerPoint: v.optional(
+      v.object({
+        status: v.union(
+          v.literal("pending"),
+          v.literal("running"),
+          v.literal("completed"),
+          v.literal("failed"),
+        ),
+        template: v.optional(v.string()),
+        summary: v.optional(v.string()),
+        slides: v.optional(
+          v.array(
+            v.object({
+              title: v.string(),
+              bullets: v.array(v.string()),
+              notes: v.optional(v.string()),
+              visualHint: v.optional(v.string()),
+              layout: v.optional(
+                v.union(
+                  v.literal("title"),
+                  v.literal("bullets"),
+                  v.literal("quote"),
+                  v.literal("two-column"),
+                ),
+              ),
+            }),
+          ),
+        ),
+        downloadUrl: v.optional(v.string()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+      }),
+    ),
+    engagement: v.optional(
+      v.object({
+        commentStarters: v.array(
+          v.object({
+            question: v.string(),
+            answer: v.string(),
+          }),
+        ),
+        pinComment: v.string(),
+        communityPosts: v.array(v.string()),
+        descriptions: v.object({
+          short: v.string(),
+          medium: v.string(),
+          long: v.string(),
+        }),
+      }),
+    ),
+    // Legacy field - kept for backward compatibility, will be ignored
+    hashtags: v.optional(
+      v.object({
+        instagram: v.array(v.string()),
+        linkedin: v.array(v.string()),
+        tiktok: v.array(v.string()),
+        twitter: v.array(v.string()),
+        youtube: v.array(v.string()),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const { projectId, ...content } = args;
+
+    // Spread all optional content fields (summary, keyMoments, socialPosts, powerPoint, hashtags, etc.)
+    // Only provided fields are updated, others remain unchanged
+    await ctx.db.patch(projectId, {
+      ...content,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/**
+ * Records an error when processing fails
+ *
+ * Called by: Inngest step functions on exception
+ *
+ * Error Handling Strategy:
+ * - Set project status to "failed" to stop further processing
+ * - Store error details for debugging and user support
+ * - Preserve all successfully completed data (partial results still viewable)
+ *
+ * Design Decision: Don't delete project on failure - allow user to retry or view partial results
+ */
+export const recordError = mutation({
+  args: {
+    projectId: v.id("projects"),
+    message: v.string(),
+    step: v.string(),
+    details: v.optional(
+      v.object({
+        statusCode: v.optional(v.number()),
+        stack: v.optional(v.string()),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    // Mark project as failed and store error details
+    await ctx.db.patch(args.projectId, {
+      status: "failed",
+      error: {
+        message: args.message,
+        step: args.step,
+        timestamp: Date.now(),
+        details: args.details,
+      },
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/**
+ * Saves errors for individual generation jobs
+ *
+ * Called by: Inngest workflow when generation steps fail
+ * Allows UI to show which specific jobs failed and enable retry
+ */
+export const saveJobErrors = mutation({
+  args: {
+    projectId: v.id("projects"),
+      jobErrors: v.object({
+        keyMoments: v.optional(v.string()),
+        summary: v.optional(v.string()),
+        socialPosts: v.optional(v.string()),
+        titles: v.optional(v.string()),
+        powerPoint: v.optional(v.string()),
+        youtubeTimestamps: v.optional(v.string()),
+        engagement: v.optional(v.string()),
+      }),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.projectId, {
+      jobErrors: args.jobErrors,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/**
+ * Retrieves a single project by ID
+ *
+ * Used by: Project detail page (real-time subscription)
+ *
+ * Real-time Pattern:
+ * - React component: const project = useQuery(api.projects.getProject, { projectId })
+ * - Convex automatically re-runs this query when the project updates
+ * - Component re-renders with fresh data
+ * - No manual refetching or cache invalidation needed
+ */
+export const getProject = query({
+  args: {
+    projectId: v.id("projects"),
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    
+    if (!project) {
+      return null;
+    }
+
+    // Check if user owns the project
+    if (project.userId === args.userId) {
+      return { ...project, isOwner: true, isShared: false };
+    }
+
+    // Check if user has access via sharing groups
+    // User can see project if they're a member of a group where the project owner is the group owner
+    const userMemberGroups = await ctx.db
+      .query("groupMembers")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .collect();
+
+    // Get the groups the user is a member of
+    const groupIds = userMemberGroups.map((m) => m.groupId);
+    
+    // Check if any of these groups are owned by the project owner
+    for (const groupId of groupIds) {
+      const group = await ctx.db.get(groupId);
+      if (group && group.ownerId === project.userId) {
+        // User has access via sharing group
+        return { ...project, isOwner: false, isShared: true };
+      }
+    }
+
+    // User doesn't have access
+    return null;
+  },
+});
+
+/**
+ * Lists all projects for a user with pagination
+ *
+ * Used by: Projects dashboard page
+ *
+ * Pagination Pattern:
+ * - Returns { page: [...], continueCursor: "..." } for infinite scroll
+ * - Uses index "by_user" for efficient filtering
+ * - Sorted by newest first (order("desc"))
+ *
+ * Real-time Behavior:
+ * - As new projects are created, they automatically appear in the list
+ * - As projects complete, their status updates instantly
+ * - No polling required - Convex handles reactivity
+ */
+export const listUserProjects = query({
+  args: {
+    userId: v.string(),
+    paginationOpts: v.optional(
+      v.object({
+        numItems: v.number(),
+        cursor: v.optional(v.string()),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const numItems = args.paginationOpts?.numItems ?? 20;
+
+    // Use index for fast filtering by userId
+    // order("desc") sorts by _creationTime descending (newest first)
+    // Filter out soft-deleted projects
+    const query = ctx.db
+      .query("projects")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("deletedAt"), undefined))
+      .order("desc");
+
+    // Built-in pagination with cursor support
+    return await query.paginate({
+      numItems,
+      cursor: args.paginationOpts?.cursor ?? null,
+    });
+  },
+});
+
+/**
+ * Lists all projects for a user including shared files from groups
+ *
+ * Used by: Projects dashboard page with "All Files" filter
+ *
+ * Includes:
+ * - User's own projects
+ * - Projects from groups where user is an active member (owner's files)
+ *
+ * @param userId - User ID
+ * @param filter - Filter type: "own" | "shared" | "all"
+ * @param paginationOpts - Pagination options
+ */
+export const listUserProjectsWithShared = query({
+  args: {
+    userId: v.string(),
+    filter: v.optional(v.union(v.literal("own"), v.literal("shared"), v.literal("all"))),
+    paginationOpts: v.optional(
+      v.object({
+        numItems: v.number(),
+        cursor: v.optional(v.string()),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const numItems = args.paginationOpts?.numItems ?? 20;
+      const filter = args.filter ?? "all";
+      const cursor = args.paginationOpts?.cursor;
+      const startIndex = cursor ? parseInt(cursor, 10) : 0;
+
+      // For "own" filter, optimize by early return
+      if (filter === "own") {
+        const ownProjects = await ctx.db
+          .query("projects")
+          .withIndex("by_user", (q) => q.eq("userId", args.userId))
+          .filter((q) => q.eq(q.field("deletedAt"), undefined))
+          .collect();
+
+        // Sort by newest first
+        ownProjects.sort((a, b) => b.createdAt - a.createdAt);
+
+        // Manual pagination
+        const endIndex = startIndex + numItems;
+        const paginatedProjects = ownProjects.slice(startIndex, endIndex);
+        const hasMore = endIndex < ownProjects.length;
+
+        return {
+          page: paginatedProjects,
+          continueCursor: hasMore ? endIndex.toString() : null,
+          isDone: !hasMore,
+        };
+      }
+
+      // For "shared" or "all" filters, we need to fetch shared projects
+      // Get user's own projects (only if filter is "all")
+      // Limit to 200 projects for initial load to improve performance
+      let ownProjects: Doc<"projects">[] = [];
+      if (filter === "all") {
+        // For "all" filter, get all own projects and sort by newest first
+        // This ensures newly uploaded files appear even if user has many projects
+        const allOwnProjects = await ctx.db
+          .query("projects")
+          .withIndex("by_user", (q) => q.eq("userId", args.userId))
+          .filter((q) => q.eq(q.field("deletedAt"), undefined))
+          .collect();
+
+        // Sort by newest first and take the most recent projects
+        ownProjects = allOwnProjects
+          .sort((a, b) => b.createdAt - a.createdAt)
+          .slice(0, 200); // Take only the 200 most recent
+      }
+
+      // Get groups where user is an active member
+      let memberGroups: Doc<"groupMembers">[] = [];
+      try {
+        memberGroups = await ctx.db
+          .query("groupMembers")
+          .withIndex("by_user", (q) => q.eq("userId", args.userId))
+          .filter((q) => q.eq(q.field("status"), "active"))
+          .collect();
+        console.log(`[listUserProjectsWithShared] User ${args.userId} is member of ${memberGroups.length} groups`);
+      } catch (err) {
+        console.error("[listUserProjectsWithShared] Error querying groupMembers:", err);
+        // If groupMembers table doesn't exist or has issues, continue with empty array
+        memberGroups = [];
+      }
+
+      // Get group owner IDs (filter out deleted groups)
+      const groupIds = memberGroups.map((m) => m.groupId);
+      const groups = await Promise.all(
+        groupIds.map(async (id) => {
+          try {
+            return await ctx.db.get(id);
+          } catch (err) {
+            console.error(`[listUserProjectsWithShared] Error getting group ${id}:`, err);
+            return null;
+          }
+        }),
+      );
+
+      const ownerIds = groups
+        .filter((g): g is Doc<"sharingGroups"> => g !== null)
+        .map((g) => g.ownerId);
+
+      // Remove duplicate owner IDs
+      const uniqueOwnerIds = [...new Set(ownerIds)];
+      console.log(`[listUserProjectsWithShared] Found ${uniqueOwnerIds.length} unique group owners:`, uniqueOwnerIds);
+
+      // Get shared projects (from group owners)
+      // Limit to a reasonable number per owner to avoid loading too much data
+      let sharedProjects: Doc<"projects">[][] = [];
+      if (uniqueOwnerIds.length > 0) {
+        try {
+          sharedProjects = await Promise.all(
+            uniqueOwnerIds.map(async (ownerId) => {
+              try {
+                // Get all projects for this owner
+                // We need to collect all projects and then sort by newest first
+                // to ensure new uploads appear in shared views
+                const allProjectsForOwner = await ctx.db
+                  .query("projects")
+                  .withIndex("by_user", (q) => q.eq("userId", ownerId))
+                  .filter((q) => q.eq(q.field("deletedAt"), undefined))
+                  .collect();
+
+                // Sort by newest first - include ALL projects so new uploads are visible to group members
+                const sortedProjects = allProjectsForOwner
+                  .sort((a, b) => b.createdAt - a.createdAt);
+
+                console.log(`[listUserProjectsWithShared] Found ${sortedProjects.length} projects for owner ${ownerId}`);
+                return sortedProjects;
+              } catch (err) {
+                console.error(`[listUserProjectsWithShared] Error querying projects for owner ${ownerId}:`, err);
+                return [];
+              }
+            }),
+          );
+        } catch (err) {
+          console.error("[listUserProjectsWithShared] Error getting shared projects:", err);
+          sharedProjects = [];
+        }
+      }
+
+      const flattenedShared = sharedProjects.flat();
+      console.log(`[listUserProjectsWithShared] Total shared projects found: ${flattenedShared.length}, filter: ${filter}`);
+
+      // Combine and filter based on filter type
+      let allProjects: Doc<"projects">[] = [];
+      if (filter === "shared") {
+        allProjects = flattenedShared;
+        console.log(`[listUserProjectsWithShared] Filter "shared": ${allProjects.length} projects`);
+      } else {
+        // "all" - combine own and shared, remove duplicates
+        const projectIds = new Set<string>();
+        allProjects = [...ownProjects, ...flattenedShared].filter((p) => {
+          if (projectIds.has(p._id)) {
+            return false;
+          }
+          projectIds.add(p._id);
+          return true;
+        });
+        console.log(`[listUserProjectsWithShared] Filter "all": ${allProjects.length} projects (${ownProjects.length} own + ${flattenedShared.length} shared)`);
+      }
+
+      // Sort by newest first
+      allProjects.sort((a, b) => b.createdAt - a.createdAt);
+
+      // Manual pagination
+      const endIndex = startIndex + numItems;
+      const paginatedProjects = allProjects.slice(startIndex, endIndex);
+      const hasMore = endIndex < allProjects.length;
+
+      return {
+        page: paginatedProjects,
+        continueCursor: hasMore ? endIndex.toString() : null,
+        isDone: !hasMore,
+      };
+    } catch (error) {
+      console.error("[listUserProjectsWithShared] Error:", error);
+      // Return empty result on error instead of throwing
+      return {
+        page: [],
+        continueCursor: null,
+        isDone: true,
+      };
+    }
+  },
+});
+
+/**
+ * Gets project count for a user (for quota enforcement)
+ *
+ * Called by: Upload validation before allowing new project creation
+ *
+ * Counting Logic:
+ * - includeDeleted = true: Count ALL projects ever created (for FREE tier)
+ * - includeDeleted = false: Count only active projects (for PRO tier)
+ *
+ * This allows FREE users to be limited to 3 total projects ever (can't game the system),
+ * while PRO users can delete to free up slots.
+ */
+export const getUserProjectCount = query({
+  args: {
+    userId: v.string(),
+    includeDeleted: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    // Query all projects by this user
+    const projects = await ctx.db
+      .query("projects")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    // Filter based on includeDeleted flag
+    if (args.includeDeleted) {
+      // Count all projects (including soft-deleted ones)
+      return projects.length;
+    } else {
+      // Count only active projects (exclude soft-deleted)
+      return projects.filter((p) => !p.deletedAt).length;
+    }
+  },
+});
+
+/**
+ * Soft-deletes a project after validating user ownership
+ *
+ * Called by: Server action after user confirms deletion
+ *
+ * Soft Delete Pattern:
+ * - Sets deletedAt timestamp instead of hard delete
+ * - Allows FREE tier counting to include deleted projects
+ * - PRO users don't see deleted projects in their count
+ * - Returns inputUrl so server action can clean up Vercel Blob
+ *
+ * Security:
+ * - Validates that the requesting user owns the project
+ */
+export const deleteProject = mutation({
+  args: {
+    projectId: v.id("projects"),
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    console.log(`[CONVEX DELETE] Starting deletion for project ${args.projectId} by user ${args.userId}`);
+    
+    // Fetch project to validate ownership and get inputUrl
+    const project = await ctx.db.get(args.projectId);
+
+    if (!project) {
+      console.error(`[CONVEX DELETE] Project ${args.projectId} not found`);
+      throw new Error("Project not found");
+    }
+
+    // Security check: ensure user owns this project OR is an admin/owner
+    if (project.userId !== args.userId) {
+      // Check if user is admin or owner
+      const userSettings = await ctx.db
+        .query("userSettings")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .first();
+
+      if (userSettings?.role !== "admin" && userSettings?.role !== "owner") {
+        console.error(`[CONVEX DELETE] Unauthorized: User ${args.userId} does not own project ${args.projectId} (owned by ${project.userId}) and is not an admin/owner`);
+        throw new Error("Unauthorized: You don't own this project");
+      }
+      const roleLabel = userSettings?.role === "owner" ? "Owner" : "Admin";
+      console.log(`[CONVEX DELETE] ${roleLabel} ${args.userId} deleting project ${args.projectId} owned by ${project.userId}`);
+    }
+
+    // Soft delete: set deletedAt timestamp instead of hard delete
+    // This preserves the record for FREE tier counting
+    const deletedAt = Date.now();
+    await ctx.db.patch(args.projectId, {
+      deletedAt,
+      updatedAt: deletedAt,
+    });
+
+    console.log(`[CONVEX DELETE] Successfully soft-deleted project ${args.projectId} at ${deletedAt}`);
+
+    // Return inputUrl so server action can delete from Blob storage
+    return { inputUrl: project.inputUrl };
+  },
+});
+
+/**
+ * Updates the display name of a project
+ *
+ * Called by: Server action when user edits project title
+ *
+ * Security:
+ * - Validates that the requesting user owns the project
+ *
+ * Real-time Impact:
+ * - All UI components displaying this project instantly update
+ */
+export const updateProjectDisplayName = mutation({
+  args: {
+    projectId: v.id("projects"),
+    userId: v.string(),
+    displayName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Fetch project to validate ownership
+    const project = await ctx.db.get(args.projectId);
+
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    // Security check: ensure user owns this project
+    if (project.userId !== args.userId) {
+      throw new Error("Unauthorized: You don't own this project");
+    }
+
+    // Update display name
+    await ctx.db.patch(args.projectId, {
+      displayName: args.displayName.trim(),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/**
+ * Updates the category of a project (for drag-and-drop)
+ *
+ * Called by: Server action when user drags project to different category
+ *
+ * Security:
+ * - Validates that the requesting user owns the project
+ *
+ * Real-time Impact:
+ * - All UI components displaying this project instantly update
+ * - Project moves to new category in real-time
+ */
+export const updateProjectCategory = mutation({
+  args: {
+    projectId: v.id("projects"),
+    userId: v.string(),
+    categoryId: v.optional(v.id("categories")),
+    subcategoryId: v.optional(v.id("categories")),
+  },
+  handler: async (ctx, args) => {
+    // Fetch project to validate ownership
+    const project = await ctx.db.get(args.projectId);
+
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    // Security check: ensure user owns this project
+    if (project.userId !== args.userId) {
+      throw new Error("Unauthorized: You don't own this project");
+    }
+
+    // Validate category exists if provided
+    if (args.categoryId) {
+      const category = await ctx.db.get(args.categoryId);
+      if (!category) {
+        throw new Error("Category not found");
+      }
+    }
+
+    // Validate subcategory exists if provided
+    if (args.subcategoryId) {
+      const subcategory = await ctx.db.get(args.subcategoryId);
+      if (!subcategory) {
+        throw new Error("Subcategory not found");
+      }
+      // Ensure subcategory belongs to the main category if both are provided
+      if (args.categoryId && subcategory.parentId !== args.categoryId) {
+        throw new Error("Subcategory does not belong to the selected category");
+      }
+    }
+
+    // Update category
+    const updateData: any = {
+      updatedAt: Date.now(),
+    };
+
+    if (args.categoryId !== undefined) {
+      updateData.categoryId = args.categoryId;
+    } else {
+      // Explicitly set to undefined to clear the category
+      updateData.categoryId = undefined;
+    }
+
+    if (args.subcategoryId !== undefined) {
+      updateData.subcategoryId = args.subcategoryId;
+    } else {
+      // Explicitly set to undefined to clear the subcategory
+      updateData.subcategoryId = undefined;
+    }
+
+    await ctx.db.patch(args.projectId, updateData);
+
+    // Verify the update worked
+    const updatedProject = await ctx.db.get(args.projectId);
+    if (!updatedProject) {
+      throw new Error("Failed to verify project update");
+    }
+
+    return {
+      success: true,
+      categoryId: updatedProject.categoryId,
+      subcategoryId: updatedProject.subcategoryId,
+    };
+  },
+});
+
+/**
+ * Lists projects for a user filtered by category/subcategory
+ *
+ * Used by: Category filtered projects page
+ *
+ * @param userId - User ID to filter projects
+ * @param categoryId - Main category ID (optional - if provided, filters by main category)
+ * @param subcategoryId - Subcategory ID (optional - if provided, filters by subcategory)
+ * @param paginationOpts - Pagination options
+ * @returns Paginated list of projects matching the category filter
+ */
+export const listUserProjectsByCategory = query({
+  args: {
+    userId: v.string(),
+    categoryId: v.optional(v.id("categories")),
+    subcategoryId: v.optional(v.id("categories")),
+    paginationOpts: v.optional(
+      v.object({
+        numItems: v.number(),
+        cursor: v.optional(v.string()),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const numItems = args.paginationOpts?.numItems ?? 20;
+
+    let projects;
+
+    // Use the by_user_and_category index if categoryId is provided for better reactivity
+    if (args.categoryId) {
+      projects = await ctx.db
+        .query("projects")
+        .withIndex("by_user_and_category", (q) =>
+          q.eq("userId", args.userId).eq("categoryId", args.categoryId)
+        )
+        .filter((q) => q.eq(q.field("deletedAt"), undefined))
+        .collect();
+
+      // Filter by subcategory if provided (most specific)
+      if (args.subcategoryId) {
+        projects = projects.filter((p) => p.subcategoryId === args.subcategoryId);
+      }
+    } else {
+      // No category filter - use by_user index
+      projects = await ctx.db
+        .query("projects")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .filter((q) => q.eq(q.field("deletedAt"), undefined))
+        .collect();
+
+      // Filter by subcategory if provided
+      if (args.subcategoryId) {
+        projects = projects.filter((p) => p.subcategoryId === args.subcategoryId);
+      }
+    }
+
+    // Sort by newest first
+    projects.sort((a, b) => b.createdAt - a.createdAt);
+
+    // Manual pagination (since we might be filtering subcategories in memory)
+    const cursor = args.paginationOpts?.cursor;
+    const startIndex = cursor ? parseInt(cursor, 10) : 0;
+    const endIndex = startIndex + numItems;
+    const paginatedProjects = projects.slice(startIndex, endIndex);
+    const hasMore = endIndex < projects.length;
+
+    return {
+      page: paginatedProjects,
+      continueCursor: hasMore ? endIndex.toString() : null,
+      isDone: !hasMore,
+    };
+  },
+});
+
+/**
+ * Gets ALL projects for a user (for search functionality)
+ *
+ * Used by: Projects list page when searching across all projects
+ * Returns all projects without pagination for client-side filtering
+ *
+ * NOTE: This only returns user's own projects. For shared projects, use getAllUserProjectsWithShared
+ */
+export const getAllUserProjects = query({
+  args: {
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("projects")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("deletedAt"), undefined))
+      .order("desc")
+      .collect();
+  },
+});
+
+/**
+ * Gets ALL projects for a user including shared projects (for search functionality)
+ *
+ * Used by: Projects list page when searching across all projects with filter support
+ * Returns all projects without pagination for client-side filtering
+ *
+ * @param userId - User ID
+ * @param filter - Filter type: "own" | "shared" | "all" (default: "all")
+ */
+export const getAllUserProjectsWithShared = query({
+  args: {
+    userId: v.string(),
+    filter: v.optional(v.union(v.literal("own"), v.literal("shared"), v.literal("all"))),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const filter = args.filter ?? "all";
+
+      // Get user's own projects
+      const ownProjects = await ctx.db
+        .query("projects")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .filter((q) => q.eq(q.field("deletedAt"), undefined))
+        .collect();
+
+      // Get groups where user is an active member
+      let memberGroups: Doc<"groupMembers">[] = [];
+      try {
+        memberGroups = await ctx.db
+          .query("groupMembers")
+          .withIndex("by_user", (q) => q.eq("userId", args.userId))
+          .filter((q) => q.eq(q.field("status"), "active"))
+          .collect();
+      } catch (err) {
+        console.error("[getAllUserProjectsWithShared] Error querying groupMembers:", err);
+        memberGroups = [];
+      }
+
+      // Get group owner IDs (filter out deleted groups)
+      const groupIds = memberGroups.map((m) => m.groupId);
+      const groups = await Promise.all(
+        groupIds.map(async (id) => {
+          try {
+            return await ctx.db.get(id);
+          } catch (err) {
+            console.error(`[getAllUserProjectsWithShared] Error getting group ${id}:`, err);
+            return null;
+          }
+        }),
+      );
+
+      const ownerIds = groups
+        .filter((g): g is Doc<"sharingGroups"> => g !== null)
+        .map((g) => g.ownerId);
+
+      // Remove duplicate owner IDs
+      const uniqueOwnerIds = [...new Set(ownerIds)];
+
+      // Get shared projects (from group owners)
+      let sharedProjects: Doc<"projects">[][] = [];
+      if (uniqueOwnerIds.length > 0) {
+        try {
+          sharedProjects = await Promise.all(
+            uniqueOwnerIds.map(async (ownerId) => {
+              try {
+                return await ctx.db
+                  .query("projects")
+                  .withIndex("by_user", (q) => q.eq("userId", ownerId))
+                  .filter((q) => q.eq(q.field("deletedAt"), undefined))
+                  .collect();
+              } catch (err) {
+                console.error(`[getAllUserProjectsWithShared] Error querying projects for owner ${ownerId}:`, err);
+                return [];
+              }
+            }),
+          );
+        } catch (err) {
+          console.error("[getAllUserProjectsWithShared] Error getting shared projects:", err);
+          sharedProjects = [];
+        }
+      }
+
+      const flattenedShared = sharedProjects.flat();
+
+      // Combine and filter based on filter type
+      let allProjects: typeof ownProjects = [];
+      if (filter === "own") {
+        allProjects = ownProjects;
+      } else if (filter === "shared") {
+        allProjects = flattenedShared;
+      } else {
+        // "all" - combine own and shared, remove duplicates
+        const projectIds = new Set<string>();
+        allProjects = [...ownProjects, ...flattenedShared].filter((p) => {
+          if (projectIds.has(p._id)) {
+            return false;
+          }
+          projectIds.add(p._id);
+          return true;
+        });
+      }
+
+      // Sort by newest first
+      allProjects.sort((a, b) => b.createdAt - a.createdAt);
+
+      return allProjects;
+    } catch (error) {
+      console.error("[getAllUserProjectsWithShared] Error:", error);
+      return [];
+    }
+  },
+});
+
+/**
+ * Admin query: Get ALL projects (for migration purposes)
+ * 
+ * WARNING: This returns all projects without user filtering.
+ * Only use for admin/migration tasks.
+ */
+export const getAllProjectsForMigration = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("projects")
+      .filter((q) => q.eq(q.field("deletedAt"), undefined))
+      .collect();
+  },
+});
+
+/**
+ * Bulk insert projects with duplicate fileName checking
+ * 
+ * Used for: Migrating projects from dev to prod
+ * 
+ * Checks for existing projects by fileName before inserting.
+ * Only inserts projects that don't already exist.
+ */
+export const bulkInsertProjects = mutation({
+  args: {
+    projects: v.array(
+      v.object({
+        userId: v.string(),
+        inputUrl: v.string(),
+        fileName: v.string(),
+        displayName: v.optional(v.string()),
+        fileSize: v.number(),
+        fileDuration: v.optional(v.number()),
+        fileFormat: v.string(),
+        mimeType: v.string(),
+        categoryId: v.optional(v.id("categories")),
+        subcategoryId: v.optional(v.id("categories")),
+        status: v.union(
+          v.literal("uploaded"),
+          v.literal("processing"),
+          v.literal("completed"),
+          v.literal("failed"),
+        ),
+        jobStatus: v.optional(
+          v.object({
+            transcription: v.optional(
+              v.union(
+                v.literal("pending"),
+                v.literal("running"),
+                v.literal("completed"),
+                v.literal("failed"),
+              ),
+            ),
+            contentGeneration: v.optional(
+              v.union(
+                v.literal("pending"),
+                v.literal("running"),
+                v.literal("completed"),
+                v.literal("failed"),
+              ),
+            ),
+          }),
+        ),
+        error: v.optional(
+          v.object({
+            message: v.string(),
+            step: v.string(),
+            timestamp: v.number(),
+            details: v.optional(
+              v.object({
+                statusCode: v.optional(v.number()),
+                stack: v.optional(v.string()),
+              }),
+            ),
+          }),
+        ),
+        jobErrors: v.optional(
+          v.object({
+            keyMoments: v.optional(v.string()),
+            summary: v.optional(v.string()),
+            socialPosts: v.optional(v.string()),
+            titles: v.optional(v.string()),
+            powerPoint: v.optional(v.string()),
+            youtubeTimestamps: v.optional(v.string()),
+            engagement: v.optional(v.string()),
+            hashtags: v.optional(v.string()),
+          }),
+        ),
+        transcript: v.optional(v.any()),
+        summary: v.optional(v.any()),
+        socialPosts: v.optional(v.any()),
+        titles: v.optional(v.any()),
+        powerPoint: v.optional(v.any()),
+        keyMoments: v.optional(v.any()),
+        youtubeTimestamps: v.optional(v.any()),
+        engagement: v.optional(v.any()),
+        hashtags: v.optional(v.any()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+        completedAt: v.optional(v.number()),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    // Get all existing projects to check for duplicates by fileName
+    const existingProjects = await ctx.db
+      .query("projects")
+      .filter((q) => q.eq(q.field("deletedAt"), undefined))
+      .collect();
+    
+    const existingFileNames = new Set(
+      existingProjects.map((p) => p.fileName.toLowerCase()),
+    );
+    
+    let inserted = 0;
+    let skipped = 0;
+    const skippedFileNames: string[] = [];
+    
+    for (const project of args.projects) {
+      // Check if fileName already exists (case-insensitive)
+      if (existingFileNames.has(project.fileName.toLowerCase())) {
+        skipped++;
+        skippedFileNames.push(project.fileName);
+        continue;
+      }
+      
+      // Insert the project
+      await ctx.db.insert("projects", {
+        ...project,
+        deletedAt: undefined, // Ensure not deleted
+      });
+      
+      inserted++;
+      existingFileNames.add(project.fileName.toLowerCase());
+    }
+    
+    return {
+      inserted,
+      skipped,
+      skippedFileNames,
+      total: args.projects.length,
+    };
+  },
+});
