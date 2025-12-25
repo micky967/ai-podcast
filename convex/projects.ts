@@ -587,13 +587,18 @@ export const listUserProjectsWithShared = query({
       // Limit to 200 projects for initial load to improve performance
       let ownProjects: Doc<"projects">[] = [];
       if (filter === "all") {
-        // For "all" filter, limit own projects to avoid loading everything
-        // This is a reasonable limit that should cover most users' needs
-        ownProjects = await ctx.db
+        // For "all" filter, get all own projects and sort by newest first
+        // This ensures newly uploaded files appear even if user has many projects
+        const allOwnProjects = await ctx.db
           .query("projects")
           .withIndex("by_user", (q) => q.eq("userId", args.userId))
           .filter((q) => q.eq(q.field("deletedAt"), undefined))
-          .take(200);
+          .collect();
+
+        // Sort by newest first and take the most recent projects
+        ownProjects = allOwnProjects
+          .sort((a, b) => b.createdAt - a.createdAt)
+          .slice(0, 200); // Take only the 200 most recent
       }
 
       // Get groups where user is an active member
@@ -640,15 +645,21 @@ export const listUserProjectsWithShared = query({
           sharedProjects = await Promise.all(
             uniqueOwnerIds.map(async (ownerId) => {
               try {
-                // Limit to 50 projects per owner to avoid excessive memory usage
-                // This prevents loading thousands of projects when user has many shared groups
-                const projects = await ctx.db
+                // Get all projects for this owner
+                // We need to collect all projects and then sort by newest first
+                // to ensure new uploads appear in shared views
+                const allProjectsForOwner = await ctx.db
                   .query("projects")
                   .withIndex("by_user", (q) => q.eq("userId", ownerId))
                   .filter((q) => q.eq(q.field("deletedAt"), undefined))
-                  .take(50);
-                console.log(`[listUserProjectsWithShared] Found ${projects.length} projects for owner ${ownerId}`);
-                return projects;
+                  .collect();
+
+                // Sort by newest first - include ALL projects so new uploads are visible to group members
+                const sortedProjects = allProjectsForOwner
+                  .sort((a, b) => b.createdAt - a.createdAt);
+
+                console.log(`[listUserProjectsWithShared] Found ${sortedProjects.length} projects for owner ${ownerId}`);
+                return sortedProjects;
               } catch (err) {
                 console.error(`[listUserProjectsWithShared] Error querying projects for owner ${ownerId}:`, err);
                 return [];

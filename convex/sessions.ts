@@ -100,7 +100,7 @@ export const getActiveSessions = query({
     // Get all sessions that haven't expired
     const allSessions = await ctx.db.query("sessions").collect();
     const activeSessions = allSessions.filter(
-      (session) => session.expiresAt > now
+      (session) => session.expiresAt > now,
     );
 
     // Sort by most recent first
@@ -140,4 +140,3 @@ export const cleanupExpiredSessions = mutation({
     return { deletedCount };
   },
 });
-

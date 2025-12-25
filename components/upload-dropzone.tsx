@@ -20,7 +20,7 @@
 "use client";
 
 import { FileAudio, FileText, Upload } from "lucide-react";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { MAX_FILE_SIZE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -36,8 +36,11 @@ export function UploadDropzone({
   disabled = false,
   maxSize = MAX_FILE_SIZE,
 }: UploadDropzoneProps) {
+  const [fileError, setFileError] = useState<string | null>(null);
+
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
+      setFileError(null); // Clear any previous error
       if (acceptedFiles.length > 0) {
         onFileSelect(acceptedFiles[0]);
       }
@@ -117,7 +120,18 @@ export function UploadDropzone({
           allowedExtensions,
         });
         if (isValid) {
+          setFileError(null); // Clear any previous error
           onFileSelect(file);
+        } else {
+          // Show error for invalid file type
+          const extension = fileName.substring(fileName.lastIndexOf("."));
+          setFileError(
+            `File type ${extension} is not supported. Please select a valid audio or document file.`
+          );
+          console.error(
+            "[UploadDropzone] Invalid file type selected:",
+            fileName
+          );
         }
         // Reset the input that was used
         const input = e.target;
@@ -300,9 +314,11 @@ export function UploadDropzone({
         </div>
       )}
 
-      {errorMessage && (
+      {(fileError || errorMessage) && (
         <div className="mt-4 p-4 rounded-xl bg-red-50 border border-red-200">
-          <p className="text-sm text-red-600 font-medium">{errorMessage}</p>
+          <p className="text-sm text-red-600 font-medium">
+            {fileError || errorMessage}
+          </p>
         </div>
       )}
     </div>

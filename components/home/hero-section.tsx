@@ -39,14 +39,18 @@ export function HeroSection() {
             </div>
 
             <h1 className="text-6xl md:text-7xl lg:text-8xl font-extrabold mb-8 leading-tight">
-              <span className="gradient-emerald-text">Transform</span> Your
-              <br />
-              Podcasts with AI
+              <span className="gradient-emerald-text">Transform</span>
+            <br />
+              Podcasts
+              <br/>
+              with AI
             </h1>
 
-            <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed">
-              Upload your podcasts or PDF files and get AI-generated summaries,
-              transcripts, social posts, key moments, questions and answers plus more. The questions and answers can be exported as a CSV file and then import them into Anki to create study flash cards.
+            <p className="text-xl font-semibold md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed">
+              Upload your podcasts or PDF files and get AI-generated Questions & Answers for, Summaries,
+              Transcripts, Social Posts, Key Moments, plus
+              more. The questions and answers can be exported as a CSV file and
+              then import them into Anki to create study flash cards.
             </p>
           </div>
 
@@ -111,156 +115,167 @@ export function HeroSection() {
               </div>
             </>
           )}
-          
+
           {/* Mobile buttons - fixed at bottom via portal using anchor tags */}
-          {mounted && isMobile && typeof window !== "undefined" && createPortal(
-            <div 
-              style={{ 
-                position: 'fixed',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                width: '100%',
-                backgroundColor: '#ffffff',
-                borderTop: '1px solid #e5e7eb',
-                boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.1)',
-                zIndex: 2147483647,
-                paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-                pointerEvents: 'none'
-              }}
-            >
-              <div style={{ display: 'flex', gap: '8px', padding: '12px', pointerEvents: 'auto' }}>
-                {isSignedIn ? (
-                  <>
-                    <a
-                      href="/dashboard/projects"
-                      style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        border: '2px solid #e5e7eb',
-                        color: '#374151',
-                        backgroundColor: '#ffffff',
-                        padding: '16px 12px',
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        minHeight: '64px',
-                        borderRadius: '6px',
-                        textDecoration: 'none',
-                        WebkitTapHighlightColor: 'transparent',
-                        touchAction: 'manipulation'
-                      }}
-                    >
-                      <span>View All Projects</span>
-                    </a>
-                    <a
-                      href="/dashboard/categories"
-                      style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        border: '2px solid #a7f3d0',
-                        color: '#047857',
-                        backgroundColor: '#ffffff',
-                        padding: '16px 12px',
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        minHeight: '64px',
-                        borderRadius: '6px',
-                        textDecoration: 'none',
-                        WebkitTapHighlightColor: 'transparent',
-                        touchAction: 'manipulation'
-                      }}
-                    >
-                      <span>Browse Categories</span>
-                    </a>
-                  </>
-                ) : (
-                  <>
-                    <SignInButton mode="modal">
+          {mounted &&
+            isMobile &&
+            typeof window !== "undefined" &&
+            createPortal(
+              <div
+                style={{
+                  position: "fixed",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  width: "100%",
+                  backgroundColor: "#ffffff",
+                  borderTop: "1px solid #e5e7eb",
+                  boxShadow: "0 -4px 6px -1px rgba(0, 0, 0, 0.1)",
+                  zIndex: 2147483647,
+                  paddingBottom: "env(safe-area-inset-bottom, 0px)",
+                  pointerEvents: "none",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "8px",
+                    padding: "12px",
+                    pointerEvents: "auto",
+                  }}
+                >
+                  {isSignedIn ? (
+                    <>
                       <a
-                        href="#"
-                        onClick={(e) => e.preventDefault()}
+                        href="/dashboard/projects"
                         style={{
                           flex: 1,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          background: 'linear-gradient(to right, #10b981, #14b8a6)',
-                          color: '#ffffff',
-                          padding: '16px 12px',
-                          fontSize: '14px',
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                          border: "2px solid #e5e7eb",
+                          color: "#374151",
+                          backgroundColor: "#ffffff",
+                          padding: "16px 12px",
+                          fontSize: "14px",
                           fontWeight: 600,
-                          minHeight: '64px',
-                          borderRadius: '6px',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                          textDecoration: 'none',
-                          WebkitTapHighlightColor: 'transparent',
-                          touchAction: 'manipulation',
-                          border: 'none'
+                          minHeight: "64px",
+                          borderRadius: "6px",
+                          textDecoration: "none",
+                          WebkitTapHighlightColor: "transparent",
+                          touchAction: "manipulation",
                         }}
                       >
-                        <Sparkles style={{ width: '16px', height: '16px' }} />
-                        <span>Get Started</span>
+                        <span>View All Projects</span>
                       </a>
-                    </SignInButton>
-                    <a
-                      href="/dashboard/projects"
-                      style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        border: '2px solid #e5e7eb',
-                        color: '#374151',
-                        backgroundColor: '#ffffff',
-                        padding: '16px 12px',
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        minHeight: '64px',
-                        borderRadius: '6px',
-                        textDecoration: 'none',
-                        WebkitTapHighlightColor: 'transparent',
-                        touchAction: 'manipulation'
-                      }}
-                    >
-                      <span>View Projects</span>
-                    </a>
-                    <a
-                      href="/dashboard/categories"
-                      style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        border: '2px solid #a7f3d0',
-                        color: '#047857',
-                        backgroundColor: '#ffffff',
-                        padding: '16px 12px',
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        minHeight: '64px',
-                        borderRadius: '6px',
-                        textDecoration: 'none',
-                        WebkitTapHighlightColor: 'transparent',
-                        touchAction: 'manipulation'
-                      }}
-                    >
-                      <span>Browse Categories</span>
-                    </a>
-                  </>
-                )}
-              </div>
-            </div>,
-            document.body
-          )}
+                      <a
+                        href="/dashboard/categories"
+                        style={{
+                          flex: 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                          border: "2px solid #a7f3d0",
+                          color: "#047857",
+                          backgroundColor: "#ffffff",
+                          padding: "16px 12px",
+                          fontSize: "14px",
+                          fontWeight: 600,
+                          minHeight: "64px",
+                          borderRadius: "6px",
+                          textDecoration: "none",
+                          WebkitTapHighlightColor: "transparent",
+                          touchAction: "manipulation",
+                        }}
+                      >
+                        <span>Browse Categories</span>
+                      </a>
+                    </>
+                  ) : (
+                    <>
+                      <SignInButton mode="modal">
+                        <a
+                          href="#"
+                          onClick={(e) => e.preventDefault()}
+                          style={{
+                            flex: 1,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "6px",
+                            background:
+                              "linear-gradient(to right, #10b981, #14b8a6)",
+                            color: "#ffffff",
+                            padding: "16px 12px",
+                            fontSize: "14px",
+                            fontWeight: 600,
+                            minHeight: "64px",
+                            borderRadius: "6px",
+                            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                            textDecoration: "none",
+                            WebkitTapHighlightColor: "transparent",
+                            touchAction: "manipulation",
+                            border: "none",
+                          }}
+                        >
+                          <Sparkles style={{ width: "16px", height: "16px" }} />
+                          <span>Get Started</span>
+                        </a>
+                      </SignInButton>
+                      <a
+                        href="/dashboard/projects"
+                        style={{
+                          flex: 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                          border: "2px solid #e5e7eb",
+                          color: "#374151",
+                          backgroundColor: "#ffffff",
+                          padding: "16px 12px",
+                          fontSize: "14px",
+                          fontWeight: 600,
+                          minHeight: "64px",
+                          borderRadius: "6px",
+                          textDecoration: "none",
+                          WebkitTapHighlightColor: "transparent",
+                          touchAction: "manipulation",
+                        }}
+                      >
+                        <span>View Projects</span>
+                      </a>
+                      <a
+                        href="/dashboard/categories"
+                        style={{
+                          flex: 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                          border: "2px solid #a7f3d0",
+                          color: "#047857",
+                          backgroundColor: "#ffffff",
+                          padding: "16px 12px",
+                          fontSize: "14px",
+                          fontWeight: 600,
+                          minHeight: "64px",
+                          borderRadius: "6px",
+                          textDecoration: "none",
+                          WebkitTapHighlightColor: "transparent",
+                          touchAction: "manipulation",
+                        }}
+                      >
+                        <span>Browse Categories</span>
+                      </a>
+                    </>
+                  )}
+                </div>
+              </div>,
+              document.body
+            )}
         </div>
       </div>
 

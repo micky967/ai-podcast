@@ -58,8 +58,8 @@ export function Header() {
               <span
                 className={
                   isDashboard
-                    ? "hidden md:inline text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl font-bold text-white tracking-tight whitespace-nowrap"
-                    : "text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl font-bold gradient-emerald-text tracking-tight whitespace-nowrap"
+                    ? "hidden sm:inline text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl font-bold text-white tracking-tight whitespace-nowrap"
+                    : "hidden sm:inline text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl font-bold gradient-emerald-text tracking-tight whitespace-nowrap"
                 }
               >
                 MedTrain
