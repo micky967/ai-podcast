@@ -1,0 +1,709 @@
+/**
+ * AI Q&A Generation Step
+ *
+ * Generates Q&A assets using OpenAI GPT to help creators:
+ * - Spark conversations with anticipated questions/comments
+ * - Build community with welcoming pinned comments
+ * - Maintain momentum with follow-up post ideas
+ * - Create descriptions optimized for different contexts
+ *
+ * Output Formats:
+ * - Comment Starters: 40 study flashcard questions with answers for memorization
+ * - Pin Comment: Welcoming comment for YouTube to build community
+ * - Community Posts: 3 follow-up ideas to keep audience engaged
+ * - Descriptions: Short (preview), Medium (podcast feed), Long (blog/show notes)
+ *
+ * Integration:
+ * - Uses OpenAI Structured Outputs (zodResponseFormat) for type safety
+ * - Wrapped in step.ai.wrap() for Inngest observability and automatic retries
+ * - Leverages transcript and chapters for context-aware suggestions
+ *
+ * Design Decision: Why Q&A?
+ * - Comments drive YouTube algorithm (engagement signals)
+ * - Pinned comments set the tone for community culture
+ * - Follow-up posts maintain audience connection between episodes
+ * - Multiple description lengths support different distribution channels
+ */
+import type { step as InngestStep } from "inngest";
+import type OpenAI from "openai";
+import { zodResponseFormat } from "openai/helpers/zod";
+import { z } from "zod";
+import { createBoundCompletion } from "../../lib/openai-client";
+import { type Engagement, engagementSchema } from "../../schemas/ai-outputs";
+import type { TranscriptWithExtras } from "../../types/assemblyai";
+
+// System prompt defines GPT's role and expertise
+const ENGAGEMENT_SYSTEM_PROMPT =
+  "You are a medical education expert creating serious clinical study flashcards. CRITICAL RULES: 1) SKIP ENTIRE transcript sections containing names (Zach, Zachary, Ninja), podcast references (podcast, YouTube), greetings, or announcements - DO NOT extract ANY content from these sections. 2) Extract ONLY clinical medical content: conditions, diagnoses, treatments, complications, management. 3) Transform ALL content to third-person professional medical language - NEVER use 'we', 'I', 'he says'. 4) DO NOT create questions about: 'The Ninja Nerd Podcast is launching...', 'We're doing a video podcast', 'Zach: Well, Ninja, thank you...', 'We have finished our very first video podcast' - these are FORBIDDEN. 5) Every question must contain ONLY clinical medical content with actionable information for doctors. You actively filter out names, podcast references, and conversational elements BEFORE creating questions. The flashcards are serious medical education resources.";
+
+/**
+ * Builds the user prompt with transcript context and detailed instructions
+ *
+ * Prompt Engineering Techniques:
+ * - Provides transcript excerpt for topic understanding
+ * - Includes AssemblyAI chapters to identify discussion points
+ * - Specific instructions for each engagement asset type
+ * - Examples and best practices to guide GPT output
+ */
+function buildEngagementPrompt(transcript: TranscriptWithExtras): string {
+  // Check if this is from a document (no chapters/timestamps) or audio (has chapters)
+  const isDocument = !transcript.chapters || transcript.chapters.length === 0;
+  const contentType = isDocument ? "document" : "podcast/audio content";
+  
+  // Determine content length to decide how many flashcards to generate
+  const contentLength = transcript.text.length;
+  const isLongDocument = isDocument && contentLength > 15000; // Long documents with lots of content
+  
+  const flashcardCount = isDocument 
+    ? isLongDocument 
+      ? "40-50 flashcards - this document has extensive content including tables, spreadsheets, and detailed information. Generate 40-50 comprehensive flashcards to cover all the material."
+      : contentLength > 8000
+        ? "30-40 flashcards - this document has substantial content. Generate 30-40 flashcards to comprehensively cover the material."
+        : "20-30 flashcards based on content length"
+    : "EXACTLY 50 flashcards - this is REQUIRED for podcasts/audio files. You MUST generate exactly 50 flashcards, no more, no less. Generating 45, 49, or any other number is INCORRECT and will cause errors. Count your flashcards and ensure you have exactly 50 before responding.";
+  
+  // For documents, send more content to ensure questions are based on actual document content
+  // For long documents with tables/spreadsheets, send even more content
+  // For audio, 3000 chars is usually enough since podcasts are more conversational
+  const contentPreview = isDocument
+    ? isLongDocument
+      ? transcript.text.substring(0, 20000) // Very long preview for documents with tables/spreadsheets
+      : transcript.text.substring(0, 12000) // Extended preview for documents
+    : transcript.text.substring(0, 3000); // Standard preview for audio
+
+  return `Analyze this content and create comprehensive study materials and Q&A.
+
+${isDocument ? "DOCUMENT CONTENT" : "CONTENT"} (${isDocument ? (isLongDocument ? "first 20000 chars" : "first 12000 chars") : "first 3000 chars"}):
+${contentPreview}${transcript.text.length > (isDocument ? (isLongDocument ? 20000 : 12000) : 3000) ? "..." : ""}
+
+${
+  transcript.chapters && transcript.chapters.length > 0
+    ? `\nAUTO-DETECTED CHAPTERS:\n${transcript.chapters
+        .map((ch, idx) => `${idx + 1}. ${ch.headline} - ${ch.summary}`)
+        .join("\n")}`
+    : ""
+}
+
+Create study materials and engagement assets:
+
+${isDocument 
+    ? `CRITICAL FOR DOCUMENTS: All questions and answers MUST be extracted directly from the document content provided above. Every flashcard question must be about what the document is talking about. DO NOT generate generic questions - all questions must relate to the specific topics, concepts, and information covered in THIS document. If the document is about medicine, all questions must be about the medical topics in the document. If the document is about business, all questions must be about the business topics in the document. Generate ${flashcardCount} based on the document's content.`
+    : `IMPORTANT: Extract factual information from the ${contentType}, but present it as standalone general knowledge. The facts come FROM the ${contentType}, but questions must be about the facts themselves - not about cases, discussions, or presentations. Generate ${flashcardCount}. The goal is comprehensive coverage of all factual information.`}
+
+1. STUDY FLASHCARDS (${isDocument ? (isLongDocument ? "40-50 items" : "20-40 items") : "50 items"}):
+   Generate concise study flashcard questions with accurate answers based on the factual content.
+   ${isDocument 
+     ? isLongDocument
+       ? `- CRITICAL: This document contains extensive content including tables, spreadsheets, and detailed information
+   - Generate 40-50 comprehensive flashcards to cover ALL the material
+   - Extract questions from ALL sections: text content, tables, spreadsheets, data points, lists, and any embedded content
+   - Each table row, spreadsheet cell, data point, and fact should be considered for flashcard generation
+   - Break down complex tables and spreadsheets into multiple focused questions
+   - Cover every major topic, concept, definition, fact, and data point in the document
+   - Quality AND quantity - ensure comprehensive coverage of all information
+   - Don't skip any sections - tables and spreadsheets often contain critical information`
+       : `- For short documents (< 5000 chars): Generate 20-25 flashcards covering all key information
+   - For medium documents (5000-15000 chars): Generate 30-40 flashcards for comprehensive coverage
+   - For long documents (> 15000 chars): Generate 40-50 flashcards to cover all major topics, tables, and data
+   - Always aim to cover ALL factual information from the content including tables and spreadsheets
+   - Extract questions from text, tables, lists, and any structured data
+   - Quality over quantity - each flashcard should test distinct, valuable information`
+     : `- CRITICAL: Generate EXACTLY 50 flashcards - this is REQUIRED, not optional
+   - You MUST return exactly 50 flashcards for podcasts/audio files - NO EXCEPTIONS
+   - The schema requires exactly 50 items - generating 45, 49, or any other number is INCORRECT
+   - You MUST count your flashcards and ensure you generate exactly 50 before responding
+   - Cover all factual information from the podcast/audio content
+   - Ensure comprehensive coverage of all major topics, concepts, and key information
+   - Each flashcard should test distinct, valuable information
+   - CRITICAL: Each question must be UNIQUE. Do NOT repeat the same question or create variations of the same question.
+   - If you run out of unique content to create questions from, STOP generating questions. It is better to have fewer unique questions than duplicate questions.
+   - DO NOT create duplicate questions even if it means having fewer than 50 flashcards
+   - Verify all questions are unique before finalizing your response`}
+   
+   ${isDocument 
+     ? `CRITICAL REQUIREMENTS FOR DOCUMENTS:
+   - Extract ALL factual information DIRECTLY from the document content provided above
+   - Every question MUST be about what the document is talking about
+   - Questions must relate to the specific topics, subjects, and information in THIS document
+   - DO NOT create generic questions that could apply to any document
+   - DO NOT create questions about topics not covered in this document
+   - If the document is about medicine, create questions about the medical topics in the document
+   - If the document is about business, create questions about the business topics in the document
+   - If the document is about history, create questions about the historical topics in the document
+   - Questions must be specific to what THIS document covers
+   - Convert specific examples into general knowledge questions, but the underlying facts must come from this document
+   - DO NOT use phrases like "discussed", "mentioned", "presented with", "noted in case", "in the case study", "the patient", "case 1/2/3", "shown in", etc.
+   - CRITICAL: Each question must be UNIQUE. Do NOT repeat the same question or create variations of the same question.
+   - If you run out of unique content to create questions from, STOP generating questions. It is better to have fewer unique questions than duplicate questions.
+   - Focus on WHAT the document is talking about, not WHERE it came from or HOW it was presented
+   
+   EXTRACTION PROCESS FOR DOCUMENTS:
+   - Read through the entire document content provided
+   - Identify what topics, subjects, and themes the document is about
+   - Identify all key facts, concepts, definitions, principles, and information in the document
+   - For each piece of information, create a question that tests understanding of that specific fact FROM THE DOCUMENT
+   - If the document mentions specific examples, extract the underlying concept and create a general question about that concept (but based on what the document says)
+   - Ensure questions cover different aspects of the document (not all from one section)
+   - Questions should test understanding of what the document is talking about`
+     : `CRITICAL REQUIREMENTS:
+   - Extract ALL factual information from the ${contentType} (definitions, facts, concepts, principles, symptoms, treatments, etc.)
+   - Convert case-specific information into general knowledge
+   - DO NOT create questions about specific cases, case studies, examples, or scenarios
+   - DO NOT use phrases like "discussed", "mentioned", "presented with", "noted in case", "in the case study", "the patient", "case 1/2/3", "shown in", etc.
+   - Focus on WHAT the information is, not WHERE it came from or HOW it was presented
+   - Questions must be about general facts that stand alone - as if from a textbook, not from a case presentation
+   
+   EXTRACTION PROCESS:
+   - When you see case information (e.g., "10-year-old male with fever"), extract the MEDICAL FACT (e.g., "fever is a symptom")
+   - When you see "case 1 showed X", extract the MEDICAL FACT "X" and ask about it generally
+   - When you see "discussed types of leukemia", extract "types of leukemia" and ask about them generally
+   - Always convert case-specific details into universal medical knowledge`}
+   
+   For each item, provide:
+   - question: A concise, clear question${isDocument ? " about what the document is talking about" : " about general medical knowledge"} (1-2 sentences max)
+   - answer: An accurate, informative answer that is complete but concise (2-4 sentences)
+   
+   Questions should:
+   ${isDocument 
+     ? `- Be about what the document is talking about - the specific topics, concepts, and information in the document
+   - Test understanding of information that appears in the document
+   - Cover different topics and sections from the document (not all from one area)
+   - Relate to the subject matter of the document (if document is about medicine, questions are about medicine; if about business, questions are about business, etc.)
+   - NOT reference specific examples, cases, or scenarios from the document (extract the underlying concept)
+   - NOT ask about "what was discussed" or "what the document said"
+   - Focus on the knowledge that can be extracted from what the document is talking about
+   - Be suitable for memorization and recall practice
+   - Stand alone as testable knowledge, but must be about what the document covers
+   
+   Answers should:
+   - Contain information that appears in or can be inferred from the document
+   - Be accurate and factually correct based on what the document says
+   - Be concise but complete (enough detail to understand, not overly verbose)
+   - Standalone (no references to source material)
+   - Focus on the key information from the document being tested
+   
+   What to extract FROM THE DOCUMENT:
+   - Definitions of terms and concepts the document talks about
+   - Facts and principles the document describes
+   - Classifications and categories the document explains
+   - Mechanisms, processes, and how things work as the document describes
+   - Criteria, standards, and findings the document mentions
+   - Principles, approaches, and methodologies the document covers
+   - Key concepts and knowledge areas the document discusses`
+     : `- Be about general medical facts, concepts, definitions, and principles
+   - NOT reference specific patients, cases, examples, or scenarios from the content
+   - NOT ask about "what was discussed" or "what case showed"
+   - NOT ask about symptoms of specific patients or findings from specific cases
+   - Focus on the underlying medical knowledge itself
+   - Be suitable for memorization and recall practice
+   - Stand completely alone without any context from the source
+   
+   Answers should:
+   - Contain general medical knowledge and facts
+   - NOT reference any specific cases, patients, or examples
+   - Be accurate and factually correct
+   - Be concise but complete (enough detail to understand, not overly verbose)
+   - Standalone (no references to any source material, cases, or examples)
+   - Focus on the key medical information being tested
+   
+   What to extract:
+   - General definitions (e.g., "What is [concept]?" not "What types were discussed?")
+   - Medical facts and principles (e.g., "What are common symptoms of [condition]?" not "What symptoms did the patient present with?")
+   - Disease classifications (e.g., "What are the main types of [category]?" not "What types were discussed in the ${contentType}?")
+   - Pathophysiology, mechanisms, and processes
+   - Diagnostic criteria and findings
+   - Treatment principles and approaches
+   - General clinical knowledge`}
+   
+   What NOT to extract:
+   - Questions about specific cases or case studies
+   - Questions about what was "discussed" or "mentioned"
+   - Questions about specific patients or clinical scenarios
+   - Questions that require knowledge of the podcast/content structure
+   - Questions about names (Zach, Zachary, Ninja, any names) → FORBIDDEN
+   - Questions about podcasts, YouTube, video podcast format → FORBIDDEN
+   - Questions about "the team", "digital learning trends", "multimedia learning" → FORBIDDEN
+   - Questions about greetings, thank yous, announcements → FORBIDDEN
+   
+   Examples of GOOD questions (extract facts, present generally):
+   - "What are the main types of [concept]?" (from content about types)
+   - "What are significant indicators of [condition]?" (from examples showing indicators)
+   - "What are common symptoms of [condition]?" (from examples describing symptoms)
+   - "What are the diagnostic criteria for this condition?" (from diagnostic discussion)
+   
+   Examples of BAD questions (DO NOT CREATE THESE):
+   - "What are the main types discussed in the ${contentType}?" ❌ (references source)
+   - "What symptoms did the patient in case 1 present with?" ❌ (references specific case)
+   - "What was noted in the case study?" ❌ (references case study)
+   - "What is a significant indicator noted in the case study?" ❌ (references case)
+   - "What types were mentioned?" ❌ (references discussion)
+   - "What are the key roles of Zach and the team in the video podcast?" ❌ (contains name, references podcast)
+   - "How will the video podcast format enhance learning?" ❌ (references podcast format)
+   - "What are the benefits of having live guests on the podcast?" ❌ (references podcast)
+   - "How does video podcasting align with digital learning trends?" ❌ (references podcast, non-clinical)
+   - "Why are audio podcasts still relevant?" ❌ (references podcast, non-clinical)
+   - "What role does live broadcasting play in medical education?" ❌ (references broadcasting, non-clinical)
+   
+   Distribution:
+   - Cover all major topics, concepts, definitions, facts, processes, and principles
+   - Extract general knowledge from all content areas
+   - Split complex topics into multiple focused questions
+   - Ensure comprehensive coverage of the material
+
+2. PIN-WORTHY COMMENT (1 welcoming comment):
+   Create THE perfect comment to pin that:
+   - Welcomes viewers warmly and sets positive tone
+   - Highlights 1-2 most valuable takeaways or discussion points
+   - Encourages engagement with a question or call-to-action
+   - Feels authentic and community-focused (not salesy)
+   - Is 2-4 sentences long
+   
+   Example tone: "Welcome everyone! 👋 The discussion about [key topic]${isDocument ? "" : " at [timestamp]"} really resonated with me. What's your biggest takeaway from this ${isDocument ? "content" : "episode"}? Drop your thoughts below - I read every comment!"
+
+3. COMMUNITY POST IDEAS (3 follow-up posts):
+   Generate 3 post ideas to maintain momentum${isDocument ? "" : " between episodes"}:
+   - Behind-the-scenes insights mentioned but not fully explored
+   - Poll questions about topics discussed (A vs B, preferences)
+   - Teaser for related upcoming content${isDocument ? "" : " or episodes"}
+   - Quick tips or resources related to main topics
+   - Each should be 1-2 sentences describing the post idea
+   
+   Examples:
+   - "Poll: Ask audience to vote on which topic to deep-dive next"
+   - "Share a carousel of the 5 key frameworks${isDocument ? " from this content" : " discussed in this episode"}"
+   - "Behind-the-scenes: How this ${isDocument ? "content" : "episode"} changed my perspective on [topic]"
+
+4. ${isDocument ? "CONTENT" : "PODCAST"} DESCRIPTIONS (3 lengths):
+   
+   SHORT (150-200 chars):
+   - One-sentence hook for social media previews
+   - Captures essence and sparks curiosity
+   - Includes biggest value proposition
+   
+   MEDIUM (300-500 chars):
+   - Perfect for ${isDocument ? "content" : "podcast feed"} descriptions
+   - Covers main topics${isDocument ? "" : " and guest (if applicable)"}
+   - Includes 2-3 key takeaways
+   - Ends with subtle CTA${isDocument ? "" : " (listen, subscribe, etc.)"}
+   
+   LONG (800-1000 words):
+   - Comprehensive ${isDocument ? "content summary" : "show notes"} for blog or YouTube description
+   - Detailed overview of all topics${transcript.chapters && transcript.chapters.length > 0 ? " and chapters" : ""}
+   ${isDocument ? "" : "- Includes timestamps if relevant"}
+   - Rich with keywords for SEO
+   - Has sections for better readability
+   - Ends with strong CTA and links (placeholders like [LINK] are fine)
+
+For study flashcards: ${isDocument 
+    ? `Extract ALL factual information DIRECTLY from the document content. Every question must be about what the document is talking about. Questions must relate to the specific topics, subjects, and information covered in the document. Convert any case-specific or example-specific information into general knowledge questions, but the underlying facts must come from what the document says. Questions must be about the information itself - never reference cases, discussions, or how information was presented. Each flashcard should stand alone as textbook-style knowledge, but must be based on what the document covers. Break down complex topics into multiple focused questions to ensure comprehensive coverage of all facts from the document.`
+    : `Extract ALL factual information from the ${contentType}, but present it as standalone general knowledge. Convert any case-specific or example-specific information into universal facts. Questions must be about the information itself - never reference cases, discussions, or how information was presented. Each flashcard should stand alone as textbook-style knowledge. Break down complex topics into multiple focused questions to ensure comprehensive coverage of all facts from the content.`}
+
+For engagement tools: Make everything authentic, valuable, and optimized for growth. Focus on sparking genuine conversations and building a loyal community.`;
+}
+
+/**
+ * Generate fallback flashcard content (minimum 10 items)
+ * Used when API fails to ensure schema validation passes
+ */
+function generateFallbackFlashcards(): Array<{ question: string; answer: string }> {
+  const baseQuestions = [
+    { q: "What are the key concepts discussed?", a: "The content covers fundamental principles and practical applications that are essential for understanding the topic." },
+    { q: "What is the primary definition?", a: "The core definition provides the foundation for understanding all related concepts and applications." },
+    { q: "What are the main principles?", a: "The main principles outline the fundamental rules and guidelines that govern the subject matter." },
+    { q: "What are the key differences between concepts?", a: "Understanding these differences is crucial for proper application and avoiding common misconceptions." },
+    { q: "What are the practical applications?", a: "These applications demonstrate how theoretical knowledge translates into real-world practice." },
+    { q: "What are the important facts?", a: "These facts provide essential background information necessary for comprehensive understanding." },
+    { q: "What processes are involved?", a: "The processes outline the step-by-step approaches used to achieve desired outcomes." },
+    { q: "What are the critical considerations?", a: "These considerations highlight important factors that must be taken into account." },
+    { q: "What are the common approaches?", a: "These approaches represent established methods used in practice." },
+    { q: "What are the key terms?", a: "Understanding these terms is essential for clear communication and comprehension." },
+  ];
+  
+  // Return minimum 10 items (schema requirement)
+  return baseQuestions.map(({ q, a }) => ({
+    question: q,
+    answer: a,
+  }));
+}
+
+/**
+ * Generates Q&A using OpenAI GPT with structured outputs
+ *
+ * Error Handling:
+ * - Returns fallback content on API failure (graceful degradation)
+ * - Logs errors for debugging
+ * - Doesn't throw (allows other parallel jobs to continue)
+ *
+ * Inngest Integration:
+ * - step.ai.wrap() tracks token usage and performance
+ * - Provides automatic retry on transient failures
+ * - Shows AI call details in Inngest dashboard
+ */
+export async function generateEngagement(
+  step: typeof InngestStep,
+  transcript: TranscriptWithExtras,
+  userApiKey?: string,
+): Promise<Engagement> {
+  console.log("Generating engagement & growth tools with GPT-4");
+
+  try {
+    // Create bound completion function for step.ai.wrap()
+    const createCompletion = createBoundCompletion(userApiKey);
+
+    // Call OpenAI with Structured Outputs for type-safe response
+    const response = (await step.ai.wrap(
+      "generate-engagement-with-gpt",
+      createCompletion,
+      {
+        model: "gpt-4o", // Use GPT-4 for nuanced, authentic community content
+        messages: [
+          { role: "system", content: ENGAGEMENT_SYSTEM_PROMPT },
+          { role: "user", content: buildEngagementPrompt(transcript) },
+        ],
+        // zodResponseFormat ensures response matches engagementSchema
+        response_format: zodResponseFormat(engagementSchema, "engagement"),
+        // Ensure we have enough tokens for 50 flashcards (each flashcard ~100-200 tokens)
+        // 50 flashcards * 200 tokens = ~10,000 tokens, plus other content = ~12,000 tokens
+        max_tokens: 12000,
+      },
+    )) as OpenAI.Chat.Completions.ChatCompletion;
+
+    const content = response.choices[0]?.message?.content;
+    
+    // Check if this is from a document (no chapters) or audio (has chapters)
+    const isDocument = !transcript.chapters || transcript.chapters.length === 0;
+    
+    // Parse and validate response against schema
+    let engagement = content
+      ? engagementSchema.parse(JSON.parse(content))
+      : {
+          // Fallback: basic content if parsing fails
+          commentStarters: isDocument 
+            ? generateFallbackFlashcards() // 10 for documents
+            : Array.from({ length: 50 }, (_, i) => ({ // 50 for audio
+                question: `Study question ${i + 1}`,
+                answer: "Content generation failed. Please try regenerating.",
+              })),
+          pinComment:
+            "Welcome to the discussion! 👋 What's your biggest takeaway from this episode? Drop your thoughts below!",
+          communityPosts: [
+            "Create a poll asking which topic to explore next",
+            "Share key quotes from this episode as carousel",
+            "Ask audience to share their own experiences with this topic",
+          ],
+          descriptions: {
+            short: transcript.text.substring(0, 180),
+            medium: transcript.text.substring(0, 450),
+            long: transcript.text.substring(0, 900),
+          },
+        };
+
+    // Determine expected flashcard count based on content type and length
+    const contentLength = transcript.text.length;
+    const isLongDocument = isDocument && contentLength > 15000;
+    const expectedCount = isDocument 
+      ? isLongDocument 
+        ? 45 // Target 40-50, aim for middle
+        : contentLength > 8000
+          ? 35 // Target 30-40
+          : 25 // Target 20-30
+      : 50; // Audio files always 50
+    
+    // For audio files (MP3/podcasts), ensure exactly 50 flashcards
+    if (!isDocument && engagement.commentStarters.length !== 50) {
+      const currentCount = engagement.commentStarters.length;
+      console.warn(
+        `Audio file generated ${currentCount} flashcards, expected 50. Attempting to generate additional flashcards.`,
+      );
+      
+      // If we got fewer than 50, try to generate more based on the transcript
+      if (currentCount < 50) {
+        const missingCount = 50 - currentCount;
+        const transcriptExcerpt = transcript.text.substring(3000, 6000); // Get next chunk of transcript
+        
+        // Try to generate additional flashcards from remaining transcript content
+        try {
+          const additionalPrompt = `You previously generated ${currentCount} flashcards. You need to generate exactly ${missingCount} more flashcards to reach 50 total.
+
+ADDITIONAL TRANSCRIPT CONTENT:
+${transcriptExcerpt}
+
+Generate exactly ${missingCount} additional flashcards based on this content. Each flashcard must:
+- Have a concise question (1-2 sentences)
+- Have an accurate, informative answer (2-4 sentences)
+- Cover factual information from the transcript
+- Be distinct from the previous ${currentCount} flashcards
+
+Return ONLY the ${missingCount} additional flashcards as a JSON array with "question" and "answer" fields.`;
+
+          const additionalResponse = await step.ai.wrap(
+            "generate-additional-flashcards",
+            createCompletion,
+            {
+              model: "gpt-4o",
+              messages: [
+                { role: "system", content: ENGAGEMENT_SYSTEM_PROMPT },
+                { role: "user", content: additionalPrompt },
+              ],
+              response_format: zodResponseFormat(
+                z.object({
+                  flashcards: z
+                    .array(
+                      z.object({
+                        question: z.string(),
+                        answer: z.string(),
+                      }),
+                    )
+                    .length(missingCount),
+                }),
+                "additional_flashcards",
+              ),
+              max_tokens: 4000,
+            },
+          ) as OpenAI.Chat.Completions.ChatCompletion;
+
+          const additionalContent = additionalResponse.choices[0]?.message?.content;
+          if (additionalContent) {
+            const parsed = JSON.parse(additionalContent);
+            if (parsed.flashcards && Array.isArray(parsed.flashcards)) {
+              engagement.commentStarters.push(...parsed.flashcards);
+              console.log(
+                `Successfully generated ${parsed.flashcards.length} additional flashcards.`,
+              );
+            }
+          }
+        } catch (error) {
+          console.error("Failed to generate additional flashcards:", error);
+        }
+
+        // Don't pad with generic questions - deduplication will handle ensuring uniqueness
+        // It's better to have fewer unique questions than duplicate generic ones
+      }
+      
+      // If we got more than 50 (shouldn't happen due to schema max), trim to 50
+      if (engagement.commentStarters.length > 50) {
+        engagement.commentStarters = engagement.commentStarters.slice(0, 50);
+      }
+    }
+    
+    // For long documents, ensure we have enough flashcards (40-50)
+    if (isLongDocument && engagement.commentStarters.length < 40) {
+      console.warn(
+        `Long document generated only ${engagement.commentStarters.length} flashcards, expected 40-50. The document may have tables/spreadsheets that need more questions.`,
+      );
+      // Note: We don't pad here because the AI should generate more based on the improved prompt
+      // But we log a warning so the user knows to regenerate if needed
+    }
+
+    // POST-PROCESSING: Filter out questions with forbidden content
+    engagement = filterForbiddenQuestions(engagement, isDocument, expectedCount);
+
+    // POST-PROCESSING: Remove duplicate questions
+    engagement = deduplicateQuestions(engagement);
+
+    return engagement;
+  } catch (error) {
+    console.error("GPT engagement generation error:", error);
+
+    // Graceful degradation: return generic content but allow workflow to continue
+    const errorFlashcards = Array.from({ length: 50 }, (_, i) => ({
+      question: `Study question ${i + 1}`,
+      answer: "⚠️ Error generating answer. Please try regenerating this content.",
+    }));
+    
+    const errorEngagement = {
+      commentStarters: errorFlashcards,
+      pinComment:
+        "⚠️ Welcome! Q&A generation encountered an error. Please check logs or try regenerating.",
+      communityPosts: [
+        "Error generating community post ideas - please try again",
+        "Error generating community post ideas - please try again",
+        "Error generating community post ideas - please try again",
+      ],
+      descriptions: {
+        short:
+          "⚠️ Error generating description. Please regenerate this content.",
+        medium:
+          "⚠️ Error generating description. Please check logs or try regenerating.",
+        long: "⚠️ Error generating long description with GPT-4. Please check logs or try regenerating this content.",
+      },
+    };
+    
+    // Apply filter and deduplication to error fallback as well
+    const filtered = filterForbiddenQuestions(errorEngagement, false, 50);
+    return deduplicateQuestions(filtered);
+  }
+}
+
+/**
+ * Removes duplicate questions by comparing question text (case-insensitive, normalized)
+ * Stops at the first occurrence of each unique question
+ */
+function deduplicateQuestions(engagement: Engagement): Engagement {
+  const seen = new Set<string>();
+  const uniqueQuestions: Array<{ question: string; answer: string }> = [];
+
+  for (const item of engagement.commentStarters) {
+    // Normalize both question and answer text for comparison
+    const normalizedQuestion = item.question
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, " ");
+    
+    const normalizedAnswer = item.answer
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, " ");
+
+    // Create a combined key for question+answer to catch duplicates where either is the same
+    const combinedKey = `${normalizedQuestion}|||${normalizedAnswer}`;
+    
+    // Also check if this is a generic padding question (has the generic answer text)
+    const isGenericPadding = normalizedAnswer.includes("review the clinical content to identify important medical concepts") ||
+                             normalizedAnswer.includes("review the transcript to identify important concepts") ||
+                             normalizedQuestion.includes("what is a key concept") ||
+                             normalizedQuestion.includes("what is a key clinical concept");
+
+    // Check if we've seen this exact question+answer combination
+    if (seen.has(combinedKey) || isGenericPadding) {
+      console.log(`[DEDUPE] Removed duplicate/generic question: "${item.question.substring(0, 60)}..."`);
+      continue;
+    }
+
+    // Check for near-duplicates (questions that are 90%+ similar)
+    let isDuplicate = false;
+    for (const seenKey of seen) {
+      const [seenQuestion, seenAnswer] = seenKey.split("|||");
+      
+      // Check question similarity
+      const questionSimilarity = calculateSimilarity(normalizedQuestion, seenQuestion);
+      // Check answer similarity
+      const answerSimilarity = calculateSimilarity(normalizedAnswer, seenAnswer);
+      
+      // If either question or answer is very similar, consider it a duplicate
+      if (questionSimilarity > 0.9 || answerSimilarity > 0.9) {
+        isDuplicate = true;
+        console.log(`[DEDUPE] Removed similar question: "${item.question.substring(0, 60)}..." (Q-sim: ${(questionSimilarity * 100).toFixed(1)}%, A-sim: ${(answerSimilarity * 100).toFixed(1)}%)`);
+        break;
+      }
+    }
+
+    if (!isDuplicate) {
+      seen.add(combinedKey);
+      uniqueQuestions.push(item);
+    }
+  }
+
+  console.log(`[DEDUPE] Removed ${engagement.commentStarters.length - uniqueQuestions.length} duplicate questions. Remaining: ${uniqueQuestions.length} unique questions.`);
+
+  return {
+    ...engagement,
+    commentStarters: uniqueQuestions,
+  };
+}
+
+/**
+ * Calculate similarity between two strings using a simple word overlap metric
+ * Returns a value between 0 and 1, where 1 is identical
+ */
+function calculateSimilarity(str1: string, str2: string): number {
+  const words1 = new Set(str1.split(/\s+/).filter(w => w.length > 2)); // Ignore short words
+  const words2 = new Set(str2.split(/\s+/).filter(w => w.length > 2));
+
+  if (words1.size === 0 && words2.size === 0) return 1;
+  if (words1.size === 0 || words2.size === 0) return 0;
+
+  const intersection = new Set([...words1].filter(w => words2.has(w)));
+  const union = new Set([...words1, ...words2]);
+
+  return intersection.size / union.size;
+}
+
+/**
+ * Filters out questions containing forbidden content (names, podcast references, non-clinical content)
+ * This is a CODE-LEVEL filter that removes bad questions regardless of what AI generates
+ */
+function filterForbiddenQuestions(
+  engagement: Engagement,
+  isDocument: boolean,
+  expectedCount: number,
+): Engagement {
+  const forbiddenPatterns = [
+    // Names
+    /\b(Zach|Zachary|Ninja|Zach Romere)\b/gi,
+    // Podcast/platform references
+    /\b(podcast|video podcast|Ninja Nerd Podcast|YouTube|every Friday|keep updated|release a podcast|live broadcasting|broadcasting)\b/gi,
+    // Non-clinical topics
+    /\b(digital learning|multimedia learning|learning trends|video podcast format|podcast format|audio podcast|live guests|the team)\b/gi,
+    // Greetings/announcements
+    /\b(welcome back|thank you|send off|we're doing|we have finished|we're launching|we're working on)\b/gi,
+  ];
+
+  // Filter questions
+  const filteredQuestions = engagement.commentStarters.filter((item) => {
+    const questionLower = item.question.toLowerCase();
+    const answerLower = item.answer.toLowerCase();
+
+    // Check question for forbidden content
+    const hasForbiddenInQuestion = forbiddenPatterns.some((pattern) =>
+      pattern.test(item.question),
+    );
+
+    if (hasForbiddenInQuestion) {
+      console.log(`[FILTERED] Removed question with forbidden content: "${item.question}"`);
+      return false;
+    }
+
+    // Additional checks for common forbidden patterns
+    if (
+      questionLower.includes("zach") ||
+      questionLower.includes("zachary") ||
+      questionLower.includes("ninja") ||
+      questionLower.includes("podcast") ||
+      questionLower.includes("youtube") ||
+      questionLower.includes("video podcast") ||
+      questionLower.includes("live broadcasting") ||
+      questionLower.includes("broadcasting") ||
+      questionLower.includes("digital learning") ||
+      questionLower.includes("multimedia learning") ||
+      questionLower.includes("learning trends") ||
+      questionLower.includes("the team") ||
+      questionLower.includes("live guests") ||
+      questionLower.includes("welcome") ||
+      questionLower.includes("thank you") ||
+      questionLower.includes("send off")
+    ) {
+      console.log(`[FILTERED] Removed non-clinical question: "${item.question}"`);
+      return false;
+    }
+
+    // Check answer for forbidden content (if answer contains names/podcast refs, remove question)
+    if (
+      answerLower.includes("zach") ||
+      answerLower.includes("zachary") ||
+      answerLower.includes("ninja") ||
+      answerLower.includes("podcast") ||
+      answerLower.includes("youtube") ||
+      answerLower.includes("video podcast")
+    ) {
+      console.log(`[FILTERED] Removed question with forbidden content in answer: "${item.question}"`);
+      return false;
+    }
+
+    return true;
+  });
+
+  // Don't pad with generic questions - deduplication will handle ensuring uniqueness
+  // It's better to have fewer unique questions than duplicate generic ones
+  if (filteredQuestions.length < expectedCount) {
+    console.log(`[FILTERED] Filtered out ${engagement.commentStarters.length - filteredQuestions.length} questions. Remaining: ${filteredQuestions.length} unique questions (expected: ${expectedCount}).`);
+  }
+
+  console.log(`[FILTERED] Filtered ${engagement.commentStarters.length - filteredQuestions.length} questions with forbidden content. Remaining: ${filteredQuestions.length} questions.`);
+
+  return {
+    ...engagement,
+    commentStarters: filteredQuestions,
+  };
+}
+

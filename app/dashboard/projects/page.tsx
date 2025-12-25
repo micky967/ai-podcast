@@ -12,9 +12,7 @@ interface ProjectsPageProps {
   }>;
 }
 
-export default async function ProjectsPage({
-  searchParams,
-}: ProjectsPageProps) {
+export default async function ProjectsPage({ searchParams }: ProjectsPageProps) {
   const { userId } = await auth();
 
   // Redirect if not authenticated (shouldn't happen with middleware, but for safety)
@@ -26,32 +24,24 @@ export default async function ProjectsPage({
   const categoryId = params.category as Id<"categories"> | undefined;
 
   // Preload projects data on the server
-  // Always use listUserProjectsWithShared with filter "all" to include both own and shared projects
-  // This ensures the sharing fix works: new uploads by group owners are visible to group members
-  const preloadedProjects = await preloadQuery(
-    api.projects.listUserProjectsWithShared,
-    {
-      userId,
-      filter: "all",
-    }
-  );
+  // Use category-specific query if category is provided
+  // For non-category pages, use listUserProjectsWithShared with filter "all" to include both own and shared projects
+  const preloadedProjects = categoryId
+    ? await preloadQuery(api.projects.listUserProjectsByCategory, {
+        userId,
+        categoryId,
+      })
+    : await preloadQuery(api.projects.listUserProjectsWithShared, {
+        userId,
+        filter: "all",
+      });
 
-  // Category feature is optional - only load if categories API is available
-  // Using type assertion to handle optional feature gracefully
-  let preloadedCategory = undefined;
-  if (categoryId) {
-    try {
-      const categoriesApi = (api as any).categories;
-      if (categoriesApi?.getCategory) {
-        preloadedCategory = await preloadQuery(categoriesApi.getCategory, {
-          categoryId,
-        });
-      }
-    } catch (error) {
-      // Categories feature not available, continue without it
-      console.warn("Categories API not available");
-    }
-  }
+  // Preload category data if category is provided
+  const preloadedCategory = categoryId
+    ? await preloadQuery(api.categories.getCategory, {
+        categoryId,
+      })
+    : undefined;
 
   return (
     <ProjectsList

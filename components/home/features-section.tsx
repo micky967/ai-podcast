@@ -1,12 +1,12 @@
 import {
   FileText,
-  Hash,
+  Layers,
   type LucideIcon,
   MessageSquare,
   Sparkles,
   Upload,
-  Zap,
   Users,
+  Zap,
 } from "lucide-react";
 
 interface Feature {
@@ -35,10 +35,10 @@ const FEATURES: Feature[] = [
       "Generate platform-optimized social media posts for Twitter, LinkedIn, Instagram, TikTok, YouTube, and Facebook.",
   },
   {
-    icon: Hash,
-    title: "Titles & Hashtags",
+    icon: Layers,
+    title: "PowerPoint Outlines",
     description:
-      "Get SEO-optimized titles and platform-specific hashtags automatically for maximum reach.",
+      "Turn the transcript or document into a structured slide deck outline with concise text and light icon hints.",
   },
   {
     icon: Zap,

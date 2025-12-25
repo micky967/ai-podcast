@@ -35,11 +35,13 @@ import {
   createProjectAction,
   validateUploadAction,
 } from "@/app/actions/projects";
+import { CategorySelector } from "@/components/category-selector";
 import { Button } from "@/components/ui/button";
 import { UploadDropzone } from "@/components/upload-dropzone";
 import { UploadProgress } from "@/components/upload-progress";
 import { estimateDurationFromSize, getAudioDuration } from "@/lib/audio-utils";
 import type { UploadStatus } from "@/lib/types";
+import type { Id } from "@/convex/_generated/dataModel";
 
 export function PodcastUploader() {
   const router = useRouter();
@@ -48,23 +50,49 @@ export function PodcastUploader() {
   // Upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileDuration, setFileDuration] = useState<number | undefined>(
-    undefined
+    undefined,
   );
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
   const [error, setError] = useState<string | null>(null);
 
+  // Category selection state
+  const [selectedCategoryId, setSelectedCategoryId] =
+    useState<Id<"categories"> | null>(null);
+  const [selectedSubcategoryId, setSelectedSubcategoryId] =
+    useState<Id<"categories"> | null>(null);
+
+  /**
+   * Check if file is a document (not audio)
+   */
+  const isDocumentFile = (mimeType: string): boolean => {
+    return (
+      mimeType === "application/pdf" ||
+      mimeType === "application/msword" ||
+      mimeType ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      mimeType === "text/plain"
+    );
+  };
+
   /**
    * Handle file selection from dropzone
    *
-   * Extracts duration for better UX (shows processing time estimates)
-   * Falls back to size-based estimation if extraction fails
+   * For audio files: Extracts duration for better UX (shows processing time estimates)
+   * For documents: Skips duration extraction (not applicable)
    */
   const handleFileSelect = async (file: File) => {
     setSelectedFile(file);
     setUploadStatus("idle");
     setUploadProgress(0);
     setError(null);
+
+    // Skip duration extraction for documents
+    if (isDocumentFile(file.type)) {
+      setFileDuration(undefined);
+      console.log("Document file selected - skipping duration extraction");
+      return;
+    }
 
     // Attempt to extract accurate duration from audio file
     try {
@@ -93,6 +121,12 @@ export function PodcastUploader() {
   const handleUpload = async () => {
     if (!selectedFile || !userId) {
       toast.error("Please select a file to upload");
+      return;
+    }
+
+    // Validate category is selected (required)
+    if (!selectedCategoryId) {
+      toast.error("Please select a category before uploading");
       return;
     }
 
@@ -129,6 +163,8 @@ export function PodcastUploader() {
         fileSize: selectedFile.size,
         mimeType: selectedFile.type,
         fileDuration,
+        categoryId: selectedCategoryId,
+        subcategoryId: selectedSubcategoryId || undefined,
       });
 
       toast.success("Upload completed! Processing your podcast...");
@@ -159,10 +195,12 @@ export function PodcastUploader() {
     setUploadStatus("idle");
     setUploadProgress(0);
     setError(null);
+    setSelectedCategoryId(null);
+    setSelectedSubcategoryId(null);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-32 md:pb-6">
       {/* Show dropzone only when no file is selected */}
       {!selectedFile && uploadStatus === "idle" && (
         <UploadDropzone
@@ -183,13 +221,32 @@ export function PodcastUploader() {
             error={error || undefined}
           />
 
+          {/* Category Selection (show when idle or error, before upload) */}
+          {(uploadStatus === "idle" || uploadStatus === "error") && (
+            <CategorySelector
+              selectedCategoryId={selectedCategoryId}
+              selectedSubcategoryId={selectedSubcategoryId}
+              onCategoryChange={setSelectedCategoryId}
+              onSubcategoryChange={setSelectedSubcategoryId}
+              required={true}
+            />
+          )}
+
           {/* Action buttons (show when idle or error) */}
           {(uploadStatus === "idle" || uploadStatus === "error") && (
-            <div className="flex gap-3">
-              <Button onClick={handleUpload} className="flex-1">
+            <div className="flex gap-3" id="upload-buttons">
+              <Button
+                onClick={handleUpload}
+                className="flex-1 min-h-[48px] text-base"
+                disabled={!selectedCategoryId}
+              >
                 {uploadStatus === "error" ? "Try Again" : "Start Upload"}
               </Button>
-              <Button onClick={handleReset} variant="outline">
+              <Button 
+                onClick={handleReset} 
+                variant="outline"
+                className="min-h-[48px] px-6 text-base"
+              >
                 Cancel
               </Button>
             </div>

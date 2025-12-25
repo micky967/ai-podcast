@@ -1,18 +1,29 @@
 "use client";
 
-import { SignInButton, UserButton, useAuth, Protect } from "@clerk/nextjs";
-import { Home, Sparkles, Zap, Crown } from "lucide-react";
+import { Protect, SignInButton, UserButton, useAuth } from "@clerk/nextjs";
+import { Crown, Home, Shield, Sparkles, Zap } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { DashboardNav } from "@/components/dashboard-nav";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { JoinRequestsNotification } from "@/components/sharing/join-requests-notification";
+import { UserActivityTracker } from "@/components/user-activity-tracker";
 
 export function Header() {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, userId } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const isDashboard = pathname?.startsWith("/dashboard");
   const showDashboardNav = isDashboard;
+
+  // Check if user is admin
+  const isAdmin = useQuery(
+    api.userSettings.isUserAdmin,
+    userId ? { userId } : "skip"
+  );
 
   return (
     <header
@@ -22,58 +33,63 @@ export function Header() {
           : "glass-nav sticky top-0 transition-all z-50 backdrop-blur-md border-b border-gray-200/50 shadow-sm"
       }
     >
-      <div className="container mx-auto px-4 lg:px-6">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-2 lg:gap-8">
+      <div className="container mx-auto px-1 sm:px-2 md:px-4 lg:px-6 overflow-hidden max-w-full">
+        <div className="flex items-center justify-between h-14 sm:h-16 overflow-hidden max-w-full">
+          <div className={`flex items-center gap-0.5 sm:gap-1 md:gap-2 lg:gap-8 min-w-0 flex-shrink overflow-hidden ${isDashboard ? 'max-w-[45%] md:max-w-none' : ''}`}>
             <Link
               href="/"
-              className="flex items-center gap-2.5 hover:opacity-90 transition-all duration-300 group"
+              className="flex items-center gap-0.5 sm:gap-1 md:gap-2.5 hover:opacity-90 transition-all duration-300 group min-w-0 flex-shrink"
             >
               <div
                 className={
                   isDashboard
-                    ? "p-2 rounded-xl bg-white/95 group-hover:bg-white group-hover:scale-110 group-hover:shadow-xl transition-all duration-300"
-                    : "p-2 rounded-xl gradient-emerald group-hover:scale-110 group-hover:shadow-xl transition-all duration-300"
+                    ? "p-1 sm:p-1.5 md:p-2 rounded-lg sm:rounded-xl bg-white/95 group-hover:bg-white group-hover:scale-110 group-hover:shadow-xl transition-all duration-300 flex-shrink-0"
+                    : "p-1 sm:p-1.5 md:p-2 rounded-lg sm:rounded-xl gradient-emerald group-hover:scale-110 group-hover:shadow-xl transition-all duration-300 flex-shrink-0"
                 }
               >
                 <Sparkles
                   className={
                     isDashboard
-                      ? "h-5 w-5 text-emerald-600 group-hover:rotate-12 transition-transform duration-300"
-                      : "h-5 w-5 text-white group-hover:rotate-12 transition-transform duration-300"
+                      ? "h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 text-emerald-600 group-hover:rotate-12 transition-transform duration-300"
+                      : "h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 text-white group-hover:rotate-12 transition-transform duration-300"
                   }
                 />
               </div>
               <span
                 className={
                   isDashboard
-                    ? "text-xl font-bold text-white tracking-tight"
-                    : "text-xl font-bold gradient-emerald-text tracking-tight"
+                    ? "hidden sm:inline text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl font-bold text-white tracking-tight whitespace-nowrap"
+                    : "hidden sm:inline text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl font-bold gradient-emerald-text tracking-tight whitespace-nowrap"
                 }
               >
-                Manjit
+                MedTrain
               </span>
             </Link>
 
             {/* Dashboard Navigation inline with logo */}
             {showDashboardNav && (
-              <div className="flex items-center pl-2 sm:pl-4 border-l border-white/20">
+              <div className="flex items-center pl-0 sm:pl-0.5 md:pl-1 lg:pl-2 xl:pl-4 border-l border-white/20 flex-shrink-0 overflow-hidden">
                 <DashboardNav />
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-2 lg:gap-3">
+          <div className="flex items-center gap-0 sm:gap-0.5 md:gap-1 lg:gap-2 xl:gap-3 flex-shrink-0 min-w-0">
             {isSignedIn ? (
               <>
-                {/* Show "Upgrade to Pro" for Free users */}
+                {/* Show "Upgrade to Pro" for Free users - hide on mobile dashboard */}
                 <Protect
                   condition={(has) =>
                     !has({ plan: "pro" }) && !has({ plan: "ultra" })
                   }
                   fallback={null}
                 >
-                  <Link href="/dashboard/upgrade">
+                  <Link
+                    href="/dashboard/upgrade"
+                    prefetch={true}
+                    onMouseEnter={() => router.prefetch("/dashboard/upgrade")}
+                    className={isDashboard ? "hidden md:block" : ""}
+                  >
                     <Button
                       className={
                         isDashboard
@@ -88,14 +104,19 @@ export function Header() {
                   </Link>
                 </Protect>
 
-                {/* Show "Upgrade to Ultra" for Pro users */}
+                {/* Show "Upgrade to Ultra" for Pro users - hide on mobile dashboard */}
                 <Protect
                   condition={(has) =>
                     has({ plan: "pro" }) && !has({ plan: "ultra" })
                   }
                   fallback={null}
                 >
-                  <Link href="/dashboard/upgrade">
+                  <Link
+                    href="/dashboard/upgrade"
+                    prefetch={true}
+                    onMouseEnter={() => router.prefetch("/dashboard/upgrade")}
+                    className={isDashboard ? "hidden md:block" : ""}
+                  >
                     <Button
                       className={
                         isDashboard
@@ -128,23 +149,51 @@ export function Header() {
                 </Protect>
 
                 {!showDashboardNav && (
-                  <Link href="/dashboard/projects">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={
-                        isDashboard
-                          ? "hover-scale text-white hover:bg-white/20 transition-all duration-300"
-                          : "hover-scale transition-all duration-300"
+                  <>
+                    <Link
+                      href="/dashboard/projects"
+                      prefetch={true}
+                      onMouseEnter={() =>
+                        router.prefetch("/dashboard/projects")
                       }
                     >
-                      <span className="hidden lg:inline">My Projects</span>
-                      <span className="lg:hidden">Projects</span>
-                    </Button>
-                  </Link>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={
+                          isDashboard
+                            ? "hover-scale text-white hover:bg-white/20 transition-all duration-300"
+                            : "hover-scale transition-all duration-300"
+                        }
+                      >
+                        <span className="hidden lg:inline">My Projects</span>
+                        <span className="lg:hidden">Projects</span>
+                      </Button>
+                    </Link>
+                    {isAdmin && (
+                      <Link
+                        href="/dashboard/admin"
+                        prefetch={true}
+                        onMouseEnter={() => router.prefetch("/dashboard/admin")}
+                      >
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={
+                            isDashboard
+                              ? "gap-2 hover-scale text-white hover:bg-white/20 transition-all duration-300"
+                              : "gap-2 hover-scale transition-all duration-300"
+                          }
+                        >
+                          <Shield className="h-4 w-4" />
+                          <span className="hidden lg:inline">Admin</span>
+                        </Button>
+                      </Link>
+                    )}
+                  </>
                 )}
                 {showDashboardNav && (
-                  <Link href="/" className="hidden lg:block">
+                  <Link href="/" className="hidden lg:block" prefetch={true}>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -159,7 +208,13 @@ export function Header() {
                     </Button>
                   </Link>
                 )}
-                <div className="scale-110 hover:scale-125 transition-transform duration-300">
+                {/* Show notification component on dashboard pages */}
+                {isDashboard && (
+                  <div className="hidden md:block">
+                    <JoinRequestsNotification />
+                  </div>
+                )}
+                <div className={isDashboard ? "scale-75 sm:scale-90 md:scale-100 lg:scale-110 hover:scale-125 transition-transform duration-300 flex-shrink-0" : "scale-110 hover:scale-125 transition-transform duration-300 flex-shrink-0"}>
                   <UserButton afterSignOutUrl="/" />
                 </div>
               </>
@@ -179,6 +234,7 @@ export function Header() {
           </div>
         </div>
       </div>
+      <UserActivityTracker />
     </header>
   );
 }
