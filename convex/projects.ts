@@ -647,45 +647,27 @@ export const listUserProjectsWithShared = query({
       if (uniqueOwnerIds.length > 0) {
         // Use Promise.all - Convex tracks each individual indexed query
         // Each query with withIndex("by_user") is tracked separately
-        // Use pagination to fetch ALL projects for each owner (Convex .collect() may have limits)
+        // Query each owner's projects using indexed queries
+        // NOTE: We use .collect() here instead of .paginate() because Convex only allows
+        // a single paginated query per function. .collect() should return all results,
+        // but if there's a limit, we'll need to handle it differently.
         const sharedProjectArrays = await Promise.all(
           uniqueOwnerIds.map(async (ownerId) => {
             try {
               // CRITICAL: Indexed query with order() - Convex tracks this for reactivity
               // When ownerId creates a new project, Convex will detect it via the by_user index
-              // Use pagination to ensure we get ALL projects (not just first 50)
-              let allProjects: Doc<"projects">[] = [];
-              let cursor: string | null | undefined = null;
-              let hasMore = true;
-              
-              while (hasMore) {
-                try {
-                  const page = await ctx.db
-                    .query("projects")
-                    .withIndex("by_user", (q) => q.eq("userId", ownerId))
-                    .filter((q) => q.eq(q.field("deletedAt"), undefined))
-                    .order("desc") // CRITICAL: Ensures Convex tracks this query
-                    .paginate({
-                      numItems: 100, // Fetch 100 at a time
-                      cursor: cursor ?? null,
-                    });
-                  
-                  allProjects = [...allProjects, ...page.page];
-                  cursor = page.continueCursor ?? null;
-                  hasMore = cursor !== null;
-                  
-                  console.log(`[listUserProjectsWithShared] Pagination page: fetched ${page.page.length} projects, cursor=${cursor}, hasMore=${hasMore}`);
-                } catch (pageErr) {
-                  console.error(`[listUserProjectsWithShared] Error in pagination loop for owner ${ownerId}:`, pageErr);
-                  hasMore = false; // Stop pagination on error
-                }
-              }
+              const projects = await ctx.db
+                .query("projects")
+                .withIndex("by_user", (q) => q.eq("userId", ownerId))
+                .filter((q) => q.eq(q.field("deletedAt"), undefined))
+                .order("desc") // CRITICAL: Ensures Convex tracks this query
+                .collect();
               
               // Log the count for debugging
-              console.log(`[listUserProjectsWithShared] Found ${allProjects.length} projects for owner ${ownerId} (fetched via pagination)`);
+              console.log(`[listUserProjectsWithShared] Found ${projects.length} projects for owner ${ownerId}`);
               
               // Sort by createdAt (newest first) as secondary sort
-              return allProjects.sort((a, b) => b.createdAt - a.createdAt);
+              return projects.sort((a, b) => b.createdAt - a.createdAt);
             } catch (err) {
               console.error(`[listUserProjectsWithShared] Error querying projects for owner ${ownerId}:`, err);
               return [];
