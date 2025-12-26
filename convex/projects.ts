@@ -629,40 +629,36 @@ export const listUserProjectsWithShared = query({
       // Remove duplicate owner IDs
       const uniqueOwnerIds = [...new Set(ownerIds)];
 
-      // Get shared projects - use individual indexed queries per owner for proper reactivity
-      // CRITICAL: Use .order("desc") to ensure Convex properly tracks the query for reactivity
-      // Without order(), Convex may not detect when new projects are added by other users
+      // Get shared projects - query ALL projects and filter by owner IDs
+      // This approach ensures Convex tracks the entire projects table for reactivity
+      // When ANY project is created/updated, this query will re-run
       let sharedProjects: Doc<"projects">[] = [];
       if (uniqueOwnerIds.length > 0) {
-        // Query each owner's projects individually using the by_user index
-        // Use .order("desc") to ensure proper reactivity tracking
-        const sharedProjectArrays = await Promise.all(
-          uniqueOwnerIds.map(async (ownerId) => {
-            try {
-              // Use .order("desc") to sort by _creationTime - this is CRITICAL for reactivity
-              // Convex needs the order() call to properly track changes to the query results
-              const projects = await ctx.db
-                .query("projects")
-                .withIndex("by_user", (q) => q.eq("userId", ownerId))
-                .filter((q) => q.eq(q.field("deletedAt"), undefined))
-                .order("desc") // CRITICAL: This ensures Convex tracks the query for reactivity
-                .collect();
-              
-              // Also sort by createdAt as secondary sort (in case _creationTime != createdAt)
-              const sorted = projects.sort((a, b) => b.createdAt - a.createdAt);
-              
-              console.log(`[listUserProjectsWithShared] Found ${sorted.length} projects for owner ${ownerId}, newest: ${sorted[0]?.createdAt ? new Date(sorted[0].createdAt).toISOString() : 'none'}`);
-              
-              return sorted;
-            } catch (err) {
-              console.error(`[listUserProjectsWithShared] Error querying projects for owner ${ownerId}:`, err);
-              return [];
-            }
-          })
-        );
-        
-        sharedProjects = sharedProjectArrays.flat();
-        console.log(`[listUserProjectsWithShared] Total shared projects: ${sharedProjects.length}, filter: ${filter}`);
+        try {
+          // Create a Set for fast lookup
+          const ownerIdSet = new Set(uniqueOwnerIds);
+          
+          // Query ALL non-deleted projects with order() to ensure Convex tracks the entire table
+          // This is CRITICAL: Convex needs to track the entire projects table to detect new projects
+          const allProjects = await ctx.db
+            .query("projects")
+            .filter((q) => q.eq(q.field("deletedAt"), undefined))
+            .order("desc") // CRITICAL: Ensures Convex tracks this query for reactivity
+            .collect();
+          
+          // Filter to only projects owned by group owners
+          sharedProjects = allProjects
+            .filter((p) => ownerIdSet.has(p.userId))
+            .sort((a, b) => b.createdAt - a.createdAt); // Sort by createdAt (newest first)
+          
+          console.log(`[listUserProjectsWithShared] Total shared projects: ${sharedProjects.length} from ${uniqueOwnerIds.length} owners, filter: ${filter}`);
+          if (sharedProjects.length > 0) {
+            console.log(`[listUserProjectsWithShared] Newest shared project: ${new Date(sharedProjects[0].createdAt).toISOString()}`);
+          }
+        } catch (err) {
+          console.error("[listUserProjectsWithShared] Error getting shared projects:", err);
+          sharedProjects = [];
+        }
       }
 
       // Combine and filter based on filter type
@@ -1058,24 +1054,31 @@ export const getAllUserProjectsWithShared = query({
         .collect();
 
       // Get groups where user is an active member
+      // CRITICAL: Query groupMembers with order() to ensure Convex tracks this query for reactivity
       let memberGroups: Doc<"groupMembers">[] = [];
       try {
         memberGroups = await ctx.db
           .query("groupMembers")
           .withIndex("by_user", (q) => q.eq("userId", args.userId))
           .filter((q) => q.eq(q.field("status"), "active"))
+          .order("desc") // CRITICAL: Ensures Convex tracks this query for reactivity
           .collect();
       } catch (err) {
         console.error("[getAllUserProjectsWithShared] Error querying groupMembers:", err);
         memberGroups = [];
       }
 
-      // Get group owner IDs (filter out deleted groups)
+      // Get group owner IDs - CRITICAL: Always check if groups still exist
       const groupIds = memberGroups.map((m) => m.groupId);
       const groups = await Promise.all(
         groupIds.map(async (id) => {
           try {
-            return await ctx.db.get(id);
+            const group = await ctx.db.get(id);
+            if (!group) {
+              console.log(`[getAllUserProjectsWithShared] Group ${id} was deleted, skipping`);
+              return null;
+            }
+            return group;
           } catch (err) {
             console.error(`[getAllUserProjectsWithShared] Error getting group ${id}:`, err);
             return null;
@@ -1090,35 +1093,25 @@ export const getAllUserProjectsWithShared = query({
       // Remove duplicate owner IDs
       const uniqueOwnerIds = [...new Set(ownerIds)];
 
-      // Get shared projects - use individual indexed queries per owner for proper reactivity
-      // Each query with an index is properly tracked by Convex, so new projects trigger updates
+      // Get shared projects - query ALL projects and filter by owner IDs
+      // This ensures Convex tracks the entire projects table for reactivity
       let flattenedShared: Doc<"projects">[] = [];
       if (uniqueOwnerIds.length > 0) {
         try {
-          // Query each owner's projects individually using the by_user index
-          // Use order("desc") to ensure newest projects come first and proper reactivity tracking
-          const sharedProjectArrays = await Promise.all(
-            uniqueOwnerIds.map(async (ownerId) => {
-              try {
-                // Use order("desc") to sort by _creationTime descending (newest first)
-                // This ensures proper reactivity and correct ordering
-                const projects = await ctx.db
-                  .query("projects")
-                  .withIndex("by_user", (q) => q.eq("userId", ownerId))
-                  .filter((q) => q.eq(q.field("deletedAt"), undefined))
-                  .order("desc")
-                  .collect();
-                
-                // Also sort by createdAt as a secondary sort to ensure consistency
-                return projects.sort((a, b) => b.createdAt - a.createdAt);
-              } catch (err) {
-                console.error(`[getAllUserProjectsWithShared] Error querying projects for owner ${ownerId}:`, err);
-                return [];
-              }
-            })
-          );
+          // Create a Set for fast lookup
+          const ownerIdSet = new Set(uniqueOwnerIds);
           
-          flattenedShared = sharedProjectArrays.flat();
+          // Query ALL non-deleted projects with order() to ensure Convex tracks the entire table
+          const allProjects = await ctx.db
+            .query("projects")
+            .filter((q) => q.eq(q.field("deletedAt"), undefined))
+            .order("desc") // CRITICAL: Ensures Convex tracks this query for reactivity
+            .collect();
+          
+          // Filter to only projects owned by group owners
+          flattenedShared = allProjects
+            .filter((p) => ownerIdSet.has(p.userId))
+            .sort((a, b) => b.createdAt - a.createdAt); // Sort by createdAt (newest first)
         } catch (err) {
           console.error("[getAllUserProjectsWithShared] Error getting shared projects:", err);
           flattenedShared = [];
