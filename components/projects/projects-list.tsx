@@ -453,7 +453,7 @@ export function ProjectsList({
   }
 
   return (
-    <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0 overflow-x-hidden" style={{ paddingBottom: typeof window !== 'undefined' && window.innerWidth < 768 ? '100px' : '40px' }}>
+    <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0 overflow-x-hidden" style={{ paddingBottom: typeof window !== 'undefined' && window.innerWidth < 768 ? '100px' : '40px', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
       {categoryId ? (
         <CategoryHeader
           categoryId={categoryId}
@@ -487,7 +487,7 @@ export function ProjectsList({
 
       {hasProjects && (
         <>
-          <div className="grid gap-4 @container">
+          <div className="grid gap-4 @container" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
             {filteredProjects.map((project: any) => (
               <div
                 key={`${project._id}-${project.categoryId || "none"}-${
@@ -498,6 +498,7 @@ export function ProjectsList({
                     ? highlightedElementRef
                     : null
                 }
+                style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
               >
                 <ProjectCard
                   project={project}

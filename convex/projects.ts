@@ -629,25 +629,26 @@ export const listUserProjectsWithShared = query({
       // Remove duplicate owner IDs
       const uniqueOwnerIds = [...new Set(ownerIds)];
 
-      // Get shared projects using individual queries for better reactivity
+      // Get shared projects - query all projects and filter by owner IDs for proper reactivity
+      // This ensures Convex tracks the entire projects table, so new projects trigger updates
       let sharedProjects: Doc<"projects">[] = [];
       if (uniqueOwnerIds.length > 0) {
-        // Use individual queries for each owner to ensure reactivity
-        const sharedProjectPromises = uniqueOwnerIds.map(async (ownerId) => {
-          try {
-            return await ctx.db
-              .query("projects")
-              .withIndex("by_user", (q) => q.eq("userId", ownerId))
-              .filter((q) => q.eq(q.field("deletedAt"), undefined))
-              .collect();
-          } catch (err) {
-            console.error(`[listUserProjectsWithShared] Error querying projects for owner ${ownerId}:`, err);
-            return [];
-          }
-        });
-
-        const sharedProjectArrays = await Promise.all(sharedProjectPromises);
-        sharedProjects = sharedProjectArrays.flat();
+        // Create a Set for fast lookup
+        const ownerIdSet = new Set(uniqueOwnerIds);
+        
+        // Query all projects and filter by owner IDs
+        // This approach ensures Convex properly tracks all projects for reactivity
+        const allProjectsQuery = ctx.db
+          .query("projects")
+          .filter((q) => q.eq(q.field("deletedAt"), undefined));
+        
+        // Collect all non-deleted projects
+        const allNonDeletedProjects = await allProjectsQuery.collect();
+        
+        // Filter to only projects owned by group owners
+        sharedProjects = allNonDeletedProjects.filter((p) => 
+          ownerIdSet.has(p.userId)
+        );
       }
 
       // Combine and filter based on filter type
@@ -1066,31 +1067,32 @@ export const getAllUserProjectsWithShared = query({
       // Remove duplicate owner IDs
       const uniqueOwnerIds = [...new Set(ownerIds)];
 
-      // Get shared projects (from group owners)
-      let sharedProjects: Doc<"projects">[][] = [];
+      // Get shared projects - query all projects and filter by owner IDs for proper reactivity
+      // This ensures Convex tracks the entire projects table, so new projects trigger updates
+      let flattenedShared: Doc<"projects">[] = [];
       if (uniqueOwnerIds.length > 0) {
         try {
-          sharedProjects = await Promise.all(
-            uniqueOwnerIds.map(async (ownerId) => {
-              try {
-                return await ctx.db
-                  .query("projects")
-                  .withIndex("by_user", (q) => q.eq("userId", ownerId))
-                  .filter((q) => q.eq(q.field("deletedAt"), undefined))
-                  .collect();
-              } catch (err) {
-                console.error(`[getAllUserProjectsWithShared] Error querying projects for owner ${ownerId}:`, err);
-                return [];
-              }
-            }),
+          // Create a Set for fast lookup
+          const ownerIdSet = new Set(uniqueOwnerIds);
+          
+          // Query all projects and filter by owner IDs
+          // This approach ensures Convex properly tracks all projects for reactivity
+          const allProjectsQuery = ctx.db
+            .query("projects")
+            .filter((q) => q.eq(q.field("deletedAt"), undefined));
+          
+          // Collect all non-deleted projects
+          const allNonDeletedProjects = await allProjectsQuery.collect();
+          
+          // Filter to only projects owned by group owners
+          flattenedShared = allNonDeletedProjects.filter((p) => 
+            ownerIdSet.has(p.userId)
           );
         } catch (err) {
           console.error("[getAllUserProjectsWithShared] Error getting shared projects:", err);
-          sharedProjects = [];
+          flattenedShared = [];
         }
       }
-
-      const flattenedShared = sharedProjects.flat();
 
       // Combine and filter based on filter type
       let allProjects: typeof ownProjects = [];
