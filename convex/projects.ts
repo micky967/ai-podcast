@@ -654,7 +654,7 @@ export const listUserProjectsWithShared = query({
               // When ownerId creates a new project, Convex will detect it via the by_user index
               // Use pagination to ensure we get ALL projects (not just first 50)
               let allProjects: Doc<"projects">[] = [];
-              let cursor: string | null = null;
+              let cursor: string | null | undefined = null;
               let hasMore = true;
               
               while (hasMore) {
@@ -665,12 +665,12 @@ export const listUserProjectsWithShared = query({
                   .order("desc") // CRITICAL: Ensures Convex tracks this query
                   .paginate({
                     numItems: 100, // Fetch 100 at a time
-                    cursor: cursor || undefined,
+                    cursor: cursor ?? null,
                   });
                 
                 allProjects = [...allProjects, ...page.page];
-                cursor = page.continueCursor;
-                hasMore = cursor !== null && cursor !== undefined;
+                cursor = page.continueCursor ?? null;
+                hasMore = cursor !== null;
               }
               
               // Log the count for debugging
