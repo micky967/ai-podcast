@@ -4,7 +4,7 @@ import { useAuth } from "@clerk/nextjs";
 import { FileAudio, Loader2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { deleteProjectAction } from "@/app/actions/projects";
 import { updateProjectCategoryAction } from "@/app/actions/categories";
@@ -22,6 +22,8 @@ import {
 import { getCurrentPlan } from "@/lib/client-tier-utils";
 import { cn } from "@/lib/utils";
 
+const ownerNameCache = new Map<string, string>();
+
 interface ProjectCardProps {
   project: Doc<"projects">;
   isOnAllProjectsPage?: boolean;
@@ -37,6 +39,7 @@ export function ProjectCard({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [ownerName, setOwnerName] = useState<string | null>(null);
   const router = useRouter();
 
   // Check if user has Ultra plan (required for drag-and-drop)
@@ -45,6 +48,43 @@ export function ProjectCard({
 
   // Check if this is a shared project (not owned by current user)
   const isSharedProject = currentUserId && project.userId !== currentUserId;
+
+  useEffect(() => {
+    if (!project.userId) {
+      return;
+    }
+
+    const cachedOwner = ownerNameCache.get(project.userId);
+    if (cachedOwner) {
+      setOwnerName(cachedOwner);
+      return;
+    }
+
+    let canceled = false;
+
+    fetch(`/api/users/${project.userId}/name`)
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error("Failed to load owner info");
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (canceled) return;
+        const name = data?.name || "Unknown user";
+        ownerNameCache.set(project.userId!, name);
+        setOwnerName(name);
+      })
+      .catch((error) => {
+        if (canceled) return;
+        console.error("Failed to fetch project owner:", error);
+        setOwnerName("Unknown user");
+      });
+
+    return () => {
+      canceled = true;
+    };
+  }, [project.userId]);
 
   const handleDragStart = (e: React.DragEvent) => {
     setIsDragging(true);
@@ -173,7 +213,8 @@ export function ProjectCard({
                       {project.displayName || project.fileName}
                     </h3>
                     <p className="text-sm text-gray-600 mt-2 font-medium">
-                      {formatSmartDate(project.createdAt)}
+                      Created {formatSmartDate(project.createdAt)}
+                      {ownerName ? ` • ${ownerName}` : ""}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 sm:gap-3 shrink-0">

@@ -28,7 +28,7 @@ export function HeroSection() {
 
   return (
     <section className="relative overflow-hidden mesh-background">
-      <div className="container mx-auto px-4 py-24 md:pb-32 md:pt-20">
+      <div className="container mx-auto px-4 py-24 md:pb-32 md:pt-14">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-20 animate-float">
             <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full glass-card hover-glow mb-8 animate-shimmer">
@@ -47,7 +47,7 @@ export function HeroSection() {
             </h1>
 
             <p className="text-xl font-semibold md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed">
-              Upload your podcasts or PDF files and get AI-generated Questions & Answers for, Summaries,
+              Upload your Podcasts or PDF files and get AI-generated Questions & Answers for, Summaries,
               Transcripts, Social Posts, Key Moments, plus
               more. The questions and answers can be exported as a CSV file and
               then import them into Anki to create study flash cards.
