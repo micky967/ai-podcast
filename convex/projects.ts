@@ -646,23 +646,39 @@ export const listUserProjectsWithShared = query({
       if (uniqueOwnerIds.length > 0) {
         // Use Promise.all - Convex tracks each individual indexed query
         // Each query with withIndex("by_user") is tracked separately
+        // Use pagination to fetch ALL projects for each owner (Convex .collect() may have limits)
         const sharedProjectArrays = await Promise.all(
           uniqueOwnerIds.map(async (ownerId) => {
             try {
               // CRITICAL: Indexed query with order() - Convex tracks this for reactivity
-              // When ownerId creates a new project, this specific query will be detected
-              const projects = await ctx.db
-                .query("projects")
-                .withIndex("by_user", (q) => q.eq("userId", ownerId))
-                .filter((q) => q.eq(q.field("deletedAt"), undefined))
-                .order("desc") // CRITICAL: Ensures Convex tracks this query
-                .collect();
+              // When ownerId creates a new project, Convex will detect it via the by_user index
+              // Use pagination to ensure we get ALL projects (not just first 50)
+              let allProjects: Doc<"projects">[] = [];
+              let cursor: string | null = null;
+              let hasMore = true;
+              
+              while (hasMore) {
+                const query = ctx.db
+                  .query("projects")
+                  .withIndex("by_user", (q) => q.eq("userId", ownerId))
+                  .filter((q) => q.eq(q.field("deletedAt"), undefined))
+                  .order("desc"); // CRITICAL: Ensures Convex tracks this query
+                
+                const page = await query.paginate({
+                  numItems: 100, // Fetch 100 at a time
+                  cursor: cursor ?? undefined,
+                });
+                
+                allProjects = [...allProjects, ...page.page];
+                cursor = page.continueCursor ?? null;
+                hasMore = cursor !== null;
+              }
               
               // Log the count for debugging
-              console.log(`[listUserProjectsWithShared] Found ${projects.length} projects for owner ${ownerId}`);
+              console.log(`[listUserProjectsWithShared] Found ${allProjects.length} projects for owner ${ownerId} (fetched via pagination)`);
               
               // Sort by createdAt (newest first) as secondary sort
-              return projects.sort((a, b) => b.createdAt - a.createdAt);
+              return allProjects.sort((a, b) => b.createdAt - a.createdAt);
             } catch (err) {
               console.error(`[listUserProjectsWithShared] Error querying projects for owner ${ownerId}:`, err);
               return [];
