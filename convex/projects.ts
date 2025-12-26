@@ -630,25 +630,30 @@ export const listUserProjectsWithShared = query({
       const uniqueOwnerIds = [...new Set(ownerIds)];
 
       // Get shared projects - use individual indexed queries per owner for proper reactivity
-      // Each query with an index is properly tracked by Convex, so new projects trigger updates
+      // CRITICAL: Use .order("desc") to ensure Convex properly tracks the query for reactivity
+      // Without order(), Convex may not detect when new projects are added by other users
       let sharedProjects: Doc<"projects">[] = [];
       if (uniqueOwnerIds.length > 0) {
         // Query each owner's projects individually using the by_user index
-        // Use order("desc") to ensure newest projects come first and proper reactivity tracking
+        // Use .order("desc") to ensure proper reactivity tracking
         const sharedProjectArrays = await Promise.all(
           uniqueOwnerIds.map(async (ownerId) => {
             try {
-              // Use order("desc") to sort by _creationTime descending (newest first)
-              // This ensures proper reactivity and correct ordering
+              // Use .order("desc") to sort by _creationTime - this is CRITICAL for reactivity
+              // Convex needs the order() call to properly track changes to the query results
               const projects = await ctx.db
                 .query("projects")
                 .withIndex("by_user", (q) => q.eq("userId", ownerId))
                 .filter((q) => q.eq(q.field("deletedAt"), undefined))
-                .order("desc")
+                .order("desc") // CRITICAL: This ensures Convex tracks the query for reactivity
                 .collect();
               
-              // Also sort by createdAt as a secondary sort to ensure consistency
-              return projects.sort((a, b) => b.createdAt - a.createdAt);
+              // Also sort by createdAt as secondary sort (in case _creationTime != createdAt)
+              const sorted = projects.sort((a, b) => b.createdAt - a.createdAt);
+              
+              console.log(`[listUserProjectsWithShared] Found ${sorted.length} projects for owner ${ownerId}, newest: ${sorted[0]?.createdAt ? new Date(sorted[0].createdAt).toISOString() : 'none'}`);
+              
+              return sorted;
             } catch (err) {
               console.error(`[listUserProjectsWithShared] Error querying projects for owner ${ownerId}:`, err);
               return [];
@@ -657,6 +662,7 @@ export const listUserProjectsWithShared = query({
         );
         
         sharedProjects = sharedProjectArrays.flat();
+        console.log(`[listUserProjectsWithShared] Total shared projects: ${sharedProjects.length}, filter: ${filter}`);
       }
 
       // Combine and filter based on filter type
@@ -675,13 +681,22 @@ export const listUserProjectsWithShared = query({
         });
       }
 
-      // Sort by newest first
+      // Sort by newest first (createdAt is the source of truth for ordering)
       allProjects.sort((a, b) => b.createdAt - a.createdAt);
+
+      // Log the first few projects for debugging
+      if (allProjects.length > 0) {
+        const newest = allProjects[0];
+        const oldest = allProjects[allProjects.length - 1];
+        console.log(`[listUserProjectsWithShared] Total projects: ${allProjects.length}, newest: ${new Date(newest.createdAt).toISOString()}, oldest: ${new Date(oldest.createdAt).toISOString()}`);
+      }
 
       // Manual pagination
       const endIndex = startIndex + numItems;
       const paginatedProjects = allProjects.slice(startIndex, endIndex);
       const hasMore = endIndex < allProjects.length;
+
+      console.log(`[listUserProjectsWithShared] Pagination: startIndex=${startIndex}, endIndex=${endIndex}, returning ${paginatedProjects.length} projects, hasMore=${hasMore}`);
 
       return {
         page: paginatedProjects,

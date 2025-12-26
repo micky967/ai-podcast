@@ -53,12 +53,17 @@ export function ProjectsList({
   // Reactive query for the same data - this will update when projects change
   // Use this to ensure UI updates when projects are modified (e.g., category changes)
   // For "all" filter, use listUserProjectsWithShared to include both own and shared projects
+  // IMPORTANT: Always query without pagination for first page to get all newest projects
   const reactiveQueryResult = useQuery(
     api.projects.listUserProjectsWithShared,
     !searchQuery.trim() && !categoryId && userId && filter === "all"
       ? {
           userId,
           filter: "all",
+          paginationOpts: {
+            numItems: 20, // First page only
+            cursor: undefined, // Always start from beginning
+          },
         }
       : "skip"
   );
@@ -155,18 +160,21 @@ export function ProjectsList({
         const firstPage = reactiveQueryResult.page || [];
         
         setAllLoadedProjects((prev) => {
-          // Create sets of IDs for comparison
-          const firstPageIds = new Set(firstPage.map((p: any) => p._id));
-          const prevIds = new Set(prev.map((p: any) => p._id));
+          // Create a key from the first page to detect any changes
+          const firstPageKey = firstPage.map((p: any) => `${p._id}-${p.updatedAt}`).join(',');
+          const prevFirstPageKey = prev.slice(0, firstPage.length).map((p: any) => `${p._id}-${p.updatedAt}`).join(',');
           
-          // Check if first page has changed (new projects added or removed)
-          const hasNewProjects = firstPage.some((p: any) => !prevIds.has(p._id));
-          const hasRemovedProjects = prev.some((p: any) => !firstPageIds.has(p._id) && !p.deletedAt);
-          
-          // If there are changes, update the list
-          if (hasNewProjects || hasRemovedProjects || firstPage.length !== prev.length) {
+          // Always update if the first page has changed (new projects, removed projects, or updated projects)
+          if (firstPageKey !== prevFirstPageKey || firstPage.length !== prev.length) {
+            console.log('[ProjectsList] First page changed, updating projects list', {
+              firstPageLength: firstPage.length,
+              prevLength: prev.length,
+              firstPageIds: firstPage.map((p: any) => p._id).slice(0, 5),
+            });
+            
             // If we have paginated results, merge them (deduplicate)
             if (prev.length > firstPage.length) {
+              const firstPageIds = new Set(firstPage.map((p: any) => p._id));
               const additionalPages = prev.filter(
                 (p: any) => !firstPageIds.has(p._id) && !p.deletedAt
               );
