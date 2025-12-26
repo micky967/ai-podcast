@@ -658,16 +658,15 @@ export const listUserProjectsWithShared = query({
               let hasMore = true;
               
               while (hasMore) {
-                const query = ctx.db
+                const page = await ctx.db
                   .query("projects")
                   .withIndex("by_user", (q) => q.eq("userId", ownerId))
                   .filter((q) => q.eq(q.field("deletedAt"), undefined))
-                  .order("desc"); // CRITICAL: Ensures Convex tracks this query
-                
-                const page = await query.paginate({
-                  numItems: 100, // Fetch 100 at a time
-                  cursor: cursor ?? undefined,
-                });
+                  .order("desc") // CRITICAL: Ensures Convex tracks this query
+                  .paginate({
+                    numItems: 100, // Fetch 100 at a time
+                    cursor: cursor ?? undefined,
+                  });
                 
                 allProjects = [...allProjects, ...page.page];
                 cursor = page.continueCursor ?? null;
