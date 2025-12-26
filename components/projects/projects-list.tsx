@@ -54,6 +54,7 @@ export function ProjectsList({
   // Use this to ensure UI updates when projects are modified (e.g., category changes)
   // For "all" filter, use listUserProjectsWithShared to include both own and shared projects
   // IMPORTANT: Request more items per page to show all shared projects
+  // Don't pass cursor at all when we want all results (undefined gets serialized incorrectly)
   const reactiveQueryResult = useQuery(
     api.projects.listUserProjectsWithShared,
     !searchQuery.trim() && !categoryId && userId && filter === "all"
@@ -62,7 +63,7 @@ export function ProjectsList({
           filter: "all",
           paginationOpts: {
             numItems: 200, // Increased to show more projects per page
-            cursor: undefined, // Always start from beginning
+            // Don't pass cursor - this ensures backend returns all projects
           },
         }
       : "skip"
@@ -94,6 +95,7 @@ export function ProjectsList({
   // This ensures hooks are called in the same order every render
   // Use userId check to skip when user is logged out
   // IMPORTANT: Pass paginationOpts with numItems: 200 to show all shared projects
+  // Don't pass cursor at all when we want all results (undefined gets serialized incorrectly)
   const dynamicQueryResult = useQuery(
     api.projects.listUserProjectsWithShared,
     !categoryId && filter !== "all" && userId
@@ -102,7 +104,7 @@ export function ProjectsList({
           filter,
           paginationOpts: {
             numItems: 200, // Increased to show all shared projects
-            cursor: undefined, // Always start from beginning
+            // Don't pass cursor - this ensures backend returns all projects
           },
         }
       : "skip"

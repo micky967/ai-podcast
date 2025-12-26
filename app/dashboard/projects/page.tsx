@@ -12,7 +12,9 @@ interface ProjectsPageProps {
   }>;
 }
 
-export default async function ProjectsPage({ searchParams }: ProjectsPageProps) {
+export default async function ProjectsPage({
+  searchParams,
+}: ProjectsPageProps) {
   const { userId } = await auth();
 
   // Redirect if not authenticated (shouldn't happen with middleware, but for safety)
@@ -37,7 +39,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
         filter: "all",
         paginationOpts: {
           numItems: 200, // Increased to show all shared projects
-          cursor: undefined, // Always start from beginning
+          // Don't pass cursor - this ensures backend returns all projects
         },
       });
 

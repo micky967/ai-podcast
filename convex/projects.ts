@@ -558,6 +558,9 @@ export const listUserProjectsWithShared = query({
       const filter = args.filter ?? "all";
       const cursor = args.paginationOpts?.cursor;
       const startIndex = cursor ? parseInt(cursor, 10) : 0;
+      
+      // Debug logging
+      console.log(`[listUserProjectsWithShared] Called with: filter=${filter}, numItems=${numItems}, cursor=${cursor}, startIndex=${startIndex}`);
 
       // For "own" filter, optimize by early return
       if (filter === "own") {
@@ -700,22 +703,25 @@ export const listUserProjectsWithShared = query({
         console.log(`[listUserProjectsWithShared] Total projects BEFORE pagination: ${allProjects.length}, newest: ${new Date(newest.createdAt).toISOString()}, oldest: ${new Date(oldest.createdAt).toISOString()}`);
       }
 
-      // Manual pagination - but if cursor is undefined and numItems is large, return all projects
+      // Manual pagination - but if cursor is undefined/null/empty and numItems is large, return all projects
       // This ensures we show all shared projects without pagination limits
       let paginatedProjects: Doc<"projects">[];
       let hasMore: boolean;
       
-      if (cursor === undefined && numItems >= 200) {
+      // Check if we should return all projects (no cursor and large page size)
+      const shouldReturnAll = (!cursor || cursor === null || cursor === undefined || cursor === "") && numItems >= 200;
+      
+      if (shouldReturnAll) {
         // Return ALL projects if no cursor and requesting large page size
         paginatedProjects = allProjects;
         hasMore = false;
-        console.log(`[listUserProjectsWithShared] Returning ALL ${allProjects.length} projects (no pagination limit)`);
+        console.log(`[listUserProjectsWithShared] Returning ALL ${allProjects.length} projects (no pagination limit) - cursor=${cursor}, numItems=${numItems}`);
       } else {
         // Normal pagination
         const endIndex = startIndex + numItems;
         paginatedProjects = allProjects.slice(startIndex, endIndex);
         hasMore = endIndex < allProjects.length;
-        console.log(`[listUserProjectsWithShared] Pagination: startIndex=${startIndex}, endIndex=${endIndex}, returning ${paginatedProjects.length} projects, hasMore=${hasMore}`);
+        console.log(`[listUserProjectsWithShared] Pagination: startIndex=${startIndex}, endIndex=${endIndex}, returning ${paginatedProjects.length} projects, hasMore=${hasMore}, total=${allProjects.length}`);
       }
 
       return {
