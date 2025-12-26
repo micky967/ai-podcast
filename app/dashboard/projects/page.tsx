@@ -26,6 +26,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
   // Preload projects data on the server
   // Use category-specific query if category is provided
   // For non-category pages, use listUserProjectsWithShared with filter "all" to include both own and shared projects
+  // IMPORTANT: Pass paginationOpts with numItems: 200 to show all shared projects
   const preloadedProjects = categoryId
     ? await preloadQuery(api.projects.listUserProjectsByCategory, {
         userId,
@@ -34,6 +35,10 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
     : await preloadQuery(api.projects.listUserProjectsWithShared, {
         userId,
         filter: "all",
+        paginationOpts: {
+          numItems: 200, // Increased to show all shared projects
+          cursor: undefined, // Always start from beginning
+        },
       });
 
   // Preload category data if category is provided

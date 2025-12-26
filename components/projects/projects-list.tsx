@@ -93,12 +93,17 @@ export function ProjectsList({
   // Always call useQuery hook unconditionally, but conditionally skip it
   // This ensures hooks are called in the same order every render
   // Use userId check to skip when user is logged out
+  // IMPORTANT: Pass paginationOpts with numItems: 200 to show all shared projects
   const dynamicQueryResult = useQuery(
     api.projects.listUserProjectsWithShared,
     !categoryId && filter !== "all" && userId
       ? {
           userId,
           filter,
+          paginationOpts: {
+            numItems: 200, // Increased to show all shared projects
+            cursor: undefined, // Always start from beginning
+          },
         }
       : "skip"
   );
