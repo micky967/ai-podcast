@@ -554,6 +554,7 @@ export const listUserProjectsWithShared = query({
   },
   handler: async (ctx, args) => {
     try {
+      console.log(`[listUserProjectsWithShared] QUERY STARTED - userId=${args.userId}, filter=${args.filter}, paginationOpts=`, args.paginationOpts);
       const numItems = args.paginationOpts?.numItems ?? 20;
       const filter = args.filter ?? "all";
       const cursor = args.paginationOpts?.cursor;
@@ -658,19 +659,26 @@ export const listUserProjectsWithShared = query({
               let hasMore = true;
               
               while (hasMore) {
-                const page = await ctx.db
-                  .query("projects")
-                  .withIndex("by_user", (q) => q.eq("userId", ownerId))
-                  .filter((q) => q.eq(q.field("deletedAt"), undefined))
-                  .order("desc") // CRITICAL: Ensures Convex tracks this query
-                  .paginate({
-                    numItems: 100, // Fetch 100 at a time
-                    cursor: cursor ?? null,
-                  });
-                
-                allProjects = [...allProjects, ...page.page];
-                cursor = page.continueCursor ?? null;
-                hasMore = cursor !== null;
+                try {
+                  const page = await ctx.db
+                    .query("projects")
+                    .withIndex("by_user", (q) => q.eq("userId", ownerId))
+                    .filter((q) => q.eq(q.field("deletedAt"), undefined))
+                    .order("desc") // CRITICAL: Ensures Convex tracks this query
+                    .paginate({
+                      numItems: 100, // Fetch 100 at a time
+                      cursor: cursor ?? null,
+                    });
+                  
+                  allProjects = [...allProjects, ...page.page];
+                  cursor = page.continueCursor ?? null;
+                  hasMore = cursor !== null;
+                  
+                  console.log(`[listUserProjectsWithShared] Pagination page: fetched ${page.page.length} projects, cursor=${cursor}, hasMore=${hasMore}`);
+                } catch (pageErr) {
+                  console.error(`[listUserProjectsWithShared] Error in pagination loop for owner ${ownerId}:`, pageErr);
+                  hasMore = false; // Stop pagination on error
+                }
               }
               
               // Log the count for debugging
@@ -750,7 +758,8 @@ export const listUserProjectsWithShared = query({
         isDone: !hasMore,
       };
     } catch (error) {
-      console.error("[listUserProjectsWithShared] Error:", error);
+      console.error("[listUserProjectsWithShared] FATAL ERROR:", error);
+      console.error("[listUserProjectsWithShared] Error stack:", error instanceof Error ? error.stack : "No stack trace");
       // Return empty result on error instead of throwing
       return {
         page: [],
