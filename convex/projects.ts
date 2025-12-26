@@ -634,15 +634,21 @@ export const listUserProjectsWithShared = query({
       let sharedProjects: Doc<"projects">[] = [];
       if (uniqueOwnerIds.length > 0) {
         // Query each owner's projects individually using the by_user index
-        // This ensures Convex properly tracks each owner's projects for reactivity
+        // Use order("desc") to ensure newest projects come first and proper reactivity tracking
         const sharedProjectArrays = await Promise.all(
           uniqueOwnerIds.map(async (ownerId) => {
             try {
-              return await ctx.db
+              // Use order("desc") to sort by _creationTime descending (newest first)
+              // This ensures proper reactivity and correct ordering
+              const projects = await ctx.db
                 .query("projects")
                 .withIndex("by_user", (q) => q.eq("userId", ownerId))
                 .filter((q) => q.eq(q.field("deletedAt"), undefined))
+                .order("desc")
                 .collect();
+              
+              // Also sort by createdAt as a secondary sort to ensure consistency
+              return projects.sort((a, b) => b.createdAt - a.createdAt);
             } catch (err) {
               console.error(`[listUserProjectsWithShared] Error querying projects for owner ${ownerId}:`, err);
               return [];
@@ -1075,15 +1081,21 @@ export const getAllUserProjectsWithShared = query({
       if (uniqueOwnerIds.length > 0) {
         try {
           // Query each owner's projects individually using the by_user index
-          // This ensures Convex properly tracks each owner's projects for reactivity
+          // Use order("desc") to ensure newest projects come first and proper reactivity tracking
           const sharedProjectArrays = await Promise.all(
             uniqueOwnerIds.map(async (ownerId) => {
               try {
-                return await ctx.db
+                // Use order("desc") to sort by _creationTime descending (newest first)
+                // This ensures proper reactivity and correct ordering
+                const projects = await ctx.db
                   .query("projects")
                   .withIndex("by_user", (q) => q.eq("userId", ownerId))
                   .filter((q) => q.eq(q.field("deletedAt"), undefined))
+                  .order("desc")
                   .collect();
+                
+                // Also sort by createdAt as a secondary sort to ensure consistency
+                return projects.sort((a, b) => b.createdAt - a.createdAt);
               } catch (err) {
                 console.error(`[getAllUserProjectsWithShared] Error querying projects for owner ${ownerId}:`, err);
                 return [];

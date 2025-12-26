@@ -153,22 +153,32 @@ export function ProjectsList({
         // ALWAYS sync first page with reactive query for real-time updates
         // This ensures UI updates immediately when projects change (e.g., category updates)
         const firstPage = reactiveQueryResult.page || [];
-        // Create a unique key from project IDs to detect changes
-        const firstPageKey = firstPage.map((p: any) => p._id).join(',');
         
         setAllLoadedProjects((prev) => {
-          // Create key from previous projects to detect changes
-          const prevKey = prev.map((p: any) => p._id).join(',');
+          // Create sets of IDs for comparison
+          const firstPageIds = new Set(firstPage.map((p: any) => p._id));
+          const prevIds = new Set(prev.map((p: any) => p._id));
           
-          // If the first page changed, update it
-          if (prevKey !== firstPageKey) {
+          // Check if first page has changed (new projects added or removed)
+          const hasNewProjects = firstPage.some((p: any) => !prevIds.has(p._id));
+          const hasRemovedProjects = prev.some((p: any) => !firstPageIds.has(p._id) && !p.deletedAt);
+          
+          // If there are changes, update the list
+          if (hasNewProjects || hasRemovedProjects || firstPage.length !== prev.length) {
             // If we have paginated results, merge them (deduplicate)
             if (prev.length > firstPage.length) {
-              const firstPageIds = new Set(firstPage.map((p: any) => p._id));
               const additionalPages = prev.filter(
-                (p: any) => !firstPageIds.has(p._id)
+                (p: any) => !firstPageIds.has(p._id) && !p.deletedAt
               );
-              return [...firstPage, ...additionalPages];
+              // Combine first page (newest) with additional pages, ensuring no duplicates
+              const combined = [...firstPage, ...additionalPages];
+              const seen = new Set<string>();
+              return combined.filter((p: any) => {
+                const id = String(p._id);
+                if (seen.has(id)) return false;
+                seen.add(id);
+                return true;
+              });
             }
             // Otherwise just use the reactive query result
             return firstPage;
