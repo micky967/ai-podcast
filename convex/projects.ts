@@ -658,6 +658,9 @@ export const listUserProjectsWithShared = query({
                 .order("desc") // CRITICAL: Ensures Convex tracks this query
                 .collect();
               
+              // Log the count for debugging
+              console.log(`[listUserProjectsWithShared] Found ${projects.length} projects for owner ${ownerId}`);
+              
               // Sort by createdAt (newest first) as secondary sort
               return projects.sort((a, b) => b.createdAt - a.createdAt);
             } catch (err) {
@@ -672,8 +675,10 @@ export const listUserProjectsWithShared = query({
         sharedProjects.sort((a, b) => b.createdAt - a.createdAt);
         
         console.log(`[listUserProjectsWithShared] Total shared projects: ${sharedProjects.length} from ${uniqueOwnerIds.length} owners`);
+        console.log(`[listUserProjectsWithShared] Shared projects breakdown: ${sharedProjectArrays.map((arr, idx) => `${uniqueOwnerIds[idx]}: ${arr.length}`).join(', ')}`);
         if (sharedProjects.length > 0) {
           console.log(`[listUserProjectsWithShared] Newest shared project: ${new Date(sharedProjects[0].createdAt).toISOString()}`);
+          console.log(`[listUserProjectsWithShared] Oldest shared project: ${new Date(sharedProjects[sharedProjects.length - 1].createdAt).toISOString()}`);
         }
       }
 
@@ -1327,6 +1332,32 @@ export const bulkInsertProjects = mutation({
       skipped,
       skippedFileNames,
       total: args.projects.length,
+    };
+  },
+});
+
+/**
+ * Diagnostic query to count all projects for a user (including deleted)
+ * This helps debug why only 50 projects are showing when there should be 100+
+ */
+export const countAllProjectsForUser = query({
+  args: {
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Count all projects (including deleted)
+    const allProjects = await ctx.db
+      .query("projects")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+    
+    // Count non-deleted projects
+    const nonDeletedProjects = allProjects.filter((p) => !p.deletedAt);
+    
+    return {
+      total: allProjects.length,
+      nonDeleted: nonDeletedProjects.length,
+      deleted: allProjects.length - nonDeletedProjects.length,
     };
   },
 });
