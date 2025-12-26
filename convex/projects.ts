@@ -665,12 +665,12 @@ export const listUserProjectsWithShared = query({
                   .order("desc") // CRITICAL: Ensures Convex tracks this query
                   .paginate({
                     numItems: 100, // Fetch 100 at a time
-                    cursor: cursor ?? undefined,
+                    cursor: cursor || undefined,
                   });
                 
                 allProjects = [...allProjects, ...page.page];
-                cursor = page.continueCursor ?? null;
-                hasMore = cursor !== null;
+                cursor = page.continueCursor;
+                hasMore = cursor !== null && cursor !== undefined;
               }
               
               // Log the count for debugging
