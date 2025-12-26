@@ -697,19 +697,30 @@ export const listUserProjectsWithShared = query({
       if (allProjects.length > 0) {
         const newest = allProjects[0];
         const oldest = allProjects[allProjects.length - 1];
-        console.log(`[listUserProjectsWithShared] Total projects: ${allProjects.length}, newest: ${new Date(newest.createdAt).toISOString()}, oldest: ${new Date(oldest.createdAt).toISOString()}`);
+        console.log(`[listUserProjectsWithShared] Total projects BEFORE pagination: ${allProjects.length}, newest: ${new Date(newest.createdAt).toISOString()}, oldest: ${new Date(oldest.createdAt).toISOString()}`);
       }
 
-      // Manual pagination
-      const endIndex = startIndex + numItems;
-      const paginatedProjects = allProjects.slice(startIndex, endIndex);
-      const hasMore = endIndex < allProjects.length;
-
-      console.log(`[listUserProjectsWithShared] Pagination: startIndex=${startIndex}, endIndex=${endIndex}, returning ${paginatedProjects.length} projects, hasMore=${hasMore}`);
+      // Manual pagination - but if cursor is undefined and numItems is large, return all projects
+      // This ensures we show all shared projects without pagination limits
+      let paginatedProjects: Doc<"projects">[];
+      let hasMore: boolean;
+      
+      if (cursor === undefined && numItems >= 200) {
+        // Return ALL projects if no cursor and requesting large page size
+        paginatedProjects = allProjects;
+        hasMore = false;
+        console.log(`[listUserProjectsWithShared] Returning ALL ${allProjects.length} projects (no pagination limit)`);
+      } else {
+        // Normal pagination
+        const endIndex = startIndex + numItems;
+        paginatedProjects = allProjects.slice(startIndex, endIndex);
+        hasMore = endIndex < allProjects.length;
+        console.log(`[listUserProjectsWithShared] Pagination: startIndex=${startIndex}, endIndex=${endIndex}, returning ${paginatedProjects.length} projects, hasMore=${hasMore}`);
+      }
 
       return {
         page: paginatedProjects,
-        continueCursor: hasMore ? endIndex.toString() : null,
+        continueCursor: hasMore ? (startIndex + numItems).toString() : null,
         isDone: !hasMore,
       };
     } catch (error) {
