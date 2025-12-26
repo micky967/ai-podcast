@@ -153,17 +153,27 @@ export function ProjectsList({
         // ALWAYS sync first page with reactive query for real-time updates
         // This ensures UI updates immediately when projects change (e.g., category updates)
         const firstPage = reactiveQueryResult.page || [];
+        // Create a unique key from project IDs to detect changes
+        const firstPageKey = firstPage.map((p: any) => p._id).join(',');
+        
         setAllLoadedProjects((prev) => {
-          // If we have paginated results, merge them (deduplicate)
-          if (prev.length > firstPage.length) {
-            const firstPageIds = new Set(firstPage.map((p: any) => p._id));
-            const additionalPages = prev.filter(
-              (p: any) => !firstPageIds.has(p._id)
-            );
-            return [...firstPage, ...additionalPages];
+          // Create key from previous projects to detect changes
+          const prevKey = prev.map((p: any) => p._id).join(',');
+          
+          // If the first page changed, update it
+          if (prevKey !== firstPageKey) {
+            // If we have paginated results, merge them (deduplicate)
+            if (prev.length > firstPage.length) {
+              const firstPageIds = new Set(firstPage.map((p: any) => p._id));
+              const additionalPages = prev.filter(
+                (p: any) => !firstPageIds.has(p._id)
+              );
+              return [...firstPage, ...additionalPages];
+            }
+            // Otherwise just use the reactive query result
+            return firstPage;
           }
-          // Otherwise just use the reactive query result
-          return firstPage;
+          return prev;
         });
         setPaginationCursor(reactiveQueryResult.continueCursor || undefined);
       } else if (filter !== "all" && dynamicQueryResult) {
@@ -453,7 +463,7 @@ export function ProjectsList({
   }
 
   return (
-    <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0 overflow-x-hidden" style={{ paddingBottom: typeof window !== 'undefined' && window.innerWidth < 768 ? '100px' : '40px', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+    <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0 overflow-x-hidden project-card-container" style={{ paddingBottom: typeof window !== 'undefined' && window.innerWidth < 768 ? '100px' : '40px' }}>
       {categoryId ? (
         <CategoryHeader
           categoryId={categoryId}
@@ -487,7 +497,7 @@ export function ProjectsList({
 
       {hasProjects && (
         <>
-          <div className="grid gap-4 @container" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+          <div className="grid gap-4 @container project-card-container">
             {filteredProjects.map((project: any) => (
               <div
                 key={`${project._id}-${project.categoryId || "none"}-${
@@ -498,7 +508,7 @@ export function ProjectsList({
                     ? highlightedElementRef
                     : null
                 }
-                style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
+                className="project-card-container"
               >
                 <ProjectCard
                   project={project}

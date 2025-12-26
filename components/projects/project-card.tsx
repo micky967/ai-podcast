@@ -161,14 +161,14 @@ export function ProjectCard({
   return (
     <div
       id={isHighlighted ? `project-${project._id}` : undefined}
-      className={cn(isHighlighted && "scroll-mt-24")}
+      className={cn(isHighlighted && "scroll-mt-24", "project-card-container")}
     >
       <div
         draggable={isUltra}
         onDragStart={isUltra ? handleDragStart : undefined}
         onDragEnd={isUltra ? handleDragEnd : undefined}
         className={cn(
-          "glass-card rounded-2xl group relative hover-lift overflow-hidden transition-all w-full max-w-full",
+          "glass-card rounded-2xl group relative hover-lift overflow-hidden transition-all w-full max-w-full project-card-inner",
           isUltra ? "cursor-move" : "cursor-pointer",
           project.status === "processing" &&
             "ring-2 ring-emerald-400 shadow-emerald-200 shadow-lg",
@@ -177,7 +177,6 @@ export function ProjectCard({
             "ring-4 ring-blue-500 shadow-blue-300 shadow-xl animate-pulse",
           isDragging && "opacity-50"
         )}
-        style={{ maxWidth: '100%', boxSizing: 'border-box' }}
       >
         <Link
           href={getHref()}
@@ -191,18 +190,18 @@ export function ProjectCard({
             }
           }}
         >
-          <div className="p-4 sm:p-5 md:p-6 lg:p-7" style={{ maxWidth: '100%', boxSizing: 'border-box' }}>
-            <div className="flex items-start gap-3 sm:gap-4 md:gap-5" style={{ maxWidth: '100%', boxSizing: 'border-box' }}>
+          <div className="p-4 sm:p-5 md:p-6 lg:p-7 project-card-content">
+            <div className="flex items-start gap-3 sm:gap-4 md:gap-5 project-card-content">
               {/* File Icon - larger, animated */}
               <div className="rounded-2xl gradient-emerald p-3 sm:p-4 md:p-5 shrink-0 group-hover:scale-110 transition-transform shadow-lg flex-shrink-0">
                 <FileAudio className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-white" />
               </div>
 
               {/* Project Info */}
-              <div className="flex-1 min-w-0 overflow-hidden space-y-3" style={{ minWidth: 0, maxWidth: '100%' }}>
+              <div className="flex-1 min-w-0 overflow-hidden space-y-3 project-card-content">
                 {/* Title + Status + Delete */}
-                <div className="flex items-start justify-between gap-2 sm:gap-3 md:gap-4" style={{ maxWidth: '100%', minWidth: 0 }}>
-                  <div className="flex-1 min-w-0 overflow-hidden" style={{ minWidth: 0, maxWidth: '100%' }}>
+                <div className="flex items-start justify-between gap-2 sm:gap-3 md:gap-4 project-card-content">
+                  <div className="flex-1 min-w-0 overflow-hidden project-card-content">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       {isSharedProject && (
                         <Badge className="text-xs bg-red-500 text-white hover:bg-red-600 shrink-0">
@@ -210,10 +209,10 @@ export function ProjectCard({
                         </Badge>
                       )}
                     </div>
-                    <h3 className="font-extrabold text-lg md:text-xl lg:text-2xl wrap-break-word hyphens-auto group-hover:text-emerald-600 transition-colors leading-snug break-words overflow-wrap-anywhere word-break-break-word" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+                    <h3 className="font-extrabold text-lg md:text-xl lg:text-2xl wrap-break-word hyphens-auto group-hover:text-emerald-600 transition-colors leading-snug break-words project-card-content">
                       {project.displayName || project.fileName}
                     </h3>
-                    <p className="text-sm text-gray-600 mt-2 font-medium break-words" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+                    <p className="text-sm text-gray-600 mt-2 font-medium break-words project-card-content">
                       Created {formatSmartDate(project.createdAt)}
                       {ownerName ? ` • ${ownerName}` : ""}
                     </p>
@@ -277,7 +276,7 @@ export function ProjectCard({
                 )}
 
                 {/* Metadata with badges */}
-                <div className="flex items-center gap-2 sm:gap-3 flex-wrap" style={{ maxWidth: '100%' }}>
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap project-card-content">
                   <Badge className="text-xs font-semibold bg-emerald-100 text-emerald-700 border-emerald-200 shrink-0">
                     {formatFileSize(project.fileSize)}
                   </Badge>

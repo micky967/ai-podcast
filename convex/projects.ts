@@ -629,26 +629,28 @@ export const listUserProjectsWithShared = query({
       // Remove duplicate owner IDs
       const uniqueOwnerIds = [...new Set(ownerIds)];
 
-      // Get shared projects - query all projects and filter by owner IDs for proper reactivity
-      // This ensures Convex tracks the entire projects table, so new projects trigger updates
+      // Get shared projects - use individual indexed queries per owner for proper reactivity
+      // Each query with an index is properly tracked by Convex, so new projects trigger updates
       let sharedProjects: Doc<"projects">[] = [];
       if (uniqueOwnerIds.length > 0) {
-        // Create a Set for fast lookup
-        const ownerIdSet = new Set(uniqueOwnerIds);
-        
-        // Query all projects and filter by owner IDs
-        // This approach ensures Convex properly tracks all projects for reactivity
-        const allProjectsQuery = ctx.db
-          .query("projects")
-          .filter((q) => q.eq(q.field("deletedAt"), undefined));
-        
-        // Collect all non-deleted projects
-        const allNonDeletedProjects = await allProjectsQuery.collect();
-        
-        // Filter to only projects owned by group owners
-        sharedProjects = allNonDeletedProjects.filter((p) => 
-          ownerIdSet.has(p.userId)
+        // Query each owner's projects individually using the by_user index
+        // This ensures Convex properly tracks each owner's projects for reactivity
+        const sharedProjectArrays = await Promise.all(
+          uniqueOwnerIds.map(async (ownerId) => {
+            try {
+              return await ctx.db
+                .query("projects")
+                .withIndex("by_user", (q) => q.eq("userId", ownerId))
+                .filter((q) => q.eq(q.field("deletedAt"), undefined))
+                .collect();
+            } catch (err) {
+              console.error(`[listUserProjectsWithShared] Error querying projects for owner ${ownerId}:`, err);
+              return [];
+            }
+          })
         );
+        
+        sharedProjects = sharedProjectArrays.flat();
       }
 
       // Combine and filter based on filter type
@@ -1067,27 +1069,29 @@ export const getAllUserProjectsWithShared = query({
       // Remove duplicate owner IDs
       const uniqueOwnerIds = [...new Set(ownerIds)];
 
-      // Get shared projects - query all projects and filter by owner IDs for proper reactivity
-      // This ensures Convex tracks the entire projects table, so new projects trigger updates
+      // Get shared projects - use individual indexed queries per owner for proper reactivity
+      // Each query with an index is properly tracked by Convex, so new projects trigger updates
       let flattenedShared: Doc<"projects">[] = [];
       if (uniqueOwnerIds.length > 0) {
         try {
-          // Create a Set for fast lookup
-          const ownerIdSet = new Set(uniqueOwnerIds);
-          
-          // Query all projects and filter by owner IDs
-          // This approach ensures Convex properly tracks all projects for reactivity
-          const allProjectsQuery = ctx.db
-            .query("projects")
-            .filter((q) => q.eq(q.field("deletedAt"), undefined));
-          
-          // Collect all non-deleted projects
-          const allNonDeletedProjects = await allProjectsQuery.collect();
-          
-          // Filter to only projects owned by group owners
-          flattenedShared = allNonDeletedProjects.filter((p) => 
-            ownerIdSet.has(p.userId)
+          // Query each owner's projects individually using the by_user index
+          // This ensures Convex properly tracks each owner's projects for reactivity
+          const sharedProjectArrays = await Promise.all(
+            uniqueOwnerIds.map(async (ownerId) => {
+              try {
+                return await ctx.db
+                  .query("projects")
+                  .withIndex("by_user", (q) => q.eq("userId", ownerId))
+                  .filter((q) => q.eq(q.field("deletedAt"), undefined))
+                  .collect();
+              } catch (err) {
+                console.error(`[getAllUserProjectsWithShared] Error querying projects for owner ${ownerId}:`, err);
+                return [];
+              }
+            })
           );
+          
+          flattenedShared = sharedProjectArrays.flat();
         } catch (err) {
           console.error("[getAllUserProjectsWithShared] Error getting shared projects:", err);
           flattenedShared = [];
