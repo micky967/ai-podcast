@@ -53,7 +53,7 @@ export function ProjectsList({
   // Reactive query for the same data - this will update when projects change
   // Use this to ensure UI updates when projects are modified (e.g., category changes)
   // For "all" filter, use listUserProjectsWithShared to include both own and shared projects
-  // IMPORTANT: Always query without pagination for first page to get all newest projects
+  // IMPORTANT: Request more items per page to show all shared projects
   const reactiveQueryResult = useQuery(
     api.projects.listUserProjectsWithShared,
     !searchQuery.trim() && !categoryId && userId && filter === "all"
@@ -61,7 +61,7 @@ export function ProjectsList({
           userId,
           filter: "all",
           paginationOpts: {
-            numItems: 20, // First page only
+            numItems: 200, // Increased to show more projects per page
             cursor: undefined, // Always start from beginning
           },
         }
@@ -116,7 +116,7 @@ export function ProjectsList({
           userId,
           filter,
           paginationOpts: {
-            numItems: 20,
+            numItems: 200, // Increased to load more projects per page
             cursor: paginationCursor,
           },
         }
@@ -150,31 +150,41 @@ export function ProjectsList({
   ]);
 
   // Initialize and update allLoadedProjects with first page (only for non-category pages)
-  // Update when reactive query changes to ensure real-time updates
+  // ALWAYS update when reactiveQueryResult changes - this ensures real-time updates
   useEffect(() => {
     if (!searchQuery.trim() && !categoryId) {
       // Only update from reactive query if filter is "all"
       if (filter === "all" && reactiveQueryResult) {
-        // ALWAYS sync first page with reactive query for real-time updates
-        // This ensures UI updates immediately when projects change (e.g., category updates)
         const firstPage = reactiveQueryResult.page || [];
         
+        // ALWAYS update when reactiveQueryResult changes - don't try to be smart about it
+        // Convex will trigger this effect when the query result changes, so we should always update
         setAllLoadedProjects((prev) => {
-          // Create a key from the first page to detect any changes
-          const firstPageKey = firstPage.map((p: any) => `${p._id}-${p.updatedAt}`).join(',');
-          const prevFirstPageKey = prev.slice(0, firstPage.length).map((p: any) => `${p._id}-${p.updatedAt}`).join(',');
+          // Create sets for comparison
+          const firstPageIds = new Set(firstPage.map((p: any) => p._id));
+          const prevIds = new Set(prev.map((p: any) => p._id));
           
-          // Always update if the first page has changed (new projects, removed projects, or updated projects)
-          if (firstPageKey !== prevFirstPageKey || firstPage.length !== prev.length) {
-            console.log('[ProjectsList] First page changed, updating projects list', {
+          // Check if there are new projects (in firstPage but not in prev)
+          const hasNewProjects = firstPage.some((p: any) => !prevIds.has(p._id));
+          // Check if projects were removed (in prev but not in firstPage)
+          const hasRemovedProjects = prev.some((p: any) => !firstPageIds.has(p._id) && !p.deletedAt);
+          // Check if order changed (first project is different)
+          const orderChanged = firstPage.length > 0 && prev.length > 0 && firstPage[0]?._id !== prev[0]?._id;
+          
+          // Always update if there are changes
+          if (hasNewProjects || hasRemovedProjects || orderChanged || firstPage.length !== prev.length) {
+            console.log('[ProjectsList] Updating projects list', {
+              hasNewProjects,
+              hasRemovedProjects,
+              orderChanged,
               firstPageLength: firstPage.length,
               prevLength: prev.length,
-              firstPageIds: firstPage.map((p: any) => p._id).slice(0, 5),
+              newestProject: firstPage[0]?._id,
+              newestCreatedAt: firstPage[0]?.createdAt ? new Date(firstPage[0].createdAt).toISOString() : 'none',
             });
             
             // If we have paginated results, merge them (deduplicate)
             if (prev.length > firstPage.length) {
-              const firstPageIds = new Set(firstPage.map((p: any) => p._id));
               const additionalPages = prev.filter(
                 (p: any) => !firstPageIds.has(p._id) && !p.deletedAt
               );

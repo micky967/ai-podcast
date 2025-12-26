@@ -636,36 +636,42 @@ export const listUserProjectsWithShared = query({
       
       console.log(`[listUserProjectsWithShared] User ${args.userId}: ${memberGroups.length} memberGroups, ${validGroups.length} valid groups, ${uniqueOwnerIds.length} unique owners`);
 
-      // Get shared projects - query each owner's projects sequentially (not Promise.all)
-      // CRITICAL: Query sequentially to ensure Convex tracks each query dependency
-      // When user1 creates a new project, Convex detects the by_user index change
+      // Get shared projects - query each owner's projects using indexed queries
+      // CRITICAL: Each indexed query with order() is tracked by Convex for reactivity
+      // When user1 creates a new project, Convex will detect it via the by_user index
       let sharedProjects: Doc<"projects">[] = [];
       if (uniqueOwnerIds.length > 0) {
-        // Query sequentially - each query is tracked individually by Convex
-        for (const ownerId of uniqueOwnerIds) {
-          try {
-            // Use indexed query with order() - Convex tracks this for reactivity
-            const projects = await ctx.db
-              .query("projects")
-              .withIndex("by_user", (q) => q.eq("userId", ownerId))
-              .filter((q) => q.eq(q.field("deletedAt"), undefined))
-              .order("desc")
-              .collect();
-            
-            // Sort by createdAt (newest first)
-            const sorted = projects.sort((a, b) => b.createdAt - a.createdAt);
-            sharedProjects.push(...sorted);
-            
-            console.log(`[listUserProjectsWithShared] Owner ${ownerId}: ${sorted.length} projects`);
-          } catch (err) {
-            console.error(`[listUserProjectsWithShared] Error querying projects for owner ${ownerId}:`, err);
-          }
-        }
+        // Use Promise.all - Convex tracks each individual indexed query
+        // Each query with withIndex("by_user") is tracked separately
+        const sharedProjectArrays = await Promise.all(
+          uniqueOwnerIds.map(async (ownerId) => {
+            try {
+              // CRITICAL: Indexed query with order() - Convex tracks this for reactivity
+              // When ownerId creates a new project, this specific query will be detected
+              const projects = await ctx.db
+                .query("projects")
+                .withIndex("by_user", (q) => q.eq("userId", ownerId))
+                .filter((q) => q.eq(q.field("deletedAt"), undefined))
+                .order("desc") // CRITICAL: Ensures Convex tracks this query
+                .collect();
+              
+              // Sort by createdAt (newest first) as secondary sort
+              return projects.sort((a, b) => b.createdAt - a.createdAt);
+            } catch (err) {
+              console.error(`[listUserProjectsWithShared] Error querying projects for owner ${ownerId}:`, err);
+              return [];
+            }
+          })
+        );
         
+        sharedProjects = sharedProjectArrays.flat();
         // Sort all shared projects by createdAt (newest first)
         sharedProjects.sort((a, b) => b.createdAt - a.createdAt);
         
         console.log(`[listUserProjectsWithShared] Total shared projects: ${sharedProjects.length} from ${uniqueOwnerIds.length} owners`);
+        if (sharedProjects.length > 0) {
+          console.log(`[listUserProjectsWithShared] Newest shared project: ${new Date(sharedProjects[0].createdAt).toISOString()}`);
+        }
       }
 
       // Combine and filter based on filter type
