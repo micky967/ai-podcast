@@ -165,16 +165,19 @@ export function AdminSharing({ adminId }: AdminSharingProps) {
             const data = await response.json();
             const name = data.name || userId;
 
-            // Generate initials
-            let initial = "";
-            if (data.firstName && data.lastName) {
-              initial = `${data.firstName[0]}${data.lastName[0]}`.toUpperCase();
-            } else if (data.name) {
-              const nameParts = data.name.trim().split(/\s+/);
-              if (nameParts.length >= 2) {
-                initial = `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase();
-              } else if (nameParts.length === 1) {
-                initial = nameParts[0][0].toUpperCase();
+            // Use initials from API if available (for owner it will be "A")
+            let initial = data.initials || "";
+            if (!initial) {
+              // Fallback: Generate initials
+              if (data.firstName && data.lastName) {
+                initial = `${data.firstName[0]}${data.lastName[0]}`.toUpperCase();
+              } else if (data.name) {
+                const nameParts = data.name.trim().split(/\s+/);
+                if (nameParts.length >= 2) {
+                  initial = `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase();
+                } else if (nameParts.length === 1) {
+                  initial = nameParts[0][0].toUpperCase();
+                }
               }
             }
 

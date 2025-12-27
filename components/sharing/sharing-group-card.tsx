@@ -61,20 +61,25 @@ export function SharingGroupCard({ group }: SharingGroupCardProps) {
           setOwnerName(data.name || group.ownerId);
           setOwnerImageUrl(data.imageUrl || null);
 
-          // Generate initials from firstName and lastName, or from name
-          if (data.firstName && data.lastName) {
-            setOwnerInitials(
-              `${data.firstName[0]}${data.lastName[0]}`.toUpperCase()
-            );
-          } else if (data.name) {
-            // Fallback: extract first letters of first two words
-            const nameParts = data.name.trim().split(/\s+/);
-            if (nameParts.length >= 2) {
+          // Use initials from API if available (for owner it will be "A")
+          if (data.initials) {
+            setOwnerInitials(data.initials);
+          } else {
+            // Fallback: Generate initials from firstName and lastName, or from name
+            if (data.firstName && data.lastName) {
               setOwnerInitials(
-                `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase()
+                `${data.firstName[0]}${data.lastName[0]}`.toUpperCase()
               );
-            } else if (nameParts.length === 1) {
-              setOwnerInitials(nameParts[0][0].toUpperCase());
+            } else if (data.name) {
+              // Fallback: extract first letters of first two words
+              const nameParts = data.name.trim().split(/\s+/);
+              if (nameParts.length >= 2) {
+                setOwnerInitials(
+                  `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase()
+                );
+              } else if (nameParts.length === 1) {
+                setOwnerInitials(nameParts[0][0].toUpperCase());
+              }
             }
           }
         } else {
