@@ -563,6 +563,41 @@ export const listUserProjectsWithShared = query({
       // Debug logging
       console.log(`[listUserProjectsWithShared] Called with: filter=${filter}, numItems=${numItems}, cursor=${cursor}, startIndex=${startIndex}`);
 
+      // Check if user is owner - owners can see ALL projects from ALL users for moderation
+      const userSettings = await ctx.db
+        .query("userSettings")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .first();
+      const isOwner = userSettings?.role === "owner";
+      
+      if (isOwner) {
+        console.log(`[listUserProjectsWithShared] User ${args.userId} is OWNER - returning ALL projects from ALL users for moderation`);
+        
+        // Owner sees ALL projects from ALL users (for moderation)
+        // Get all non-deleted projects regardless of userId
+        const allProjects = await ctx.db
+          .query("projects")
+          .filter((q) => q.eq(q.field("deletedAt"), undefined))
+          .order("desc")
+          .collect();
+
+        // Sort by newest first
+        allProjects.sort((a, b) => b.createdAt - a.createdAt);
+
+        // Manual pagination
+        const endIndex = startIndex + numItems;
+        const paginatedProjects = allProjects.slice(startIndex, endIndex);
+        const hasMore = endIndex < allProjects.length;
+
+        console.log(`[listUserProjectsWithShared] Owner view: Total ${allProjects.length} projects, returning ${paginatedProjects.length} projects`);
+
+        return {
+          page: paginatedProjects,
+          continueCursor: hasMore ? endIndex.toString() : null,
+          isDone: !hasMore,
+        };
+      }
+
       // For "own" filter, optimize by early return
       if (filter === "own") {
         const ownProjects = await ctx.db
@@ -999,7 +1034,61 @@ export const listUserProjectsByCategory = query({
   handler: async (ctx, args) => {
     const numItems = args.paginationOpts?.numItems ?? 20;
 
+    // Check if user is owner - owners can see ALL projects from ALL users for moderation
+    const userSettings = await ctx.db
+      .query("userSettings")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .first();
+    const isOwner = userSettings?.role === "owner";
+    
     let projects;
+    
+    if (isOwner) {
+      // Owner sees ALL projects in this category from ALL users (for moderation)
+      if (args.categoryId) {
+        projects = await ctx.db
+          .query("projects")
+          .withIndex("by_category", (q) => q.eq("categoryId", args.categoryId))
+          .filter((q) => q.eq(q.field("deletedAt"), undefined))
+          .order("desc")
+          .collect();
+        
+        // Filter by subcategory if provided
+        if (args.subcategoryId) {
+          projects = projects.filter((p) => p.subcategoryId === args.subcategoryId);
+        }
+      } else {
+        // No category filter - get all projects
+        projects = await ctx.db
+          .query("projects")
+          .filter((q) => q.eq(q.field("deletedAt"), undefined))
+          .order("desc")
+          .collect();
+        
+        // Filter by subcategory if provided
+        if (args.subcategoryId) {
+          projects = projects.filter((p) => p.subcategoryId === args.subcategoryId);
+        }
+      }
+      
+      // Sort by newest first
+      projects.sort((a, b) => b.createdAt - a.createdAt);
+      
+      // Manual pagination
+      const cursor = args.paginationOpts?.cursor;
+      const startIndex = cursor ? parseInt(cursor, 10) : 0;
+      const endIndex = startIndex + numItems;
+      const paginatedProjects = projects.slice(startIndex, endIndex);
+      const hasMore = endIndex < projects.length;
+      
+      console.log(`[listUserProjectsByCategory] Owner view: Total ${projects.length} projects, returning ${paginatedProjects.length}`);
+      
+      return {
+        page: paginatedProjects,
+        continueCursor: hasMore ? endIndex.toString() : null,
+        isDone: !hasMore,
+      };
+    }
 
     // Use the by_user_and_category index if categoryId is provided for better reactivity
     if (args.categoryId) {
@@ -1060,6 +1149,25 @@ export const getAllUserProjects = query({
     userId: v.string(),
   },
   handler: async (ctx, args) => {
+    // Check if user is owner - owners can see ALL projects from ALL users for moderation
+    const userSettings = await ctx.db
+      .query("userSettings")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .first();
+    const isOwner = userSettings?.role === "owner";
+    
+    if (isOwner) {
+      // Owner sees ALL projects from ALL users (for moderation)
+      const allProjects = await ctx.db
+        .query("projects")
+        .filter((q) => q.eq(q.field("deletedAt"), undefined))
+        .order("desc")
+        .collect();
+      
+      console.log(`[getAllUserProjects] Owner view: Returning ALL ${allProjects.length} projects from ALL users`);
+      return allProjects;
+    }
+    
     return await ctx.db
       .query("projects")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
@@ -1086,6 +1194,28 @@ export const getAllUserProjectsWithShared = query({
   handler: async (ctx, args) => {
     try {
       const filter = args.filter ?? "all";
+
+      // Check if user is owner - owners can see ALL projects from ALL users for moderation
+      const userSettings = await ctx.db
+        .query("userSettings")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .first();
+      const isOwner = userSettings?.role === "owner";
+      
+      if (isOwner) {
+        // Owner sees ALL projects from ALL users (for moderation)
+        const allProjects = await ctx.db
+          .query("projects")
+          .filter((q) => q.eq(q.field("deletedAt"), undefined))
+          .order("desc")
+          .collect();
+        
+        // Sort by newest first
+        allProjects.sort((a, b) => b.createdAt - a.createdAt);
+        
+        console.log(`[getAllUserProjectsWithShared] Owner view: Returning ALL ${allProjects.length} projects from ALL users`);
+        return allProjects;
+      }
 
       // Get user's own projects
       const ownProjects = await ctx.db
