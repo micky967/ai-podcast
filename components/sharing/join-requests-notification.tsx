@@ -412,7 +412,7 @@ export function JoinRequestsNotification() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-96 p-0" align="end">
+      <PopoverContent className="w-[calc(100vw-2rem)] sm:w-96 max-w-[calc(100vw-2rem)] sm:max-w-96 p-0" align="end">
         <div className="p-4 border-b">
           <div className="flex items-center gap-2 mb-1">
             <Bell className="h-4 w-4" />

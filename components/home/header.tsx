@@ -32,9 +32,9 @@ export function Header() {
           : "glass-nav sticky top-0 transition-all z-50 backdrop-blur-md border-b border-gray-200/50 shadow-sm"
       }
     >
-      <div className="container mx-auto px-4 lg:px-6">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-2 lg:gap-8">
+      <div className="container mx-auto px-2 sm:px-4 lg:px-6">
+        <div className="flex items-center justify-between h-16 gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 lg:gap-8 flex-shrink-0 min-w-0">
             <Link
               href="/"
               className="flex items-center gap-2.5 hover:opacity-90 transition-all duration-300 group"
@@ -57,7 +57,7 @@ export function Header() {
               <span
                 className={
                   isDashboard
-                    ? "text-xl font-bold text-white tracking-tight"
+                    ? "hidden md:inline text-xl font-bold text-white tracking-tight"
                     : "text-xl font-bold gradient-emerald-text tracking-tight"
                 }
               >
@@ -73,7 +73,7 @@ export function Header() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 lg:gap-3">
+          <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 flex-shrink-0 min-w-0">
             {isSignedIn ? (
               <>
                 {/* Show "Upgrade to Pro" for Free users */}
@@ -132,12 +132,12 @@ export function Header() {
                   <Badge
                     className={
                       isDashboard
-                        ? "gap-1.5 hidden md:flex bg-white/95 text-emerald-600 border-0 px-3 py-1.5 shadow-md hover:shadow-lg transition-all duration-300"
-                        : "gap-1.5 hidden md:flex gradient-emerald text-white border-0 px-3 py-1.5 shadow-md hover:shadow-lg transition-all duration-300"
+                        ? "gap-1.5 hidden sm:flex bg-white/95 text-emerald-600 border-0 px-2 sm:px-3 py-1.5 shadow-md hover:shadow-lg transition-all duration-300 flex-shrink-0"
+                        : "gap-1.5 hidden sm:flex gradient-emerald text-white border-0 px-2 sm:px-3 py-1.5 shadow-md hover:shadow-lg transition-all duration-300 flex-shrink-0"
                     }
                   >
                     <Crown className="h-3.5 w-3.5" />
-                    <span className="font-semibold">Ultra</span>
+                    <span className="font-semibold text-xs sm:text-sm">Ultra</span>
                   </Badge>
                 </Protect>
 
@@ -196,8 +196,12 @@ export function Header() {
                   </Link>
                 )}
                 {/* Show notification component on dashboard pages */}
-                {isDashboard && <JoinRequestsNotification />}
-                <div className="scale-110 hover:scale-125 transition-transform duration-300">
+                {isDashboard && (
+                  <div className="flex-shrink-0">
+                    <JoinRequestsNotification />
+                  </div>
+                )}
+                <div className="flex-shrink-0 scale-90 sm:scale-100 hover:scale-110 sm:hover:scale-125 transition-transform duration-300">
                   <UserButton afterSignOutUrl="/" />
                 </div>
               </>
