@@ -475,12 +475,23 @@ export function ProjectsList({
   useEffect(() => {
     if (highlightProjectId && highlightedElementRef.current) {
       // Small delay to ensure DOM is fully rendered
-      setTimeout(() => {
-        highlightedElementRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
+      const timeoutId = setTimeout(() => {
+        // Double-check element still exists and is in the DOM before scrolling
+        if (highlightedElementRef.current && highlightedElementRef.current.parentNode) {
+          try {
+            highlightedElementRef.current.scrollIntoView({
+              behavior: "smooth",
+              block: "center",
+            });
+          } catch (error) {
+            // Silently handle scroll errors (element might have been unmounted)
+            console.warn("[ProjectsList] Error scrolling to highlighted project:", error);
+          }
+        }
       }, 100);
+      
+      // Cleanup timeout on unmount
+      return () => clearTimeout(timeoutId);
     }
   }, [highlightProjectId]);
 
