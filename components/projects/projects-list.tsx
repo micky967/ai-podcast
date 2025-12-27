@@ -473,27 +473,34 @@ export function ProjectsList({
 
   // Scroll to highlighted project when it loads
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === "undefined") return;
+    
     if (highlightProjectId && highlightedElementRef.current) {
-      // Small delay to ensure DOM is fully rendered
+      // Longer delay to ensure DOM is fully rendered and navigation is complete
       const timeoutId = setTimeout(() => {
         // Double-check element still exists and is in the DOM before scrolling
-        if (highlightedElementRef.current && highlightedElementRef.current.parentNode) {
+        const element = highlightedElementRef.current;
+        if (element && element.isConnected && element.parentNode) {
           try {
-            highlightedElementRef.current.scrollIntoView({
-              behavior: "smooth",
-              block: "center",
-            });
+            // Check if element is actually in the document
+            if (document.contains(element)) {
+              element.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+              });
+            }
           } catch (error) {
             // Silently handle scroll errors (element might have been unmounted)
             console.warn("[ProjectsList] Error scrolling to highlighted project:", error);
           }
         }
-      }, 100);
+      }, 300); // Increased delay to ensure navigation is complete
       
       // Cleanup timeout on unmount
       return () => clearTimeout(timeoutId);
     }
-  }, [highlightProjectId]);
+  }, [highlightProjectId, filteredProjects.length]); // Also depend on filteredProjects to ensure they're rendered
 
   // Ensure component always renders consistently, even during logout
   // This prevents "fewer hooks than expected" errors
