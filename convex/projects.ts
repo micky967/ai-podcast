@@ -563,42 +563,16 @@ export const listUserProjectsWithShared = query({
       // Debug logging
       console.log(`[listUserProjectsWithShared] Called with: filter=${filter}, numItems=${numItems}, cursor=${cursor}, startIndex=${startIndex}`);
 
-      // Check if user is owner - owners can see ALL projects from ALL users for moderation
+      // Check if user is owner - owners can see ALL projects from ALL users for moderation (but only in "all" filter)
       const userSettings = await ctx.db
         .query("userSettings")
         .withIndex("by_user", (q) => q.eq("userId", args.userId))
         .first();
       const isOwner = userSettings?.role === "owner";
       
-      if (isOwner) {
-        console.log(`[listUserProjectsWithShared] User ${args.userId} is OWNER - returning ALL projects from ALL users for moderation`);
-        
-        // Owner sees ALL projects from ALL users (for moderation)
-        // Get all non-deleted projects regardless of userId
-        const allProjects = await ctx.db
-          .query("projects")
-          .filter((q) => q.eq(q.field("deletedAt"), undefined))
-          .order("desc")
-          .collect();
+      console.log(`[listUserProjectsWithShared] User ${args.userId}: userSettings exists=${!!userSettings}, role=${userSettings?.role}, isOwner=${isOwner}, filter=${filter}`);
 
-        // Sort by newest first
-        allProjects.sort((a, b) => b.createdAt - a.createdAt);
-
-        // Manual pagination
-        const endIndex = startIndex + numItems;
-        const paginatedProjects = allProjects.slice(startIndex, endIndex);
-        const hasMore = endIndex < allProjects.length;
-
-        console.log(`[listUserProjectsWithShared] Owner view: Total ${allProjects.length} projects, returning ${paginatedProjects.length} projects`);
-
-        return {
-          page: paginatedProjects,
-          continueCursor: hasMore ? endIndex.toString() : null,
-          isDone: !hasMore,
-        };
-      }
-
-      // For "own" filter, optimize by early return
+      // For "own" filter, always return only user's own projects (even for owner)
       if (filter === "own") {
         const ownProjects = await ctx.db
           .query("projects")
@@ -619,6 +593,46 @@ export const listUserProjectsWithShared = query({
           continueCursor: hasMore ? endIndex.toString() : null,
           isDone: !hasMore,
         };
+      }
+
+      // For owner with "all" filter, return ALL projects from ALL users for moderation
+      if (isOwner && filter === "all") {
+        console.log(`[listUserProjectsWithShared] User ${args.userId} is OWNER - returning ALL projects from ALL users for moderation`);
+        
+        // Owner sees ALL projects from ALL users (for moderation)
+        // Get all non-deleted projects regardless of userId
+        const allProjects = await ctx.db
+          .query("projects")
+          .filter((q) => q.eq(q.field("deletedAt"), undefined))
+          .order("desc")
+          .collect();
+
+        // Sort by newest first
+        allProjects.sort((a, b) => b.createdAt - a.createdAt);
+        
+        console.log(`[listUserProjectsWithShared] Owner view: Found ${allProjects.length} total projects in database`);
+        if (allProjects.length > 0) {
+          const userIds = [...new Set(allProjects.map(p => p.userId))];
+          console.log(`[listUserProjectsWithShared] Owner view: Projects from ${userIds.length} different users: ${userIds.join(', ')}`);
+        }
+
+        // Manual pagination
+        const endIndex = startIndex + numItems;
+        const paginatedProjects = allProjects.slice(startIndex, endIndex);
+        const hasMore = endIndex < allProjects.length;
+
+        console.log(`[listUserProjectsWithShared] Owner view: Total ${allProjects.length} projects, returning ${paginatedProjects.length} projects (startIndex=${startIndex}, endIndex=${endIndex})`);
+
+        return {
+          page: paginatedProjects,
+          continueCursor: hasMore ? endIndex.toString() : null,
+          isDone: !hasMore,
+        };
+      }
+      
+      // Log if owner but wrong filter
+      if (isOwner && filter !== "all") {
+        console.log(`[listUserProjectsWithShared] User ${args.userId} is OWNER but filter is "${filter}" (not "all"), using normal logic`);
       }
 
       // For "shared" or "all" filters, we need to fetch shared projects
@@ -1195,14 +1209,15 @@ export const getAllUserProjectsWithShared = query({
     try {
       const filter = args.filter ?? "all";
 
-      // Check if user is owner - owners can see ALL projects from ALL users for moderation
+      // Check if user is owner - owners can see ALL projects from ALL users for moderation (only in "all" filter)
       const userSettings = await ctx.db
         .query("userSettings")
         .withIndex("by_user", (q) => q.eq("userId", args.userId))
         .first();
       const isOwner = userSettings?.role === "owner";
       
-      if (isOwner) {
+      // For owner with "all" filter, return ALL projects from ALL users for moderation
+      if (isOwner && filter === "all") {
         // Owner sees ALL projects from ALL users (for moderation)
         const allProjects = await ctx.db
           .query("projects")
