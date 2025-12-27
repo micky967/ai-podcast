@@ -54,7 +54,7 @@ export function CategoriesGrid({ preloadedCategories }: CategoriesGridProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 md:gap-6">
       {/* "All Categories" option */}
       <Link 
         href="/dashboard/projects" 
@@ -65,15 +65,15 @@ export function CategoriesGrid({ preloadedCategories }: CategoriesGridProps) {
         }}
       >
         <Card className="glass-card border-blue-200/50 hover:border-blue-400 transition-all hover:shadow-lg hover:shadow-blue-200/50 h-full flex flex-col cursor-pointer bg-gradient-to-br from-blue-50/50 to-indigo-50/50">
-          <div className="p-6 flex-1 flex flex-col">
-            <div className="flex items-start justify-between mb-4">
-              <FolderTree className="h-8 w-8 text-blue-600 flex-shrink-0" />
-              <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0" />
+          <div className="p-4 sm:p-5 md:p-6 flex-1 flex flex-col">
+            <div className="flex items-start justify-between mb-3 sm:mb-4">
+              <FolderTree className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-blue-600 flex-shrink-0" />
+              <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-blue-700 transition-colors">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 group-hover:text-blue-700 transition-colors">
               All Categories
             </h3>
-            <p className="text-sm text-gray-600 line-clamp-2">
+            <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">
               View all projects across all categories
             </p>
           </div>
@@ -92,16 +92,16 @@ export function CategoriesGrid({ preloadedCategories }: CategoriesGridProps) {
           }}
         >
           <Card className="glass-card border-emerald-200/50 hover:border-emerald-400 transition-all hover:shadow-lg hover:shadow-emerald-200/50 h-full flex flex-col cursor-pointer relative">
-            <div className="p-6 flex-1 flex flex-col">
-              <div className="flex items-start justify-between mb-4">
-                <FolderTree className="h-8 w-8 text-emerald-600 flex-shrink-0" />
-                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-emerald-600 transition-colors flex-shrink-0" />
+            <div className="p-4 sm:p-5 md:p-6 flex-1 flex flex-col">
+              <div className="flex items-start justify-between mb-3 sm:mb-4">
+                <FolderTree className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-emerald-600 flex-shrink-0" />
+                <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 group-hover:text-emerald-600 transition-colors flex-shrink-0" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-emerald-700 transition-colors">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 group-hover:text-emerald-700 transition-colors break-words">
                 {category.name}
               </h3>
               {category.description && (
-                <p className="text-sm text-gray-600 line-clamp-2">
+                <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">
                   {category.description}
                 </p>
               )}
@@ -109,7 +109,7 @@ export function CategoriesGrid({ preloadedCategories }: CategoriesGridProps) {
             {/* Project count badge in bottom right */}
             {/* Show count if categoryCounts is loaded and count exists (even if 0, but only show if > 0) */}
             {categoryCounts !== undefined && categoryCounts[category._id] !== undefined && categoryCounts[category._id] > 0 && (
-              <div className="absolute bottom-3 right-3 bg-emerald-600 text-white text-xs font-semibold px-2 py-1 rounded-full">
+              <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 bg-emerald-600 text-white text-xs font-semibold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full">
                 {categoryCounts[category._id]}
               </div>
             )}

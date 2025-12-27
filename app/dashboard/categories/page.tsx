@@ -17,7 +17,7 @@ export default async function CategoriesPage() {
   const preloadedCategories = await preloadQuery(api.categories.getMainCategories);
 
   return (
-    <div className="container max-w-6xl mx-auto py-10 px-12 xl:px-0">
+    <div className="container max-w-6xl mx-auto py-4 sm:py-6 md:py-8 lg:py-10 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-0">
       <CategoriesHeader />
       <CategoriesGrid preloadedCategories={preloadedCategories} />
     </div>
