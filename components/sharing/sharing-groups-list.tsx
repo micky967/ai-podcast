@@ -38,27 +38,33 @@ export function SharingGroupsList({ preloadedGroups }: SharingGroupsListProps) {
   };
 
   return (
-    <div className="container max-w-6xl mx-auto py-10 px-12 xl:px-0">
-      <div className="mb-12">
-        <div className="flex items-center justify-between mb-3">
-          <h1 className="text-4xl md:text-5xl font-extrabold">
+    <div className="container max-w-6xl mx-auto py-4 sm:py-6 md:py-8 lg:py-10 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-0">
+      <div className="mb-6 sm:mb-8 md:mb-10 lg:mb-12">
+        <div className="mb-3">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold">
             <span className="gradient-emerald-text">File Sharing</span>
           </h1>
-          <Button onClick={handleCreateClick} disabled={!canCreate}>
-            <Users className="mr-2 h-4 w-4" />
-            Create Group
-          </Button>
         </div>
-        <p className="text-lg text-gray-600">
+        <p className="text-sm sm:text-base md:text-lg text-gray-600">
           Share your files with others by creating or joining groups.
         </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-6">
-          <TabsTrigger value="my-groups">My Groups</TabsTrigger>
-          <TabsTrigger value="browse">Browse Groups</TabsTrigger>
-        </TabsList>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 mb-6">
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="my-groups">My Groups</TabsTrigger>
+            <TabsTrigger value="browse">Browse Groups</TabsTrigger>
+          </TabsList>
+          <Button 
+            onClick={handleCreateClick} 
+            disabled={!canCreate}
+            className="w-full sm:w-auto gradient-emerald text-white hover-glow shadow-lg"
+          >
+            <Users className="mr-2 h-4 w-4" />
+            Create Group
+          </Button>
+        </div>
 
         <TabsContent value="my-groups" className="space-y-6">
           {groups.length === 0 ? (
