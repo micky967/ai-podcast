@@ -190,26 +190,6 @@ export async function updateProjectCategoryAction(input: {
       };
     }
 
-    // Check if user is owner and if project belongs to another user
-    const project = await convex.query(api.projects.getProject, {
-      projectId: input.projectId,
-      userId,
-    });
-
-    if (!project) {
-      return { success: false, error: "Project not found" };
-    }
-
-    // Check if user is app owner
-    const isOwner = await convex.query(api.userSettings.isUserOwner, {
-      userId,
-    });
-
-    // If user is owner but project belongs to another user, show specific error
-    if (isOwner && project.userId !== userId) {
-      return { success: false, error: "Cannot edit another user's project" };
-    }
-
     // Update category in Convex (validates ownership)
     // Handle null explicitly - convert null to undefined for Convex
     await convex.mutation(api.projects.updateProjectCategory, {
