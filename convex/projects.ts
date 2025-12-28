@@ -600,33 +600,35 @@ export const listUserProjectsWithShared = query({
         console.log(`[listUserProjectsWithShared] User ${args.userId} is OWNER - returning ALL projects from ALL users for moderation`);
         
         // Owner sees ALL projects from ALL users (for moderation)
-        // Get all non-deleted projects regardless of userId
-        const allProjects = await ctx.db
+        // Use pagination to avoid byte limits when there are many projects
+        // If no cursor, start from beginning; otherwise use cursor as index
+        const paginationCursor = cursor ? parseInt(cursor, 10) : 0;
+        const paginationStart = paginationCursor;
+        const paginationEnd = paginationStart + numItems;
+        
+        // Use Convex's built-in pagination to avoid loading all projects at once
+        const paginatedResult = await ctx.db
           .query("projects")
           .filter((q) => q.eq(q.field("deletedAt"), undefined))
           .order("desc")
-          .collect();
-
-        // Sort by newest first
-        allProjects.sort((a, b) => b.createdAt - a.createdAt);
+          .paginate({
+            numItems: numItems,
+            cursor: paginationStart > 0 ? paginationStart.toString() : null,
+          });
         
-        console.log(`[listUserProjectsWithShared] Owner view: Found ${allProjects.length} total projects in database`);
-        if (allProjects.length > 0) {
-          const userIds = [...new Set(allProjects.map(p => p.userId))];
-          console.log(`[listUserProjectsWithShared] Owner view: Projects from ${userIds.length} different users: ${userIds.join(', ')}`);
+        // Sort by createdAt (newest first) as secondary sort
+        paginatedResult.page.sort((a, b) => b.createdAt - a.createdAt);
+        
+        console.log(`[listUserProjectsWithShared] Owner view: Returning ${paginatedResult.page.length} projects (hasMore=${!paginatedResult.isDone})`);
+        if (paginatedResult.page.length > 0) {
+          const userIds = [...new Set(paginatedResult.page.map(p => p.userId))];
+          console.log(`[listUserProjectsWithShared] Owner view: Projects from ${userIds.length} different users in this page`);
         }
 
-        // Manual pagination
-        const endIndex = startIndex + numItems;
-        const paginatedProjects = allProjects.slice(startIndex, endIndex);
-        const hasMore = endIndex < allProjects.length;
-
-        console.log(`[listUserProjectsWithShared] Owner view: Total ${allProjects.length} projects, returning ${paginatedProjects.length} projects (startIndex=${startIndex}, endIndex=${endIndex})`);
-
         return {
-          page: paginatedProjects,
-          continueCursor: hasMore ? endIndex.toString() : null,
-          isDone: !hasMore,
+          page: paginatedResult.page,
+          continueCursor: paginatedResult.continueCursor,
+          isDone: paginatedResult.isDone,
         };
       }
       
@@ -798,6 +800,53 @@ export const listUserProjectsWithShared = query({
         isDone: true,
       };
     }
+  },
+});
+
+/**
+ * Diagnostic query to check user role and project access
+ * 
+ * Used for debugging owner access issues
+ * Uses a single paginated query to sample data
+ */
+export const diagnoseUserAccess = query({
+  args: {
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userSettings = await ctx.db
+      .query("userSettings")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .first();
+    
+    // Get own projects count (should be small)
+    const ownProjects = await ctx.db
+      .query("projects")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("deletedAt"), undefined))
+      .collect();
+    
+    // Sample first 500 projects to get user IDs (single paginated query)
+    const sampleResult = await ctx.db
+      .query("projects")
+      .filter((q) => q.eq(q.field("deletedAt"), undefined))
+      .order("desc")
+      .paginate({ numItems: 500, cursor: null });
+    
+    const uniqueUserIds = new Set<string>();
+    sampleResult.page.forEach(p => uniqueUserIds.add(p.userId));
+    
+    return {
+      userSettingsExists: !!userSettings,
+      role: userSettings?.role || "not set",
+      isOwner: userSettings?.role === "owner",
+      totalProjectsSampled: sampleResult.page.length,
+      hasMoreProjects: !sampleResult.isDone,
+      ownProjectsCount: ownProjects.length,
+      uniqueUserIdsInSample: uniqueUserIds.size,
+      userIds: Array.from(uniqueUserIds).slice(0, 20), // Limit to first 20 for display
+      note: !sampleResult.isDone ? "Total count is estimated from first 500 projects. More projects exist." : "All projects sampled.",
+    };
   },
 });
 
