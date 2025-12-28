@@ -299,6 +299,26 @@ export async function updateDisplayNameAction(
       throw new Error("Unauthorized");
     }
 
+    // Check if user is owner and if project belongs to another user
+    const project = await convex.query(api.projects.getProject, {
+      projectId,
+      userId,
+    });
+
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    // Check if user is app owner
+    const isOwner = await convex.query(api.userSettings.isUserOwner, {
+      userId,
+    });
+
+    // If user is owner but project belongs to another user, show specific error
+    if (isOwner && project.userId !== userId) {
+      throw new Error("Cannot edit another user's project");
+    }
+
     // Validate display name
     if (!displayName || displayName.trim().length === 0) {
       throw new Error("Display name cannot be empty");
