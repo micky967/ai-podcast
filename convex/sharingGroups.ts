@@ -17,6 +17,11 @@ import type { Id } from "./_generated/dataModel";
  *
  * Used by: Server action after validating user's plan
  *
+ * IMPORTANT: When a user creates a group, they become the group owner.
+ * Only the group owner's files (where project.userId === group.ownerId) will be
+ * shared with group members. This applies to all users, including app owners.
+ * App owners can view all files for moderation, but can only share their own files.
+ *
  * @param ownerId - User creating the group (Clerk userId)
  * @param name - Optional group name
  * @param maxMembers - Maximum members allowed (validated server-side)

@@ -453,6 +453,20 @@ export const getProject = query({
       return null;
     }
 
+    // Check if user is app owner - owners have access to ALL projects for moderation
+    const userSettings = await ctx.db
+      .query("userSettings")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .first();
+    const isAppOwner = userSettings?.role === "owner";
+    
+    if (isAppOwner) {
+      // Owner has access to all projects for moderation
+      // Mark as shared if not their own project
+      const isOwnProject = project.userId === args.userId;
+      return { ...project, isOwner: isOwnProject, isShared: !isOwnProject };
+    }
+
     // Check if user owns the project
     if (project.userId === args.userId) {
       return { ...project, isOwner: true, isShared: false };
@@ -694,6 +708,10 @@ export const listUserProjectsWithShared = query({
       // Get shared projects - query each owner's projects using indexed queries
       // CRITICAL: Each indexed query with order() is tracked by Convex for reactivity
       // When user1 creates a new project, Convex will detect it via the by_user index
+      // IMPORTANT: Only projects where project.userId === group.ownerId are shared.
+      // This means users (including app owners) can only share their own files,
+      // not files belonging to other users. App owners can view all files for
+      // moderation, but can only share files they own.
       let sharedProjects: Doc<"projects">[] = [];
       if (uniqueOwnerIds.length > 0) {
         // Use Promise.all - Convex tracks each individual indexed query
@@ -707,6 +725,8 @@ export const listUserProjectsWithShared = query({
             try {
               // CRITICAL: Indexed query with order() - Convex tracks this for reactivity
               // When ownerId creates a new project, Convex will detect it via the by_user index
+              // This query only returns projects owned by ownerId (project.userId === ownerId)
+              // App owners cannot share other people's files - only their own files are shared
               const projects = await ctx.db
                 .query("projects")
                 .withIndex("by_user", (q) => q.eq("userId", ownerId))
