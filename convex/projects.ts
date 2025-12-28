@@ -936,6 +936,8 @@ export const deleteProject = mutation({
     }
 
     // Security check: ensure user owns this project OR is an admin/owner
+    // IMPORTANT: App owners can delete any project for moderation/compliance purposes
+    // However, owners can only EDIT their own projects (see updateProjectDisplayName and updateProjectCategory)
     if (project.userId !== args.userId) {
       // Check if user is admin or owner
       const userSettings = await ctx.db
@@ -948,7 +950,7 @@ export const deleteProject = mutation({
         throw new Error("Unauthorized: You don't own this project");
       }
       const roleLabel = userSettings?.role === "owner" ? "Owner" : "Admin";
-      console.log(`[CONVEX DELETE] ${roleLabel} ${args.userId} deleting project ${args.projectId} owned by ${project.userId}`);
+      console.log(`[CONVEX DELETE] ${roleLabel} ${args.userId} deleting project ${args.projectId} owned by ${project.userId} (moderation/compliance)`);
     }
 
     // Soft delete: set deletedAt timestamp instead of hard delete
@@ -1032,8 +1034,10 @@ export const updateProjectCategory = mutation({
     }
 
     // Security check: ensure user owns this project
+    // IMPORTANT: Even app owners can only edit their own projects, not other users' projects
+    // App owners can view all files for moderation, but cannot edit or delete files belonging to others
     if (project.userId !== args.userId) {
-      throw new Error("Unauthorized: You don't own this project");
+      throw new Error("Unauthorized: You can only edit your own projects");
     }
 
     // Validate category exists if provided
