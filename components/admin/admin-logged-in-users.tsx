@@ -166,59 +166,63 @@ export function AdminLoggedInUsers({ adminUserId }: AdminLoggedInUsersProps) {
             return (
               <div
                 key={session.userId}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 p-3 sm:p-4 border rounded-lg hover:bg-accent/50 transition-colors"
               >
-                <div className="flex items-center gap-3">
-                  {isOwner ? (
-                    <Crown
-                      className="h-5 w-5"
-                      style={{ color: "#eab308", stroke: "#eab308" }}
-                    />
-                  ) : isAdmin ? (
-                    <Shield className="h-5 w-5 text-emerald-600" />
-                  ) : (
-                    <User className="h-5 w-5 text-muted-foreground" />
-                  )}
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <div className="flex flex-col gap-1">
-                        <div className="font-semibold text-base">
+                <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                  <div className="flex-shrink-0 mt-0.5 sm:mt-0">
+                    {isOwner ? (
+                      <Crown
+                        className="h-4 w-4 sm:h-5 sm:w-5"
+                        style={{ color: "#eab308", stroke: "#eab308" }}
+                      />
+                    ) : isAdmin ? (
+                      <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
+                    ) : (
+                      <User className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-wrap">
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <div className="font-semibold text-sm sm:text-base truncate">
                           {userInfo?.name || session.userId}
                         </div>
                         {userInfo?.email && (
-                          <div className="text-sm text-muted-foreground">
+                          <div className="text-xs sm:text-sm text-muted-foreground truncate">
                             {userInfo.email}
                           </div>
                         )}
-                        <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded">
+                        <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded break-all">
                           {session.userId}
                         </code>
                       </div>
-                      {isCurrentUser && (
-                        <Badge variant="outline" className="text-xs">
-                          You
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {isCurrentUser && (
+                          <Badge variant="outline" className="text-xs">
+                            You
+                          </Badge>
+                        )}
+                        <Badge
+                          variant={
+                            isOwner
+                              ? "default"
+                              : isAdmin
+                              ? "default"
+                              : "secondary"
+                          }
+                          className={`text-xs ${
+                            isOwner ? "bg-yellow-600 text-white" : ""
+                          }`}
+                        >
+                          {isOwner ? "Owner" : isAdmin ? "Admin" : "User"}
                         </Badge>
-                      )}
-                      <Badge
-                        variant={
-                          isOwner
-                            ? "default"
-                            : isAdmin
-                            ? "default"
-                            : "secondary"
-                        }
-                        className={`text-xs ${
-                          isOwner ? "bg-yellow-600 text-white" : ""
-                        }`}
-                      >
-                        {isOwner ? "Owner" : isAdmin ? "Admin" : "User"}
-                      </Badge>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  <span>Session started {formatTimeAgo(session.createdAt)}</span>
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground flex-shrink-0 sm:self-center">
+                  <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="whitespace-nowrap">Session started {formatTimeAgo(session.createdAt)}</span>
                 </div>
               </div>
             );

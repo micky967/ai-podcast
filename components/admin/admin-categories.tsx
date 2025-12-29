@@ -61,10 +61,10 @@ export function AdminCategories() {
   return (
     <div className="space-y-6">
       {/* Header with Create Button */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Category Management</h2>
-          <p className="text-sm text-gray-600 mt-1">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Category Management</h2>
+          <p className="text-xs sm:text-sm text-gray-600 mt-1">
             Create and manage categories. Deleting a category will also delete its subcategories and remove category assignments from projects.
           </p>
         </div>
@@ -141,11 +141,11 @@ function CategoryCard({ category, onDelete, isDeleting }: CategoryCardProps) {
   return (
     <Card className="border-emerald-200">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <FolderTree className="h-5 w-5 text-emerald-600" />
-              {category.name}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <FolderTree className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 flex-shrink-0" />
+              <span className="truncate">{category.name}</span>
             </CardTitle>
             {category.description && (
               <p className="text-sm text-gray-600 mt-1">{category.description}</p>

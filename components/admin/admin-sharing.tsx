@@ -239,7 +239,7 @@ export function AdminSharing({ adminId }: AdminSharingProps) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold mb-4">All Sharing Groups</h2>
+      <h2 className="text-xl sm:text-2xl font-bold mb-4">All Sharing Groups</h2>
       {allGroups.length === 0 ? (
         <p className="text-gray-600">No groups found.</p>
       ) : (
