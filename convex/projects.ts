@@ -993,9 +993,18 @@ export const updateProjectDisplayName = mutation({
       throw new Error("Project not found");
     }
 
-    // Security check: ensure user owns this project
+    // Security check: ensure user owns this project OR is an admin/owner
+    // App owners and admins can edit any project
     if (project.userId !== args.userId) {
-      throw new Error("Unauthorized: You don't own this project");
+      // Check if user is admin or owner
+      const userSettings = await ctx.db
+        .query("userSettings")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .first();
+
+      if (userSettings?.role !== "admin" && userSettings?.role !== "owner") {
+        throw new Error("Unauthorized: You don't own this project");
+      }
     }
 
     // Update display name
@@ -1033,21 +1042,18 @@ export const updateProjectCategory = mutation({
       throw new Error("Project not found");
     }
 
-    // Security check: ensure user owns this project
-    // IMPORTANT: Even app owners can only edit their own projects, not other users' projects
-    // App owners can view all files for moderation, but cannot edit or delete files belonging to others
+    // Security check: ensure user owns this project OR is an admin/owner
+    // App owners and admins can edit any project
     if (project.userId !== args.userId) {
-      // Check if user is app owner to show specific error message
+      // Check if user is admin or owner
       const userSettings = await ctx.db
         .query("userSettings")
         .withIndex("by_user", (q) => q.eq("userId", args.userId))
         .first();
-      
-      if (userSettings?.role === "owner") {
-        throw new Error("Cannot edit another user's project");
+
+      if (userSettings?.role !== "admin" && userSettings?.role !== "owner") {
+        throw new Error("Unauthorized: You don't own this project");
       }
-      
-      throw new Error("Unauthorized: You don't own this project");
     }
 
     // Validate category exists if provided

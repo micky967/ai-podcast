@@ -1,6 +1,6 @@
 "use client";
 
-import { FolderOpen, Settings, Upload, Shield, Users } from "lucide-react";
+import { FolderOpen, Settings, Upload, Shield, Users, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
@@ -26,6 +26,9 @@ export function DashboardNav() {
     }
     if (path === "/dashboard/sharing") {
       return pathname === path || pathname.startsWith("/dashboard/sharing/");
+    }
+    if (path === "/dashboard/docs") {
+      return pathname === path || pathname.startsWith("/dashboard/docs/");
     }
     return pathname === path;
   };
@@ -87,6 +90,25 @@ export function DashboardNav() {
         >
           <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           <span className="hidden lg:inline">Sharing</span>
+        </Button>
+      </Link>
+      <Link
+        href="/dashboard/docs"
+        prefetch={true}
+        onMouseEnter={() => router.prefetch("/dashboard/docs")}
+      >
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "gap-1 sm:gap-2 transition-all duration-300 font-medium px-1 sm:px-2 md:px-3",
+            isActive("/dashboard/docs")
+              ? "bg-white/95 text-emerald-600 hover:bg-white hover:scale-105 shadow-lg border border-white/20"
+              : "text-white hover:bg-white/20 hover:scale-105"
+          )}
+        >
+          <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+          <span className="hidden lg:inline">Docs</span>
         </Button>
       </Link>
       <Link

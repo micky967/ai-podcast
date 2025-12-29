@@ -59,7 +59,7 @@ export function Footer() {
               <ul className="space-y-2">
                 <li>
                   <a
-                    href="#"
+                    href="/dashboard/docs"
                     className="text-gray-600 hover:text-emerald-600 transition-colors text-sm"
                   >
                     Documentation

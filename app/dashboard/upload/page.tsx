@@ -31,10 +31,10 @@ export default function UploadPage() {
                 </div>
                 <div>
                   <p className="font-semibold text-gray-900 mb-1">
-                    Secure Upload
+                    Secure Processing
                   </p>
                   <p className="text-gray-600">
-                    Your file will be securely uploaded to our storage
+                    Your files will not be uploaded permanently. They are processed and then immediately deleted.
                   </p>
                 </div>
               </li>
@@ -47,7 +47,7 @@ export default function UploadPage() {
                     AI Transcription
                   </p>
                   <p className="text-gray-600">
-                    AI will transcribe your podcast and extract key moments
+                    AI will transcribe your podcast or document and extract key moments
                   </p>
                 </div>
               </li>
@@ -60,7 +60,7 @@ export default function UploadPage() {
                     Content Generation
                   </p>
                   <p className="text-gray-600">
-                    Generate summaries, social posts, titles, and PowerPoint
+                    Generate questions & answers,summaries, social posts, titles, and PowerPoint
                     outlines
                   </p>
                 </div>
