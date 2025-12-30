@@ -56,6 +56,8 @@ function buildQuizPrompt(
   transcript: TranscriptWithExtras | null,
   documentText: string | null,
   contentType: "podcast" | "document",
+  questionCount: number,
+  existingQuestionCount: number,
 ): string {
   const isPodcast = contentType === "podcast";
   const content = isPodcast
@@ -68,9 +70,9 @@ function buildQuizPrompt(
 
   const keyTopics = isPodcast
     ? transcript?.chapters
-        ?.slice(0, 10)
-        .map((ch, idx) => `${idx + 1}. ${ch.headline}`)
-        .join("\n") || "See full content"
+      ?.slice(0, 10)
+      .map((ch, idx) => `${idx + 1}. ${ch.headline}`)
+      .join("\n") || "See full content"
     : "See full document";
 
   const questionCount = getQuestionCount(contentType, transcript, documentText);
@@ -84,7 +86,7 @@ KEY TOPICS:
 ${keyTopics}
 
 FULL CONTENT (for reference):
-${content.substring(0, 15000)}${content.length > 15000 ? "..." : ""}
+${content.substring(0, 8000)}${content.length > 8000 ? "..." : ""}
 
 REQUIREMENTS:
 - Generate exactly ${questionCount} multiple-choice questions
@@ -93,17 +95,15 @@ REQUIREMENTS:
 - Questions should test understanding, not just recall
 - Include brief explanations (1-2 sentences) for correct answers
 - Vary difficulty: mix of easy, medium, and hard questions
-- Focus on:
-  * Core concepts and main points (30-35%)
-  * Clinical applications and practical knowledge (25-30%)
-  * Important details and specifics (20-25%)
-  * Critical thinking and analysis (15-20%)
+- Ensure questions are NEW and do not repeat earlier questions in this quiz.
 
 QUESTION FORMAT:
 - Clear, specific question text
 - 4 plausible options (one correct, three distractors)
 - Brief explanation of why the correct answer is correct
 - Difficulty level (easy/medium/hard)
+
+This is chunk ${existingQuestionCount + 1} through ${existingQuestionCount + questionCount} in a longer quiz. Do not restart numbering, and do not repeat previous questions.
 
 Make questions relevant to the medical content, ensure correct answers are accurate, and make distractors plausible but clearly incorrect.`;
 }
@@ -141,74 +141,104 @@ export async function generateQuiz(
   try {
     const createCompletion = createBoundCompletion(userApiKey);
 
-    const questionCount = getQuestionCount(contentType, transcript, documentText);
-    const prompt = buildQuizPrompt(transcript, documentText, contentType);
+    const targetQuestionCount = getQuestionCount(contentType, transcript, documentText);
+    const chunkSize = 12;
+    const chunkCount = Math.ceil(targetQuestionCount / chunkSize);
 
-    console.log(`Quiz generation: ${contentType}, target questions: ${questionCount}, content length: ${contentText.length}`);
+    console.log(
+      `Quiz generation: ${contentType}, target questions: ${targetQuestionCount}, chunks: ${chunkCount}, content length: ${contentText.length}`,
+    );
 
-    const response = (await step.ai.wrap(
-      `generate-quiz-${contentType}-with-gpt`,
-      createCompletion,
-      {
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: QUIZ_SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        response_format: zodResponseFormat(quizQuestionsOnlySchema, "quiz"),
-      },
-    )) as OpenAI.Chat.Completions.ChatCompletion;
+    const allQuestions: Quiz["questions"] = [];
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      console.error("GPT quiz error: No content in response");
-      throw new Error("No content returned from OpenAI API");
-    }
+    for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
+      const remaining = targetQuestionCount - allQuestions.length;
+      const currentChunkCount = Math.min(chunkSize, remaining);
 
-    let parsed;
-    try {
-      parsed = JSON.parse(content);
-    } catch (parseError) {
-      console.error("GPT quiz JSON parse error:", parseError);
-      console.error("Raw content (first 500 chars):", content.substring(0, 500));
-      throw new Error(
-        `Failed to parse JSON response: ${parseError instanceof Error ? parseError.message : String(parseError)}`
+      const prompt = buildQuizPrompt(
+        transcript,
+        documentText,
+        contentType,
+        currentChunkCount,
+        allQuestions.length,
       );
-    }
 
-    // Parse with questions-only schema (what OpenAI returns)
-    let aiResponse;
-    try {
-      aiResponse = quizQuestionsOnlySchema.parse(parsed);
-    } catch (validationError) {
-      console.error("GPT quiz schema validation error:", validationError);
-      console.error("Parsed content:", JSON.stringify(parsed, null, 2).substring(0, 1000));
-      throw new Error(
-        `Quiz response validation failed: ${validationError instanceof Error ? validationError.message : String(validationError)}`
+      const response = await step.run(
+        `generate-quiz-${contentType}-chunk-${chunkIndex + 1}-of-${chunkCount}`,
+        async () =>
+          (await step.ai.wrap(
+            `openai-${contentType}-quiz-chunk-${chunkIndex + 1}`,
+            createCompletion,
+            {
+              // Use a faster model to reduce timeouts; quality is still good for MCQs.
+              model: "gpt-4o-mini",
+              messages: [
+                { role: "system", content: QUIZ_SYSTEM_PROMPT },
+                {
+                  role: "user",
+                  content: prompt,
+                },
+              ],
+              response_format: zodResponseFormat(quizQuestionsOnlySchema, "quiz"),
+            },
+          )) as OpenAI.Chat.Completions.ChatCompletion,
       );
-    }
 
-    // Validate that we got questions
-    if (!aiResponse.questions || aiResponse.questions.length === 0) {
-      console.error("GPT quiz error: No questions in validated response");
-      throw new Error("OpenAI returned a valid response but with no questions");
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        console.error("GPT quiz error: No content in response");
+        throw new Error("No content returned from OpenAI API");
+      }
+
+      let parsed;
+      try {
+        parsed = JSON.parse(content);
+      } catch (parseError) {
+        console.error("GPT quiz JSON parse error:", parseError);
+        console.error("Raw content (first 500 chars):", content.substring(0, 500));
+        throw new Error(
+          `Failed to parse JSON response: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
+        );
+      }
+
+      let aiResponse;
+      try {
+        aiResponse = quizQuestionsOnlySchema.parse(parsed);
+      } catch (validationError) {
+        console.error("GPT quiz schema validation error:", validationError);
+        console.error(
+          "Parsed content:",
+          JSON.stringify(parsed, null, 2).substring(0, 1000),
+        );
+        throw new Error(
+          `Quiz response validation failed: ${validationError instanceof Error ? validationError.message : String(validationError)}`,
+        );
+      }
+
+      if (!aiResponse.questions || aiResponse.questions.length === 0) {
+        console.error("GPT quiz error: No questions in validated response");
+        throw new Error("OpenAI returned a valid response but with no questions");
+      }
+
+      // Normalize fields and add stable IDs
+      const normalized = aiResponse.questions.map((q, idx) => {
+        const idNumber = allQuestions.length + idx + 1;
+        return {
+          ...q,
+          id: q.id || `q${idNumber}`,
+          explanation: q.explanation ?? undefined,
+          difficulty: q.difficulty ?? undefined,
+        };
+      });
+
+      allQuestions.push(...normalized);
     }
 
     // Construct full quiz object with programmatically added fields
-    // Convert null to undefined for optional fields (OpenAI returns null, our schema uses optional)
     const quiz: Quiz = {
       contentType,
-      questionCount: aiResponse.questions.length,
-      // Add IDs if missing, and convert null to undefined for optional fields
-      questions: aiResponse.questions.map((q, idx) => ({
-        ...q,
-        id: q.id || `q${idx + 1}`,
-        explanation: q.explanation ?? undefined, // Convert null to undefined
-        difficulty: q.difficulty ?? undefined, // Convert null to undefined
-      })),
+      questionCount: allQuestions.length,
+      questions: allQuestions,
     };
 
     console.log(`Quiz generation successful: ${quiz.questions.length} questions generated`);
