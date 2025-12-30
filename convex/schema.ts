@@ -88,6 +88,7 @@ export default defineSchema({
         youtubeTimestamps: v.optional(v.string()),
         engagement: v.optional(v.string()),
         hashtags: v.optional(v.string()),
+        quiz: v.optional(v.string()),
       }),
     ),
 
@@ -248,7 +249,7 @@ export default defineSchema({
       }),
     ),
 
-    // Hashtags for social media platforms
+    // Hashtags for social media platforms (legacy - kept for backward compatibility)
     hashtags: v.optional(
       v.object({
         instagram: v.array(v.string()),
@@ -256,6 +257,30 @@ export default defineSchema({
         tiktok: v.array(v.string()),
         twitter: v.array(v.string()),
         youtube: v.array(v.string()),
+      }),
+    ),
+
+    // Quiz - multiple choice questions for testing understanding
+    quiz: v.optional(
+      v.object({
+        contentType: v.union(v.literal("podcast"), v.literal("document")),
+        questionCount: v.number(), // Actual number of questions generated
+        questions: v.array(
+          v.object({
+            id: v.string(),
+            question: v.string(),
+            options: v.array(v.string()), // 4 options
+            correctAnswer: v.number(), // Index of correct answer (0-3)
+            explanation: v.optional(v.string()), // Why this answer is correct
+            difficulty: v.optional(
+              v.union(v.literal("easy"), v.literal("medium"), v.literal("hard")),
+            ),
+          }),
+        ),
+        generatedAt: v.optional(v.number()), // Timestamp when quiz was generated
+        status: v.optional(
+          v.union(v.literal("pending"), v.literal("completed"), v.literal("failed")),
+        ),
       }),
     ),
 
@@ -290,14 +315,15 @@ export default defineSchema({
     // Owner role can only be set directly in database, cannot be changed by admins
     role: v.optional(v.union(v.literal("user"), v.literal("admin"), v.literal("owner"))), // User role (defaults to "user")
 
+    // Activity tracking - for determining logged-in users
+    lastActiveAt: v.optional(v.number()), // Last activity timestamp (for logged-in users feature)
+
     // Metadata
     updatedAt: v.number(), // Last modification time
     createdAt: v.number(), // Settings creation time
-    lastActiveAt: v.optional(v.number()), // Last activity time (for tracking logged-in users)
   })
     .index("by_user", ["userId"]) // Lookup settings by user ID
-    .index("by_role", ["role"]) // Find all admins or users by role
-    .index("by_last_active", ["lastActiveAt"]), // Find users by last activity time
+    .index("by_role", ["role"]), // Find all admins or users by role
 
   // Categories - hierarchical structure for organizing projects by medical specialty
   categories: defineTable({
@@ -371,12 +397,11 @@ export default defineSchema({
     .index("by_status", ["status"]) // Find pending/accepted shares
     .index("by_requester_and_recipient", ["requesterId", "recipientId"]), // Check if share exists
 
-  // User Sessions - tracks active user sessions for logged-in users
+  // Sessions - tracks active user sessions for logged-in users feature
   sessions: defineTable({
-    userId: v.string(), // Clerk user ID
-    createdAt: v.number(), // Session creation time
-    expiresAt: v.number(), // Session expiration time (24 hours from creation)
+    userId: v.string(), // User ID (Clerk userId)
+    createdAt: v.number(), // When session was created
+    expiresAt: v.number(), // When session expires (24 hours from creation/update)
   })
-    .index("by_user", ["userId"]) // Find sessions by user
-    .index("by_expires_at", ["expiresAt"]), // Find expired sessions for cleanup
+    .index("by_user", ["userId"]), // Find all sessions for a user
 });

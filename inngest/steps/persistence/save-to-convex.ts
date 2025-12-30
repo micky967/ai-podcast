@@ -26,7 +26,7 @@
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { convex } from "@/lib/convex-client";
-import type { Hashtags, PowerPoint, SocialPosts, Summary, Titles } from "../../schemas/ai-outputs";
+import type { Hashtags, PowerPoint, Quiz, SocialPosts, Summary, Titles } from "../../schemas/ai-outputs";
 
 type KeyMoment = {
   time: string; // Human-readable timestamp
@@ -48,7 +48,8 @@ type GeneratedContent = {
   keyMoments?: KeyMoment[];
   summary?: Summary;
   socialPosts?: SocialPosts;
-  hashtags?: Hashtags;
+  hashtags?: Hashtags; // Legacy - kept for backward compatibility
+  quiz?: Quiz; // New - replaces hashtags for new uploads
   titles?: Titles;
   powerPoint?: PowerPoint;
   youtubeTimestamps?: YouTubeTimestamp[];
@@ -96,7 +97,8 @@ export async function saveResultsToConvex(
     keyMoments: results.keyMoments,
     summary: results.summary,
     socialPosts: results.socialPosts,
-    hashtags: results.hashtags,
+    hashtags: results.hashtags, // Legacy - kept for backward compatibility
+    quiz: results.quiz, // New - replaces hashtags for new uploads
     titles: results.titles,
     powerPoint: powerPointForConvex as any,
     youtubeTimestamps: results.youtubeTimestamps,

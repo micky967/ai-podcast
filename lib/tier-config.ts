@@ -47,7 +47,8 @@ export const FEATURES = {
   SUMMARY: "summary",
   SOCIAL_POSTS: "social_posts",
   TITLES: "titles",
-  HASHTAGS: "hashtags",
+  HASHTAGS: "hashtags", // Legacy - kept for backward compatibility
+  QUIZ: "quiz", // New - available to all plans
   POWERPOINT: "powerpoint",
   ENGAGEMENT: "engagement",
   YOUTUBE_TIMESTAMPS: "youtube_timestamps",
@@ -110,7 +111,8 @@ export const PLAN_PRICES: Record<PlanName, string> = {
 export const FEATURE_TO_JOB_MAP = {
   [FEATURES.SOCIAL_POSTS]: "socialPosts",
   [FEATURES.TITLES]: "titles",
-  [FEATURES.HASHTAGS]: "hashtags",
+  [FEATURES.HASHTAGS]: "hashtags", // Legacy
+  [FEATURES.QUIZ]: "quiz", // New
   [FEATURES.POWERPOINT]: "powerPoint",
   [FEATURES.ENGAGEMENT]: "engagement",
   [FEATURES.KEY_MOMENTS]: "keyMoments",

@@ -15,6 +15,7 @@ import { generateEngagement } from "../steps/ai-generation/engagement";
 import { generateHashtags } from "../steps/ai-generation/hashtags";
 import { generateKeyMoments } from "../steps/ai-generation/key-moments";
 import { generatePowerPoint } from "../steps/ai-generation/powerpoint";
+import { generateQuiz } from "../steps/ai-generation/quiz";
 import { generateSocialPosts } from "../steps/ai-generation/social-posts";
 import { generateSummary } from "../steps/ai-generation/summary";
 import { generateTitles } from "../steps/ai-generation/titles";
@@ -67,8 +68,12 @@ export const retryJobFunction = inngest.createFunction(
       isOwnProject && 
       !isOwner;
 
+    // Quiz is available to all plans - no feature check needed
+    const isQuiz = job === "quiz";
+
     if (
       !isOwner &&
+      !isQuiz &&
       featureKey &&
       !planHasFeature(currentUserPlan, featureKey as FeatureName) &&
       !isQAndAException
@@ -289,6 +294,85 @@ export const retryJobFunction = inngest.createFunction(
               engagement: result,
             }),
           );
+          break;
+        }
+
+        case "quiz": {
+          // Set quiz status to pending before generation
+          await step.run("set-quiz-pending", () =>
+            convex.mutation(api.projects.saveGeneratedContent, {
+              projectId,
+              quiz: {
+                contentType: isDocument ? "document" : "podcast",
+                questionCount: 0,
+                questions: [],
+                status: "pending",
+              },
+            }),
+          );
+
+          // Determine content type
+          const contentType = isDocument ? "document" : "podcast";
+          // For documents, transcript.text contains the document text
+          const documentText = isDocument ? transcript.text : null;
+          const transcriptForQuiz = isDocument ? null : transcript;
+
+          try {
+            const result = await generateQuiz(
+              step,
+              transcriptForQuiz,
+              documentText,
+              contentType,
+              openaiApiKey,
+            );
+
+            // Check if quiz generation was successful (has questions)
+            if (!result.questions || result.questions.length === 0) {
+              // Generation failed - no questions generated
+              await step.run("save-quiz-failed", () =>
+                convex.mutation(api.projects.saveGeneratedContent, {
+                  projectId,
+                  quiz: {
+                    contentType,
+                    questionCount: 0,
+                    questions: [],
+                    status: "failed",
+                    generatedAt: Date.now(),
+                  },
+                }),
+              );
+              throw new Error("Quiz generation failed: No questions were generated");
+            }
+
+            // Add generatedAt timestamp and status
+            const quizWithMetadata = {
+              ...result,
+              generatedAt: Date.now(),
+              status: "completed" as const,
+            };
+
+            await step.run("save-quiz", () =>
+              convex.mutation(api.projects.saveGeneratedContent, {
+                projectId,
+                quiz: quizWithMetadata,
+              }),
+            );
+          } catch (error) {
+            // If generation fails, set status to failed
+            await step.run("save-quiz-failed", () =>
+              convex.mutation(api.projects.saveGeneratedContent, {
+                projectId,
+                quiz: {
+                  contentType: isDocument ? "document" : "podcast",
+                  questionCount: 0,
+                  questions: [],
+                  status: "failed",
+                  generatedAt: Date.now(),
+                },
+              }),
+            );
+            throw error; // Re-throw to trigger outer error handling
+          }
           break;
         }
 

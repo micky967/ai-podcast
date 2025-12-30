@@ -9,6 +9,7 @@ import {
 } from "@/components/project-detail/tab-triggers";
 import { EngagementTab } from "@/components/project-tabs/engagement-tab";
 import { HashtagsTab } from "@/components/project-tabs/hashtags-tab";
+import { QuizTab } from "@/components/project-tabs/quiz-tab";
 import { PowerPointTab } from "@/components/project-tabs/powerpoint-tab";
 import { KeyMomentsTab } from "@/components/project-tabs/key-moments-tab";
 import { SocialPostsTab } from "@/components/project-tabs/social-posts-tab";
@@ -48,14 +49,31 @@ export function ProjectTabsWrapper({
 }: ProjectTabsWrapperProps) {
   const [activeTab, setActiveTab] = useState("summary");
 
-  // Filter tabs based on file type
-  // Documents don't show: Key Moments, YouTube timestamps, social posts, speakers
+  // Determine which tabs to show based on project data and file type
+  const hasHashtags = project.hashtags !== undefined;
+  const hasQuiz = project.quiz !== undefined;
+  const isOldProject = hasHashtags && !hasQuiz; // Old project with hashtags but no quiz
+
+  // Filter tabs based on file type and project state
   const visibleTabs = PROJECT_TABS.filter((tab) => {
+    // File type filtering
     if (isDocument) {
-      return !["moments", "youtube-timestamps", "social", "speakers"].includes(
-        tab.value
-      );
+      if (["moments", "youtube-timestamps", "social", "speakers"].includes(tab.value)) {
+        return false;
+      }
     }
+
+    // Conditional tab visibility for hashtags vs quiz
+    if (tab.value === "hashtags") {
+      // Show hashtags tab only for old projects (has hashtags, no quiz)
+      return isOldProject;
+    }
+
+    if (tab.value === "quiz") {
+      // Show quiz tab if project has quiz OR is a new project (no hashtags)
+      return hasQuiz || !hasHashtags;
+    }
+
     return true;
   });
 
@@ -159,21 +177,46 @@ export function ProjectTabsWrapper({
         </TabContent>
       </TabsContent>
 
-      <TabsContent value="hashtags" className="space-y-4">
-        <TabContent
-          isLoading={showGenerating}
-          data={project.hashtags}
-          error={project.jobErrors?.hashtags}
-          projectId={projectId}
-          feature={FEATURES.HASHTAGS}
-          featureName="Hashtags"
-          jobName="hashtags"
-          emptyMessage="No hashtags available"
-          isShared={isShared}
-        >
-          <HashtagsTab hashtags={project.hashtags} />
-        </TabContent>
-      </TabsContent>
+      {/* Hashtags Tab - Only shown for old projects with hashtags but no quiz */}
+      {isOldProject && (
+        <TabsContent value="hashtags" className="space-y-4">
+          <TabContent
+            isLoading={showGenerating}
+            data={project.hashtags}
+            error={project.jobErrors?.hashtags}
+            projectId={projectId}
+            feature={FEATURES.HASHTAGS}
+            featureName="Hashtags"
+            jobName="hashtags"
+            emptyMessage="No hashtags available"
+            isShared={isShared}
+          >
+            <HashtagsTab
+              hashtags={project.hashtags}
+              projectId={projectId}
+              hasQuiz={hasQuiz}
+            />
+          </TabContent>
+        </TabsContent>
+      )}
+
+      {/* Quiz Tab - Shown if project has quiz OR is a new project */}
+      {(hasQuiz || !hasHashtags) && (
+        <TabsContent value="quiz" className="space-y-4 w-full max-w-full">
+          <TabContent
+            isLoading={showGenerating}
+            data={project.quiz}
+            error={project.jobErrors?.quiz}
+            projectId={projectId}
+            featureName="Quiz"
+            jobName="quiz"
+            emptyMessage="No quiz available yet"
+            isShared={isShared}
+          >
+            <QuizTab quiz={project.quiz} projectId={projectId} isShared={isShared} />
+          </TabContent>
+        </TabsContent>
+      )}
 
       <TabsContent value="powerpoint" className="space-y-4">
         <TabContent

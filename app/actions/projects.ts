@@ -321,3 +321,96 @@ export async function updateDisplayNameAction(
     throw error;
   }
 }
+
+/**
+ * Generate quiz for an existing project
+ *
+ * Allows users to manually generate quiz for old projects that have hashtags.
+ * Works for both podcasts and documents.
+ *
+ * Flow:
+ * 1. Validate user authentication
+ * 2. Get project to determine content type
+ * 3. Trigger Inngest event to generate quiz
+ *
+ * @param projectId - Convex project ID
+ * @returns Success response
+ * @throws Error if authentication fails or project not found
+ */
+export async function generateQuizAction(input: {
+  projectId: Id<"projects">;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    // Get project to check ownership and determine content type
+    const project = await convex.query(api.projects.getProject, {
+      projectId: input.projectId,
+      userId,
+    });
+
+    if (!project) {
+      return { success: false, error: "Project not found" };
+    }
+
+    // Check if quiz already exists with questions
+    // Allow regeneration if quiz is empty, failed, or has no questions
+    if (
+      project.quiz &&
+      project.quiz.questions &&
+      project.quiz.questions.length > 0 &&
+      project.quiz.status !== "failed"
+    ) {
+      return { success: false, error: "Quiz already exists for this project" };
+    }
+
+    // Determine content type
+    const isDocument =
+      project.mimeType === "application/pdf" ||
+      project.mimeType === "application/msword" ||
+      project.mimeType ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      project.mimeType === "text/plain";
+
+    // Get user's current plan
+    const authObj = await auth();
+    const { has } = authObj;
+    let currentPlan: "free" | "pro" | "ultra" = "free";
+    if (has?.({ plan: "ultra" })) {
+      currentPlan = "ultra";
+    } else if (has?.({ plan: "pro" })) {
+      currentPlan = "pro";
+    }
+
+    // Infer original plan (for retry-job compatibility)
+    let originalPlan: "free" | "pro" | "ultra" = "free";
+    if (project.keyMoments || project.youtubeTimestamps || project.engagement) {
+      originalPlan = "ultra";
+    } else if (project.socialPosts || project.hashtags || project.titles || project.powerPoint) {
+      originalPlan = "pro";
+    }
+
+    // Trigger Inngest event to generate quiz
+    await inngest.send({
+      name: "podcast/retry-job",
+      data: {
+        projectId: input.projectId,
+        job: "quiz",
+        userId,
+        originalPlan,
+        currentPlan,
+      },
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error generating quiz:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to generate quiz",
+    };
+  }
+}

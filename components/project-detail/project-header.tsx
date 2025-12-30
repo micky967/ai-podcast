@@ -105,7 +105,7 @@ export function ProjectHeader({
 
   return (
     <>
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 w-full max-w-full min-w-0">
         <div className="flex-1 min-w-0">
           {isEditing ? (
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -144,8 +144,8 @@ export function ProjectHeader({
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl sm:text-3xl font-bold break-words">
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold break-words min-w-0 whitespace-normal">
                 {initialDisplayName || initialFileName}
               </h1>
             </div>
@@ -153,13 +153,13 @@ export function ProjectHeader({
         </div>
         {/* Only show Edit/Delete buttons if user owns the project */}
         {isOwner === true && (
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center justify-end gap-2 sm:gap-3 shrink-0 max-w-full">
             {!isEditing && (
               <Button
                 variant="outline"
                 size="lg"
                 onClick={handleStartEdit}
-                className="glass-card hover-lift border-2 border-emerald-200 hover:border-emerald-400 px-4 sm:px-6 bg-white"
+                className="hover-lift border-2 border-emerald-200 hover:border-emerald-400 px-4 sm:px-6 bg-white"
               >
                 <Edit2 className="h-4 w-4 sm:mr-2 text-emerald-600" />
                 <span className="hidden sm:inline font-semibold text-emerald-700">

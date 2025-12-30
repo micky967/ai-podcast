@@ -127,21 +127,15 @@ div[role="alertdialog"] {
   --teal-700: 15 118 110;
 
   /* Gradient definitions */
-  --gradient-emerald: linear-gradient(
-    135deg,
-    rgb(16 185 129) 0%,
-    rgb(45 212 191) 100%
-  );
-  --gradient-emerald-soft: linear-gradient(
-    135deg,
-    rgb(16 185 129 / 0.1) 0%,
-    rgb(45 212 191 / 0.1) 100%
-  );
-  --gradient-emerald-glow: linear-gradient(
-    135deg,
-    rgb(16 185 129 / 0.2) 0%,
-    rgb(45 212 191 / 0.3) 100%
-  );
+  --gradient-emerald: linear-gradient(135deg,
+      rgb(16 185 129) 0%,
+      rgb(45 212 191) 100%);
+  --gradient-emerald-soft: linear-gradient(135deg,
+      rgb(16 185 129 / 0.1) 0%,
+      rgb(45 212 191 / 0.1) 100%);
+  --gradient-emerald-glow: linear-gradient(135deg,
+      rgb(16 185 129 / 0.2) 0%,
+      rgb(45 212 191 / 0.3) 100%);
 }
 
 /*---break--- */
@@ -153,6 +147,37 @@ div[role="alertdialog"] {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.5);
   box-shadow: 0 2px 8px 0 rgba(31, 38, 135, 0.08);
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Force quiz component to fit */
+[data-slot="tabs-content"] {
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Aggressive fix for quiz overflow */
+.quiz-root {
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Force all quiz containers to fit */
+.quiz-root>* {
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Force flex containers in quiz to shrink */
+.quiz-root .flex.items-center {
+  min-width: 0 !important;
+  max-width: 100% !important;
 }
 
 .glass-card-strong {
@@ -161,6 +186,9 @@ div[role="alertdialog"] {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.6);
   box-shadow: 0 4px 12px 0 rgba(31, 38, 135, 0.1);
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+  width: 100% !important;
 }
 
 .glass-nav {
@@ -206,6 +234,7 @@ div[role="alertdialog"] {
 
 /* Animation Utilities */
 @keyframes glow {
+
   0%,
   100% {
     box-shadow:
@@ -221,6 +250,7 @@ div[role="alertdialog"] {
 }
 
 @keyframes pulse-emerald {
+
   0%,
   100% {
     opacity: 1;
@@ -232,6 +262,7 @@ div[role="alertdialog"] {
 }
 
 @keyframes float {
+
   0%,
   100% {
     transform: translateY(0px);
@@ -266,12 +297,10 @@ div[role="alertdialog"] {
 
 .animate-shimmer {
   animation: shimmer 2s linear infinite;
-  background: linear-gradient(
-    to right,
-    transparent 0%,
-    rgba(16, 185, 129, 0.1) 50%,
-    transparent 100%
-  );
+  background: linear-gradient(to right,
+      transparent 0%,
+      rgba(16, 185, 129, 0.1) 50%,
+      transparent 100%);
   background-size: 1000px 100%;
 }
 
@@ -346,56 +375,23 @@ div[role="alertdialog"] {
 
 .mesh-background-subtle {
   background:
-    radial-gradient(
-      circle at 20% 30%,
+    radial-gradient(circle at 20% 30%,
       rgba(16, 185, 129, 0.05) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      circle at 80% 70%,
+      transparent 50%),
+    radial-gradient(circle at 80% 70%,
       rgba(45, 212, 191, 0.05) 0%,
-      transparent 50%
-    );
+      transparent 50%);
 }
 
-/*---break--- */
-
-/* Mobile Overflow Fixes */
-.project-card-container {
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  overflow: hidden;
+/* Scrollbar hide utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
 }
 
-.project-card-inner {
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  min-width: 0;
-}
-
-.project-card-content {
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  min-width: 0;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-@media (max-width: 768px) {
-  .project-card-container,
-  .project-card-inner,
-  .project-card-content {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-  }
-  
-  .project-card-content * {
-    max-width: 100%;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-  }
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+  /* Chrome, Safari and Opera */
 }

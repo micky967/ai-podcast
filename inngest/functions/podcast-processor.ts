@@ -42,6 +42,7 @@ import type { PlanName } from "@/lib/tier-config";
 import { generateEngagement } from "../steps/ai-generation/engagement";
 import { generateHashtags } from "../steps/ai-generation/hashtags";
 import { generateKeyMoments } from "../steps/ai-generation/key-moments";
+import { generateQuiz } from "../steps/ai-generation/quiz";
 import { generatePowerPoint } from "../steps/ai-generation/powerpoint";
 import { generateSocialPosts } from "../steps/ai-generation/social-posts";
 import { generateSummary } from "../steps/ai-generation/summary";
@@ -225,19 +226,20 @@ export const podcastProcessor = inngest.createFunction(
         // PRO and ULTRA features (audio only) - owners also get access
         if (plan === "pro" || plan === "ultra" || isOwner) {
           if (isOwner && plan === "free") {
-            console.log(`[OWNER ACCESS] Generating social posts, hashtags, and titles for owner on ${plan} plan`);
+            console.log(`[OWNER ACCESS] Generating social posts and titles for owner on ${plan} plan`);
           }
           jobs.push(generateSocialPosts(step, transcript, openaiApiKey));
           jobNames.push("socialPosts");
 
-          jobs.push(generateHashtags(step, transcript, openaiApiKey));
-          jobNames.push("hashtags");
-
           jobs.push(generateTitles(step, transcript, openaiApiKey));
           jobNames.push("titles");
         } else {
-          console.log(`[AUDIO] Skipping social posts, hashtags and titles for ${plan} plan`);
+          console.log(`[AUDIO] Skipping social posts and titles for ${plan} plan`);
         }
+
+        // Quiz - available to ALL plans for podcasts
+        jobs.push(generateQuiz(step, transcript, null, "podcast", openaiApiKey));
+        jobNames.push("quiz");
 
         // ULTRA-only features (audio only)
         if (plan === "ultra") {
@@ -268,14 +270,17 @@ export const podcastProcessor = inngest.createFunction(
 
         if (plan === "pro" || plan === "ultra" || isOwner) {
           if (isOwner && plan === "free") {
-            console.log(`[OWNER ACCESS] Generating hashtags and titles for owner on ${plan} plan`);
+            console.log(`[OWNER ACCESS] Generating titles for owner on ${plan} plan`);
           }
-          jobs.push(generateHashtags(step, transcript, openaiApiKey));
-          jobNames.push("hashtags");
-
           jobs.push(generateTitles(step, transcript, openaiApiKey));
           jobNames.push("titles");
         }
+
+        // Quiz - available to ALL plans for documents
+        // For documents, transcript contains the extracted text
+        const documentText = transcript?.text || "";
+        jobs.push(generateQuiz(step, null, documentText, "document", openaiApiKey));
+        jobNames.push("quiz");
       }
 
       // Q&A available for all file types (ULTRA plan)

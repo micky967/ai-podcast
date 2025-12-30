@@ -50,6 +50,12 @@ export const PROJECT_TABS: TabConfig[] = [
     feature: FEATURES.HASHTAGS,
   },
   {
+    value: "quiz",
+    label: "Quiz",
+    errorKey: "quiz",
+    // No feature - available to all plans
+  },
+  {
     value: "powerpoint",
     label: "PowerPoint",
     errorKey: "powerPoint",

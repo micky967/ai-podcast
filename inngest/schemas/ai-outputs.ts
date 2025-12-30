@@ -184,6 +184,100 @@ export const hashtagsSchema = z.object({
 
 export type Hashtags = z.infer<typeof hashtagsSchema>;
 
+/**
+ * Quiz Schema - Multiple choice questions for testing understanding
+ *
+ * Generates comprehensive quizzes based on content:
+ * - Podcasts: 40-50 questions
+ * - Documents: 25-50 questions
+ * - Each question has 4 options with 1 correct answer
+ * - Includes explanations for learning
+ *
+ * Note: contentType and questionCount are added programmatically, not by AI
+ */
+// Question object schema for OpenAI structured outputs (must use .nullable() not .optional())
+const quizQuestionSchemaForAI = z.object({
+  id: z.string().describe("Unique identifier for the question"),
+  question: z
+    .string()
+    .describe("The question text (clear and specific)"),
+  options: z
+    .array(z.string())
+    .length(4)
+    .describe("Exactly 4 answer options"),
+  correctAnswer: z
+    .number()
+    .min(0)
+    .max(3)
+    .describe("Index of the correct answer (0-3)"),
+  explanation: z
+    .string()
+    .nullable()
+    .describe("Brief explanation of why the correct answer is correct"),
+  difficulty: z
+    .enum(["easy", "medium", "hard"])
+    .nullable()
+    .describe("Question difficulty level"),
+});
+
+// Question object schema for internal use (can use .optional())
+const quizQuestionSchema = z.object({
+  id: z.string().describe("Unique identifier for the question"),
+  question: z
+    .string()
+    .describe("The question text (clear and specific)"),
+  options: z
+    .array(z.string())
+    .length(4)
+    .describe("Exactly 4 answer options"),
+  correctAnswer: z
+    .number()
+    .min(0)
+    .max(3)
+    .describe("Index of the correct answer (0-3)"),
+  explanation: z
+    .string()
+    .optional()
+    .describe("Brief explanation of why the correct answer is correct"),
+  difficulty: z
+    .enum(["easy", "medium", "hard"])
+    .optional()
+    .describe("Question difficulty level"),
+});
+
+// Schema for what the AI generates (questions only) - sent to OpenAI
+// Must use quizQuestionSchemaForAI which uses .nullable() for optional fields
+export const quizQuestionsOnlySchema = z.object({
+  questions: z
+    .array(quizQuestionSchemaForAI)
+    .min(25)
+    .max(50)
+    .describe(
+      "25-50 multiple choice questions (40-50 for podcasts, 25-50 for documents)",
+    ),
+});
+
+// Full quiz schema with programmatically added fields
+export const quizSchema = z.object({
+  contentType: z
+    .enum(["podcast", "document"])
+    .describe("Type of content (podcast or document)"),
+  questionCount: z
+    .number()
+    .min(25)
+    .max(50)
+    .describe("Total number of questions generated"),
+  questions: z
+    .array(quizQuestionSchema)
+    .min(25)
+    .max(50)
+    .describe(
+      "25-50 multiple choice questions (40-50 for podcasts, 25-50 for documents)",
+    ),
+});
+
+export type Quiz = z.infer<typeof quizSchema>;
+
 export const engagementSchema = z.object({
   commentStarters: z
     .array(

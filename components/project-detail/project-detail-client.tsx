@@ -44,7 +44,7 @@ export function ProjectDetailClient({
   // Loading state
   if (project === undefined) {
     return (
-      <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0 overflow-x-hidden">
+      <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0">
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -55,7 +55,7 @@ export function ProjectDetailClient({
   // No access state (project is null)
   if (project === null) {
     return (
-      <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0 overflow-x-hidden">
+      <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0">
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">
@@ -90,7 +90,7 @@ export function ProjectDetailClient({
     project.mimeType === "text/plain";
 
   return (
-    <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0 overflow-x-hidden">
+    <div className="container max-w-6xl mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-0">
       {/* Back button */}
       <div className="mb-4">
         <Link
@@ -118,7 +118,7 @@ export function ProjectDetailClient({
         isShared={isShared}
       />
 
-      <div className="grid gap-6">
+      <div className="grid grid-cols-1 gap-6 min-w-0">
         <ProjectStatusCard project={project} />
 
         {isProcessing && (

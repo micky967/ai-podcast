@@ -20,6 +20,7 @@ export type RetryableJob =
   | "summary"
   | "socialPosts"
   | "hashtags"
+  | "quiz"
   | "titles"
   | "powerPoint"
   | "youtubeTimestamps"

@@ -351,6 +351,28 @@ export const saveGeneratedContent = mutation({
         youtube: v.array(v.string()),
       }),
     ),
+    quiz: v.optional(
+      v.object({
+        contentType: v.union(v.literal("podcast"), v.literal("document")),
+        questionCount: v.number(),
+        questions: v.array(
+          v.object({
+            id: v.string(),
+            question: v.string(),
+            options: v.array(v.string()),
+            correctAnswer: v.number(),
+            explanation: v.optional(v.string()),
+            difficulty: v.optional(
+              v.union(v.literal("easy"), v.literal("medium"), v.literal("hard")),
+            ),
+          }),
+        ),
+        generatedAt: v.optional(v.number()),
+        status: v.optional(
+          v.union(v.literal("pending"), v.literal("completed"), v.literal("failed")),
+        ),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const { projectId, ...content } = args;
@@ -420,6 +442,7 @@ export const saveJobErrors = mutation({
         powerPoint: v.optional(v.string()),
         youtubeTimestamps: v.optional(v.string()),
         engagement: v.optional(v.string()),
+        quiz: v.optional(v.string()),
       }),
   },
   handler: async (ctx, args) => {

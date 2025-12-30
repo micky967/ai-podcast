@@ -28,7 +28,7 @@ export default async function ProjectsPage({
   // Preload projects data on the server
   // Use category-specific query if category is provided
   // For non-category pages, use listUserProjectsWithShared with filter "all" to include both own and shared projects
-  // IMPORTANT: Pass paginationOpts with numItems: 200 to show all shared projects
+  // This ensures the sharing fix works: new uploads by group owners are visible to group members
   const preloadedProjects = categoryId
     ? await preloadQuery(api.projects.listUserProjectsByCategory, {
         userId,
@@ -37,18 +37,20 @@ export default async function ProjectsPage({
     : await preloadQuery(api.projects.listUserProjectsWithShared, {
         userId,
         filter: "all",
-        paginationOpts: {
-          numItems: 200, // Increased to show all shared projects
-          // Don't pass cursor - this ensures backend returns all projects
-        },
       });
 
   // Preload category data if category is provided
-  const preloadedCategory = categoryId
-    ? await preloadQuery(api.categories.getCategory, {
+  let preloadedCategory = undefined;
+  if (categoryId) {
+    try {
+      preloadedCategory = await preloadQuery(api.categories.getCategory, {
         categoryId,
-      })
-    : undefined;
+      });
+    } catch (error) {
+      // Categories feature not available, continue without it
+      console.warn("Categories API not available", error);
+    }
+  }
 
   return (
     <ProjectsList

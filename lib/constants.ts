@@ -14,6 +14,7 @@ import {
   Sparkles,
   Target,
   Youtube,
+  BookOpen,
 } from "lucide-react";
 
 // File upload constraints (default max - actual limit depends on plan)
@@ -128,6 +129,12 @@ export const GENERATION_OUTPUTS: GenerationOutput[] = [
     icon: Hash,
     description:
       "Generating platform-specific hashtags optimized for Twitter, LinkedIn, Instagram, TikTok, and YouTube",
+  },
+  {
+    name: "Quiz",
+    icon: BookOpen,
+    description:
+      "Generating comprehensive multiple-choice questions to test understanding (40-50 for podcasts, 25-50 for documents)",
   },
   {
     name: "Titles",

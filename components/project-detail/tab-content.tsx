@@ -186,5 +186,9 @@ export function TabContent({
   }
 
   // Content rendering
-  return wrapWithProtect(children);
+  return wrapWithProtect(
+    <div className="w-full max-w-full box-border" style={{ width: "100%", maxWidth: "100%", boxSizing: "border-box", padding: 0, margin: 0 }}>
+      {children}
+    </div>
+  );
 }

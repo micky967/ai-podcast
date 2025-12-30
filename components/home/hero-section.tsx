@@ -40,17 +40,15 @@ export function HeroSection() {
 
             <h1 className="text-6xl md:text-7xl lg:text-8xl font-extrabold mb-8 leading-tight">
               <span className="gradient-emerald-text">Transform</span>
-            <br />
+              <br />
               Podcasts
-              <br/>
-              <span className="gradient-emerald-text">
-              with AI
-              </span>
+              <br />
+              <span className="gradient-emerald-text">with AI</span>
             </h1>
 
             <p className="text-xl font-semibold md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed">
-              Upload your Podcasts or PDF files and get AI-generated Questions & Answers, Summaries,
-              Transcripts, Social Posts, Key Moments, plus
+              Upload your Podcasts or PDF files and get AI-generated Questions &
+              Answers, Summaries, Transcripts, Social Posts, Key Moments, plus
               more. The questions and answers can be exported as a CSV file and
               then import them into Anki and create study flash cards.
             </p>
