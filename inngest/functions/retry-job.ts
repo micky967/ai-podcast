@@ -45,7 +45,9 @@ export const retryJobFunction = inngest.createFunction(
     if (!userId) {
       throw new Error("userId is required in event data");
     }
-    const project = await convex.query(api.projects.getProject, { projectId, userId });
+    const project = await step.run("get-project", async () =>
+      convex.query(api.projects.getProject, { projectId, userId }),
+    );
     if (!project) {
       throw new Error("Project not found");
     }
@@ -60,12 +62,12 @@ export const retryJobFunction = inngest.createFunction(
 
     // Check if user has access to this feature with current plan (owners bypass)
     const featureKey = jobToFeature[job];
-    
+
     // Special exception: Allow free users to access Q&A on their own uploaded files
     // This matches frontend behavior where free users can see Q&A in shared files and their own files
-    const isQAndAException = 
-      featureKey === FEATURES.ENGAGEMENT && 
-      isOwnProject && 
+    const isQAndAException =
+      featureKey === FEATURES.ENGAGEMENT &&
+      isOwnProject &&
       !isOwner;
 
     // Quiz is available to all plans - no feature check needed
@@ -95,7 +97,7 @@ export const retryJobFunction = inngest.createFunction(
       project.mimeType === "application/pdf" ||
       project.mimeType === "application/msword" ||
       project.mimeType ===
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
       project.mimeType === "text/plain";
 
     // Check for transcript - required for all jobs
@@ -109,11 +111,11 @@ export const retryJobFunction = inngest.createFunction(
 
     // For documents, certain jobs are not applicable
     if (isDocument) {
-    if (
-      job === "keyMoments" ||
-      job === "youtubeTimestamps" ||
-      job === "socialPosts"
-    ) {
+      if (
+        job === "keyMoments" ||
+        job === "youtubeTimestamps" ||
+        job === "socialPosts"
+      ) {
         throw new Error(
           `${job} is not available for document files. This feature requires audio content with timestamps.`,
         );
@@ -123,14 +125,16 @@ export const retryJobFunction = inngest.createFunction(
     // Get and decrypt user API keys (BYOK support)
     // Keys are stored encrypted in Convex, decrypted server-side here
     // userId is already available from event.data
-    const userApiKeys = await getUserApiKeys(userId);
+    const userApiKeys = await step.run("get-and-decrypt-user-api-keys", async () =>
+      getUserApiKeys(userId),
+    );
 
-    const openaiApiKey = userApiKeys?.openaiApiKey;
+    // Prefer BYOK (stored per-user) but fall back to shared environment key if configured.
+    const openaiApiKey = userApiKeys?.openaiApiKey || process.env.OPENAI_API_KEY;
 
-    // Validate that required API keys are present (no fallback to shared keys)
     if (!openaiApiKey) {
       throw new Error(
-        "OpenAI API key is required. Please add your OpenAI API key in Settings.",
+        "OpenAI API key is required. Add it in Settings or configure OPENAI_API_KEY in the server environment.",
       );
     }
 
