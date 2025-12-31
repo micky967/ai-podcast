@@ -75,6 +75,8 @@ function buildQuizPrompt(
       .join("\n") || "See full content"
     : "See full document";
 
+  const questionCount = getQuestionCount(contentType, transcript, documentText);
+
   return `Generate a comprehensive multiple-choice quiz based on this ${contentType} content.
 
 CONTENT SUMMARY:
