@@ -27,9 +27,6 @@ function getQuestionCount(
   transcript: TranscriptWithExtras | null,
   documentText: string | null,
 ): number {
-  const envCapRaw = process.env.QUIZ_MAX_QUESTIONS;
-  const envCap = envCapRaw ? Number(envCapRaw) : undefined;
-
   if (contentType === "podcast") {
     // Podcast: 40-50 questions
     // Base: 40, add more based on transcript length
@@ -40,10 +37,7 @@ function getQuestionCount(
       Math.floor(textLength / 500),
       10, // Max 10 additional questions
     );
-    const computed = Math.min(baseCount + additionalQuestions, 50);
-    return typeof envCap === "number" && Number.isFinite(envCap) && envCap > 0
-      ? Math.min(computed, envCap)
-      : computed;
+    return Math.min(baseCount + additionalQuestions, 50);
   } else {
     // Document: 25-50 questions
     // Base: 25, add more based on word count
@@ -54,10 +48,7 @@ function getQuestionCount(
       Math.floor(textLength / 500),
       25, // Max 25 additional questions
     );
-    const computed = Math.min(baseCount + additionalQuestions, 50);
-    return typeof envCap === "number" && Number.isFinite(envCap) && envCap > 0
-      ? Math.min(computed, envCap)
-      : computed;
+    return Math.min(baseCount + additionalQuestions, 50);
   }
 }
 
@@ -149,13 +140,8 @@ export async function generateQuiz(
     const createCompletion = createBoundCompletion(userApiKey);
 
     const targetQuestionCount = getQuestionCount(contentType, transcript, documentText);
-    const envChunkSizeRaw = process.env.QUIZ_CHUNK_SIZE;
-    const envChunkSize = envChunkSizeRaw ? Number(envChunkSizeRaw) : undefined;
     // Keep each OpenAI call very small to avoid Vercel/Inngest webhook timeouts.
-    const chunkSize =
-      typeof envChunkSize === "number" && Number.isFinite(envChunkSize) && envChunkSize > 0
-        ? Math.floor(envChunkSize)
-        : 2;
+    const chunkSize = 2;
     const chunkCount = Math.ceil(targetQuestionCount / chunkSize);
 
     console.log(
