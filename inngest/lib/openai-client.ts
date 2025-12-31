@@ -23,6 +23,7 @@ import OpenAI from "openai";
 // Default client using environment variable (for backward compatibility)
 export const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  timeout: 45_000,
 });
 
 /**
@@ -43,6 +44,7 @@ export function createOpenAIClient(userApiKey?: string): OpenAI {
 
   return new OpenAI({
     apiKey,
+    timeout: 45_000,
   });
 }
 
