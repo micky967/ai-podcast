@@ -65,12 +65,12 @@ function buildQuizPrompt(
     : documentText || "";
 
   const summary = isPodcast
-    ? transcript?.chapters?.[0]?.summary || transcript?.text.substring(0, 600)
-    : documentText?.substring(0, 600) || "";
+    ? transcript?.chapters?.[0]?.summary || transcript?.text.substring(0, 1000)
+    : documentText?.substring(0, 1000) || "";
 
   const keyTopics = isPodcast
     ? transcript?.chapters
-      ?.slice(0, 6)
+      ?.slice(0, 10)
       .map((ch, idx) => `${idx + 1}. ${ch.headline}`)
       .join("\n") || "See full content"
     : "See full document";
@@ -84,7 +84,7 @@ KEY TOPICS:
 ${keyTopics}
 
 FULL CONTENT (for reference):
-${content.substring(0, 2500)}${content.length > 2500 ? "..." : ""}
+${content.substring(0, 4000)}${content.length > 4000 ? "..." : ""}
 
 REQUIREMENTS:
 - Generate exactly ${questionCount} multiple-choice questions
@@ -140,8 +140,8 @@ export async function generateQuiz(
     const createCompletion = createBoundCompletion(userApiKey);
 
     const targetQuestionCount = getQuestionCount(contentType, transcript, documentText);
-    // Keep each OpenAI call very small to avoid Vercel/Inngest webhook timeouts.
-    const chunkSize = 2;
+    // Keep each OpenAI call small to avoid Vercel/Inngest webhook timeouts.
+    const chunkSize = 4;
     const chunkCount = Math.ceil(targetQuestionCount / chunkSize);
 
     console.log(
@@ -171,8 +171,8 @@ export async function generateQuiz(
             {
               // Use a faster model to reduce timeouts; quality is still good for MCQs.
               model: "gpt-4o-mini",
-              // Bound response size; 2 questions with explanations should fit comfortably.
-              max_tokens: 700,
+              // Bound response size; 4 questions with explanations should fit comfortably.
+              max_tokens: 1200,
               messages: [
                 { role: "system", content: QUIZ_SYSTEM_PROMPT },
                 {
