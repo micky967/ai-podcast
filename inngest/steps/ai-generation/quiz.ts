@@ -84,7 +84,7 @@ KEY TOPICS:
 ${keyTopics}
 
 FULL CONTENT (for reference):
-${content.substring(0, 4000)}${content.length > 4000 ? "..." : ""}
+${content.substring(0, 8000)}${content.length > 8000 ? "..." : ""}
 
 REQUIREMENTS:
 - Generate exactly ${questionCount} multiple-choice questions
@@ -140,8 +140,7 @@ export async function generateQuiz(
     const createCompletion = createBoundCompletion(userApiKey);
 
     const targetQuestionCount = getQuestionCount(contentType, transcript, documentText);
-    // Keep each OpenAI call small to avoid Vercel/Inngest webhook timeouts.
-    const chunkSize = 4;
+    const chunkSize = 12;
     const chunkCount = Math.ceil(targetQuestionCount / chunkSize);
 
     console.log(
@@ -171,8 +170,6 @@ export async function generateQuiz(
             {
               // Use a faster model to reduce timeouts; quality is still good for MCQs.
               model: "gpt-4o-mini",
-              // Bound response size; 4 questions with explanations should fit comfortably.
-              max_tokens: 1200,
               messages: [
                 { role: "system", content: QUIZ_SYSTEM_PROMPT },
                 {
