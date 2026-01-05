@@ -11,6 +11,10 @@
  * - jobStatus tracks each generation step independently for granular UI feedback
  * - Indexes optimize common queries (user's projects, filtering by status, sorting by date)
  */
+
+// sync update
+
+
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
@@ -86,6 +90,7 @@ export default defineSchema({
         titles: v.optional(v.string()),
         powerPoint: v.optional(v.string()),
         youtubeTimestamps: v.optional(v.string()),
+        clinicalScenarios: v.optional(v.string()),
         engagement: v.optional(v.string()),
         hashtags: v.optional(v.string()),
         quiz: v.optional(v.string()),
@@ -150,6 +155,46 @@ export default defineSchema({
           description: v.string(), // Why this moment is interesting
         }),
       ),
+    ),
+
+    clinicalScenarios: v.optional(
+      v.object({
+        scenarios: v.array(
+          v.union(
+            // Union Member A: New QBank format
+            v.object({
+              vignette: v.string(),
+              question: v.string(),
+              options: v.array(v.string()),
+              correctAnswer: v.string(),
+              explanation: v.object({
+                correct: v.string(),
+                distractors: v.array(v.string()),
+              }),
+              sourceReference: v.string(),
+              rationale: v.optional(v.string()),
+              difficulty: v.optional(v.number()),
+              verifiedAccuracy: v.optional(v.boolean()),
+            }),
+            // Union Member B: Legacy SOAP format
+            v.object({
+              title: v.string(),
+              patient: v.string(),
+              presentation: v.string(),
+              difficulty: v.optional(v.number()),
+              soap: v.object({
+                subjective: v.string(),
+                objective: v.string(),
+                assessment: v.string(),
+                plan: v.string(),
+              }),
+              rationale: v.string(),
+              redFlags: v.array(v.string()),
+              teachingPearls: v.array(v.string()),
+            }),
+          ),
+        ),
+      }),
     ),
 
     // Podcast summary - multi-format for different use cases
@@ -405,3 +450,4 @@ export default defineSchema({
   })
     .index("by_user", ["userId"]), // Find all sessions for a user
 });
+

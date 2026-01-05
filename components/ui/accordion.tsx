@@ -35,16 +35,11 @@ export function AccordionItem({
           )}
         />
       </button>
-      <div
-        className={cn(
-          "overflow-hidden transition-all duration-300 ease-in-out",
-          isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0",
-        )}
-      >
+      {isOpen ? (
         <div className="px-4 pb-4 pt-2 text-sm md:text-base text-gray-700 leading-relaxed">
           {children}
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

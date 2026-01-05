@@ -23,6 +23,7 @@
  * - Prod: Inngest cloud calls this endpoint directly
  */
 import { serve } from "inngest/next";
+import { NextRequest } from "next/server";
 import { inngest } from "../../../inngest/client";
 import { podcastProcessor } from "../../../inngest/functions/podcast-processor";
 import { retryJobFunction } from "../../../inngest/functions/retry-job";
@@ -31,9 +32,11 @@ import { retryJobFunction } from "../../../inngest/functions/retry-job";
 // Required because Inngest needs to call this endpoint at runtime
 export const dynamic = "force-dynamic";
 
+export const runtime = "nodejs";
+
 // Increase timeout for Inngest webhook (max 60s on Vercel Pro, 300s on Vercel Enterprise)
 // This prevents FUNCTION_INVOCATION_TIMEOUT errors during step execution
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
  * Inngest HTTP handler for Next.js App Router
@@ -47,7 +50,11 @@ export const maxDuration = 60;
  * - Add all Inngest functions here to register them
  * - Functions are discovered automatically on deployment
  */
-export const { GET, POST, PUT } = serve({
+const handlers = serve({
   client: inngest, // Inngest client instance
   functions: [podcastProcessor, retryJobFunction], // Array of all Inngest functions to serve
+  streaming: "allow", // Allow streaming but don't buffer logs
 });
+
+// Export handlers directly (Inngest SDK handles the request/response)
+export const { GET, POST, PUT } = handlers;

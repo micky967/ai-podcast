@@ -81,16 +81,18 @@ export function ProcessingFlow({
       "Key Moments": FEATURES.KEY_MOMENTS,
       "Social Posts": FEATURES.SOCIAL_POSTS,
       Hashtags: FEATURES.HASHTAGS,
+      Quiz: FEATURES.QUIZ,
       Titles: FEATURES.TITLES,
       PowerPoint: FEATURES.POWERPOINT,
-      "YouTube Timestamps": FEATURES.YOUTUBE_TIMESTAMPS,
+      "Clinical Scenarios": FEATURES.CLINICAL_SCENARIOS,
+      "Q&A": FEATURES.ENGAGEMENT,
     };
 
     // For documents, hide certain outputs that don't apply
     const documentHiddenOutputs = [
       "Key Moments",
-      "YouTube Timestamps",
       "Social Posts",
+      "Hashtags",
     ];
 
     return GENERATION_OUTPUTS.map((output) => {
@@ -163,11 +165,16 @@ export function ProcessingFlow({
     }
 
     const interval = setInterval(() => {
-      setCurrentOutputIndex((prev) => (prev + 1) % unlockedOutputs.length);
+      setCurrentOutputIndex((prev) => {
+        if (isDocument) {
+          return Math.min(prev + 1, unlockedOutputs.length - 1);
+        }
+        return (prev + 1) % unlockedOutputs.length;
+      });
     }, ANIMATION_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, [isGenerating, unlockedOutputs.length]);
+  }, [isGenerating, unlockedOutputs.length, isDocument]);
 
   const getTranscriptionDescription = useCallback(() => {
     if (isTranscribing) return "AI is analyzing your podcast...";

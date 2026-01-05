@@ -23,9 +23,9 @@ import { del } from "@vercel/blob";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { inngest } from "@/inngest/client";
+import { validateUserApiKeys } from "@/lib/api-key-utils";
 import { convex } from "@/lib/convex-client";
 import { checkUploadLimits } from "@/lib/tier-utils";
-import { validateUserApiKeys } from "@/lib/api-key-utils";
 
 /**
  * Validate upload before starting
@@ -81,8 +81,9 @@ interface CreateProjectInput {
   fileSize: number; // Bytes
   mimeType: string; // MIME type
   fileDuration?: number; // Seconds (optional)
-  categoryId?: string; // Category ID (required)
-  subcategoryId?: string; // Subcategory ID (optional)
+  categoryId?: Id<"categories">; // Category ID (required)
+  subcategoryId?: Id<"categories">; // Subcategory ID (optional)
+  difficulty?: number; // Optional difficulty level for clinical scenarios (1-5)
 }
 
 /**
@@ -131,6 +132,7 @@ export async function createProjectAction(input: CreateProjectInput) {
       fileDuration,
       categoryId,
       subcategoryId,
+      difficulty,
     } = input;
 
     // Validate required fields
@@ -187,27 +189,57 @@ export async function createProjectAction(input: CreateProjectInput) {
       fileDuration,
       fileFormat: fileExtension,
       mimeType: mimeType,
-      categoryId: categoryId as Id<"categories">,
-      subcategoryId: subcategoryId
-        ? (subcategoryId as Id<"categories">)
-        : undefined,
+      categoryId: categoryId,
+      subcategoryId: subcategoryId || undefined,
     });
 
     // Trigger Inngest workflow asynchronously with user's current plan
     // Event name "podcast/uploaded" matches workflow trigger
-    await inngest.send({
+    // Fire-and-forget: don't await to avoid blocking HTTP response
+    console.log(
+      `[INNGEST] 🚀 Sending event "podcast/uploaded" for project ${projectId}`,
+    );
+    console.log(`[INNGEST] Event data:`, {
+      projectId,
+      userId,
+      plan,
+      fileUrl: `${fileUrl.substring(0, 50)}...`,
+      fileName,
+      fileSize,
+      mimeType,
+      difficulty,
+    });
+
+    // biome-ignore lint/suspicious/noExplicitAny: Inngest event types defined in podcast-processor
+    (inngest.send as any)({
       name: "podcast/uploaded",
       data: {
-        projectId, // Convex project ID
+        projectId,
         userId,
-        plan, // Pass user's current plan for conditional generation
-        fileUrl, // URL to audio file in Blob
+        plan,
+        fileUrl,
         fileName,
         fileSize: fileSize || 0,
         mimeType: mimeType,
+        difficulty,
       },
-    });
+    })
+      .then(() => {
+        console.log(
+          `[INNGEST] ✅ Event sent successfully for project ${projectId}`,
+        );
+      })
+      .catch((error) => {
+        console.error(
+          `[INNGEST] ❌ Failed to send event for project ${projectId}:`,
+          error,
+        );
+      });
 
+    console.log(
+      `[INNGEST] Event dispatched (fire-and-forget), returning to client`,
+    );
+    // Return immediately - don't wait for Inngest workflow to complete
     return { success: true, projectId };
   } catch (error) {
     console.error("Error creating project:", error);
@@ -240,7 +272,9 @@ export async function deleteProjectAction(projectId: Id<"projects">) {
       throw new Error("Unauthorized");
     }
 
-    console.log(`[DELETE] Attempting to delete project ${projectId} by user ${userId}`);
+    console.log(
+      `[DELETE] Attempting to delete project ${projectId} by user ${userId}`,
+    );
 
     // Delete from Convex (validates ownership, returns inputUrl)
     // The mutation validates that the user owns the project
@@ -249,7 +283,9 @@ export async function deleteProjectAction(projectId: Id<"projects">) {
       userId,
     });
 
-    console.log(`[DELETE] Project ${projectId} successfully soft-deleted in Convex`);
+    console.log(
+      `[DELETE] Project ${projectId} successfully soft-deleted in Convex`,
+    );
 
     // Delete file from Vercel Blob
     // If this fails, we've already deleted from DB - log but don't throw
@@ -257,7 +293,10 @@ export async function deleteProjectAction(projectId: Id<"projects">) {
       await del(result.inputUrl);
       console.log(`[DELETE] File ${result.inputUrl} deleted from Blob storage`);
     } catch (blobError) {
-      console.error("[DELETE] Failed to delete file from Blob storage:", blobError);
+      console.error(
+        "[DELETE] Failed to delete file from Blob storage:",
+        blobError,
+      );
       // Don't throw - project is already deleted from database
     }
 
@@ -359,16 +398,15 @@ export async function generateQuizAction(input: {
     // Check if quiz already exists with questions
     // Allow regeneration if quiz is empty, failed, or has no questions
     if (
-      project.quiz &&
-      project.quiz.questions &&
+      project.quiz?.questions &&
       project.quiz.questions.length > 0 &&
       project.quiz.status !== "failed"
     ) {
       return { success: false, error: "Quiz already exists for this project" };
     }
 
-    // Determine content type
-    const isDocument =
+    // Determine content type (kept for future use)
+    const _isDocument =
       project.mimeType === "application/pdf" ||
       project.mimeType === "application/msword" ||
       project.mimeType ===
@@ -389,12 +427,18 @@ export async function generateQuizAction(input: {
     let originalPlan: "free" | "pro" | "ultra" = "free";
     if (project.keyMoments || project.youtubeTimestamps || project.engagement) {
       originalPlan = "ultra";
-    } else if (project.socialPosts || project.hashtags || project.titles || project.powerPoint) {
+    } else if (
+      project.socialPosts ||
+      project.hashtags ||
+      project.titles ||
+      project.powerPoint
+    ) {
       originalPlan = "pro";
     }
 
     // Trigger Inngest event to generate quiz
-    await inngest.send({
+    // biome-ignore lint/suspicious/noExplicitAny: Inngest event types defined in retry-job function
+    await (inngest.send as any)({
       name: "podcast/retry-job",
       data: {
         projectId: input.projectId,

@@ -54,6 +54,7 @@ export function PodcastUploader() {
   );
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Category selection state
@@ -130,6 +131,7 @@ export function PodcastUploader() {
       return;
     }
 
+    setIsLoading(true);
     try {
       setUploadStatus("uploading");
       setUploadProgress(0);
@@ -145,19 +147,26 @@ export function PodcastUploader() {
       }
 
       // Step 2: Upload file to Vercel Blob
+      console.log("[UPLOAD] Starting Blob upload...");
       const blob = await upload(selectedFile.name, selectedFile, {
         access: "public",
         handleUploadUrl: "/api/upload",
         onUploadProgress: ({ percentage }) => {
+          console.log(`[UPLOAD] Progress: ${percentage}%`);
           setUploadProgress(percentage);
         },
       });
+      console.log("[UPLOAD] ✅ Blob upload complete:", blob.url);
 
-      // Step 3: Create project and trigger workflow
-      setUploadStatus("processing");
+      // Step 3: Mark upload complete and show 100%
+      console.log("[UPLOAD] Setting progress to 100% and status to completed");
       setUploadProgress(100);
+      setUploadStatus("completed");
+      toast.success("Upload completed! Processing your podcast...");
 
-      const { projectId } = await createProjectAction({
+      // Step 4: Fire-and-forget project creation (don't wait)
+      console.log("[UPLOAD] Calling createProjectAction (fire-and-forget)...");
+      createProjectAction({
         fileUrl: blob.url,
         fileName: selectedFile.name,
         fileSize: selectedFile.size,
@@ -165,13 +174,18 @@ export function PodcastUploader() {
         fileDuration,
         categoryId: selectedCategoryId,
         subcategoryId: selectedSubcategoryId || undefined,
+      }).then(({ projectId }) => {
+        console.log("[UPLOAD] ✅ Project created:", projectId);
+        console.log("[UPLOAD] Redirecting to project page...");
+        // Redirect immediately when projectId is available
+        router.push(`/dashboard/projects/${projectId}`);
+      }).catch((err) => {
+        console.error("[UPLOAD] ❌ Project creation error:", err);
+        toast.error("Failed to create project. Please check your dashboard.");
+        router.push("/dashboard/projects");
       });
-
-      toast.success("Upload completed! Processing your podcast...");
-      setUploadStatus("completed");
-
-      // Step 4: Navigate to project detail page
-      router.push(`/dashboard/projects/${projectId}`);
+      
+      console.log("[UPLOAD] Fire-and-forget initiated, continuing execution...");
     } catch (err) {
       console.error("Upload error:", err);
       setUploadStatus("error");
@@ -183,6 +197,8 @@ export function PodcastUploader() {
 
       setError(errorMessage);
       toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -194,6 +210,7 @@ export function PodcastUploader() {
     setFileDuration(undefined);
     setUploadStatus("idle");
     setUploadProgress(0);
+    setIsLoading(false);
     setError(null);
     setSelectedCategoryId(null);
     setSelectedSubcategoryId(null);
@@ -238,7 +255,7 @@ export function PodcastUploader() {
               <Button
                 onClick={handleUpload}
                 className="flex-1 min-h-[48px] text-base"
-                disabled={!selectedCategoryId}
+                disabled={!selectedCategoryId || isLoading}
               >
                 {uploadStatus === "error" ? "Try Again" : "Start Upload"}
               </Button>
@@ -246,6 +263,7 @@ export function PodcastUploader() {
                 onClick={handleReset} 
                 variant="outline"
                 className="min-h-[48px] px-6 text-base"
+                disabled={isLoading}
               >
                 Cancel
               </Button>

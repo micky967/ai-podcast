@@ -26,6 +26,12 @@ export const PROJECT_TABS: TabConfig[] = [
     // No feature - available to all
   },
   {
+    value: "clinical-scenarios",
+    label: "Clinical Scenarios",
+    errorKey: "clinicalScenarios",
+    feature: FEATURES.CLINICAL_SCENARIOS,
+  },
+  {
     value: "moments",
     label: "Key Moments",
     errorKey: "keyMoments",

@@ -3,7 +3,7 @@
 import {
   Upload,
   FolderOpen,
-  Users,
+  Microscope,
   Settings,
   FileText,
   Share2,
@@ -224,6 +224,7 @@ export function DocumentationContent() {
         },
       ],
     },
+    
     {
       id: "project-features",
       title: "Project Features & Content",
@@ -285,6 +286,39 @@ export function DocumentationContent() {
         },
       ],
     },
+    // Endo of projects feature
+    {
+      id: "clinical-scenarios",
+      title: "Clinical Scenarios (QBank)",
+      icon: Microscope,
+      steps: [
+        {
+          number: 1,
+          title: "Accessing the QBank",
+          description:
+            "Inside any project, click the 'Clinical Scenarios' tab. This generates USMLE-style questions based on your audio or document content.",
+        },
+        {
+          number: 2,
+          title: "Adjusting Difficulty (Levels 1-5)",
+          description:
+            "Before generating, use the difficulty slider. Level 1 provides foundational concepts, while Level 5 generates complex, multi-step clinical reasoning cases suitable for advanced board prep. The slider allows you to customize the complexity of the generated questions. Verified questions are peer-reviewed and clinically accurate, ensuring high-quality educational content for effective learning.",
+        },
+        {
+          number: 3,
+          title: "Search & Filtering",
+          description:
+            "Use the search bar to find specific medical terms, diagnoses, or drugs within your generated questions. You can also filter by difficulty level or 'Verified' status.",
+        },
+        {
+          number: 4,
+          title: "Revealing Answers",
+          description:
+            "Each scenario is presented as a 'hidden' card. Click 'Reveal Answer' to see the correct choice and a detailed Clinical Rationale aswell as the Source Reference.",
+        },
+      ],
+    },
+    //Start of settings
     {
       id: "settings",
       title: "Settings & Configuration",

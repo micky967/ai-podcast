@@ -1,0 +1,14 @@
+# Project Context
+Framework: Next.js 15 (App Router), Convex (DB/Backend), Inngest (Jobs), Clerk (Auth).
+Stack: TypeScript, Tailwind, Shadcn/UI, Vercel Blob.
+
+# Critical Execution Rules
+1. TIMEOUTS: All long-running logic (AI generation, file processing) MUST be wrapped in Inngest `step.run` to prevent Vercel 10s timeouts.
+2. SCHEMAS: Always read 'convex/schema.ts' before writing any mutations or queries.
+3. OPENAI: When using Structured Outputs, all Zod fields must be '.required()' or '.nullable()'. NEVER use '.optional()'.
+4. UI: Components must be responsive (mobile-first) using Tailwind. Use Shadcn for all form/button elements.
+5. STATE: If a 'Generate' button is stuck loading, check that 'setIsLoading(false)' is in a 'finally' block or reactive to Convex query updates.
+
+# Logic Requirements
+- VARIETY: When generating clinical scenarios, vary the age, presentation, and medical specialty. 
+- UNIQUENESS: Do not repeat the same case twice. Use previous cases in the DB as negative context.

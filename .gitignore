@@ -48,7 +48,8 @@ Links to files/
 *.backup
 *backup*
 
-# Markdown files (ignore all except README.md files)
+# Markdown files (ignore all except README.md and Windsurf rules)
 *.md
 !README.md
 !**/README.md
+!.windsurf/rules/*.md

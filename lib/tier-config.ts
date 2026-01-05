@@ -52,6 +52,7 @@ export const FEATURES = {
   POWERPOINT: "powerpoint",
   ENGAGEMENT: "engagement",
   YOUTUBE_TIMESTAMPS: "youtube_timestamps",
+  CLINICAL_SCENARIOS: "clinical_scenarios",
   KEY_MOMENTS: "key_moments",
   SPEAKER_DIARIZATION: "speaker_diarization",
 } as const;
@@ -65,9 +66,10 @@ export type FeatureName = (typeof FEATURES)[keyof typeof FEATURES];
  * Note: Transcription is available to ALL plans as core functionality
  */
 export const PLAN_FEATURES: Record<PlanName, FeatureName[]> = {
-  free: [FEATURES.SUMMARY],
+  free: [FEATURES.SUMMARY, FEATURES.CLINICAL_SCENARIOS],
   pro: [
     FEATURES.SUMMARY,
+    FEATURES.CLINICAL_SCENARIOS,
     FEATURES.SOCIAL_POSTS,
     FEATURES.TITLES,
     FEATURES.HASHTAGS,
@@ -75,6 +77,7 @@ export const PLAN_FEATURES: Record<PlanName, FeatureName[]> = {
   ],
   ultra: [
     FEATURES.SUMMARY,
+    FEATURES.CLINICAL_SCENARIOS,
     FEATURES.SOCIAL_POSTS,
     FEATURES.TITLES,
     FEATURES.HASHTAGS,
@@ -117,6 +120,7 @@ export const FEATURE_TO_JOB_MAP = {
   [FEATURES.ENGAGEMENT]: "engagement",
   [FEATURES.KEY_MOMENTS]: "keyMoments",
   [FEATURES.YOUTUBE_TIMESTAMPS]: "youtubeTimestamps",
+  [FEATURES.CLINICAL_SCENARIOS]: "clinicalScenarios",
   [FEATURES.SUMMARY]: "summary",
 } as const;
 

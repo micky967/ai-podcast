@@ -17,6 +17,8 @@ import { SummaryTab } from "@/components/project-tabs/summary-tab";
 import { TitlesTab } from "@/components/project-tabs/titles-tab";
 import { TranscriptTab } from "@/components/project-tabs/transcript-tab";
 import { YouTubeTimestampsTab } from "@/components/project-tabs/youtube-timestamps-tab";
+import { ClinicalScenariosTab } from "@/components/project-tabs/clinical-scenarios-tab";
+import { GenerateMissingCard } from "@/components/project-detail/generate-missing-card";
 import {
   Select,
   SelectContent,
@@ -53,6 +55,8 @@ export function ProjectTabsWrapper({
   const hasHashtags = project.hashtags !== undefined;
   const hasQuiz = project.quiz !== undefined;
   const isOldProject = hasHashtags && !hasQuiz; // Old project with hashtags but no quiz
+  const hasClinicalScenarios = project.clinicalScenarios !== undefined;
+  const hasLegacyYouTubeTimestamps = project.youtubeTimestamps !== undefined;
 
   // Filter tabs based on file type and project state
   const visibleTabs = PROJECT_TABS.filter((tab) => {
@@ -61,6 +65,16 @@ export function ProjectTabsWrapper({
       if (["moments", "youtube-timestamps", "social", "speakers"].includes(tab.value)) {
         return false;
       }
+    }
+
+    // Hide legacy YouTube tab once scenarios exist. For new uploads (no youtubeTimestamps), hide it too.
+    if (tab.value === "youtube-timestamps") {
+      return hasLegacyYouTubeTimestamps && !hasClinicalScenarios;
+    }
+
+    // Clinical scenarios tab is shown for new uploads and for migrated legacy projects.
+    if (tab.value === "clinical-scenarios") {
+      return !hasLegacyYouTubeTimestamps || hasClinicalScenarios;
     }
 
     // Conditional tab visibility for hashtags vs quiz
@@ -158,6 +172,36 @@ export function ProjectTabsWrapper({
           isShared={isShared}
         >
           <YouTubeTimestampsTab timestamps={project.youtubeTimestamps} />
+        </TabContent>
+
+        {!hasClinicalScenarios && (
+          <GenerateMissingCard
+            projectId={projectId}
+            message="Generate Clinical Scenarios for this legacy project"
+            jobName="clinicalScenarios"
+          />
+        )}
+      </TabsContent>
+
+      <TabsContent value="clinical-scenarios" className="space-y-4">
+        <TabContent
+          isLoading={showGenerating}
+          data={project.clinicalScenarios}
+          error={project.jobErrors?.clinicalScenarios}
+          projectId={projectId}
+          feature={FEATURES.CLINICAL_SCENARIOS}
+          featureName="Clinical Scenarios"
+          jobName="clinicalScenarios"
+          emptyMessage="No clinical scenarios available"
+          isShared={isShared}
+        >
+          <ClinicalScenariosTab
+            projectId={projectId}
+            clinicalScenarios={project.clinicalScenarios}
+            isLoading={showGenerating}
+            userId={userId}
+            projectCreatorId={project.userId}
+          />
         </TabContent>
       </TabsContent>
 

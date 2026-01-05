@@ -13,7 +13,6 @@ import {
   MessageSquare,
   Sparkles,
   Target,
-  Youtube,
   BookOpen,
 } from "lucide-react";
 
@@ -155,9 +154,9 @@ export const GENERATION_OUTPUTS: GenerationOutput[] = [
       "Generating comment starters, pin-worthy comments, community posts, and optimized descriptions",
   },
   {
-    name: "YouTube Timestamps",
-    icon: Youtube,
+    name: "Clinical Scenarios",
+    icon: Target,
     description:
-      "Formatting clickable chapter markers for YouTube video descriptions",
+      "Generating 20 realistic clinical vignettes with SOAP notes, red flags, and teaching pearls",
   },
 ];

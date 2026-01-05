@@ -24,9 +24,14 @@ export type RetryableJob =
   | "titles"
   | "powerPoint"
   | "youtubeTimestamps"
+  | "clinicalScenarios"
   | "engagement";
 
-export async function retryJob(projectId: Id<"projects">, job: RetryableJob) {
+export async function retryJob(
+  projectId: Id<"projects">,
+  job: RetryableJob,
+  difficulty?: number,
+) {
   const authObj = await auth();
   const { userId, has } = authObj;
 
@@ -67,6 +72,7 @@ export async function retryJob(projectId: Id<"projects">, job: RetryableJob) {
       userId,
       originalPlan,
       currentPlan,
+      difficulty,
     },
   });
 

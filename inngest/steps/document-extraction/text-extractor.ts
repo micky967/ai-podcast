@@ -60,22 +60,22 @@ export async function extractTextFromDocument(
         // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
         const PDFParser = require("pdf2json");
         const pdfParser = new PDFParser(null, 1);
-        
+
         // Extract text from PDF using promise-based approach
         const pdfText = await new Promise<string>((resolve, reject) => {
           const textParts: string[] = [];
-          
+
           pdfParser.on("pdfParser_dataError", (errData: any) => {
             reject(new Error(`PDF parsing error: ${errData.parserError}`));
           });
-          
+
           pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
             try {
               // Extract text from all pages - improved to capture all text elements
               if (pdfData.Pages && Array.isArray(pdfData.Pages)) {
                 for (const page of pdfData.Pages) {
                   const pageTextParts: string[] = [];
-                  
+
                   // Extract text from Texts array (main text content)
                   if (page.Texts && Array.isArray(page.Texts)) {
                     const texts = page.Texts.map((textItem: any) => {
@@ -94,12 +94,12 @@ export async function extractTextFromDocument(
                       }
                       return "";
                     }).filter((text: string) => text.trim().length > 0);
-                    
+
                     if (texts.length > 0) {
                       pageTextParts.push(texts.join(" "));
                     }
                   }
-                  
+
                   // Extract text from FillText array (filled text, often in forms/tables)
                   if (page.FillText && Array.isArray(page.FillText)) {
                     const fillTexts = page.FillText.map((fillItem: any) => {
@@ -116,37 +116,37 @@ export async function extractTextFromDocument(
                       }
                       return "";
                     }).filter((text: string) => text.trim().length > 0);
-                    
+
                     if (fillTexts.length > 0) {
                       pageTextParts.push(fillTexts.join(" "));
                     }
                   }
-                  
+
                   // Combine all text from this page
                   if (pageTextParts.length > 0) {
                     textParts.push(pageTextParts.join("\n"));
                   }
                 }
               }
-              
+
               // Join all pages with double newline for better separation
               const fullText = textParts.join("\n\n").trim();
-              
+
               // Log extraction stats for debugging
               console.log(`PDF text extraction: ${pdfData.Pages?.length || 0} pages, ${fullText.length} characters extracted`);
-              
+
               resolve(fullText);
             } catch (extractError) {
               reject(new Error(`Failed to extract text from PDF: ${extractError instanceof Error ? extractError.message : "Unknown error"}`));
             }
           });
-          
+
           // Parse the PDF buffer
           pdfParser.parseBuffer(buffer);
         });
-        
+
         extractedText = pdfText;
-        
+
         if (!extractedText || extractedText.length === 0) {
           throw new Error(
             "This PDF appears to be image-based (scanned) and contains no extractable text. Please use a PDF with selectable text, or convert your scanned PDF to text using OCR software first."
@@ -156,7 +156,7 @@ export async function extractTextFromDocument(
         if (parseError instanceof Error && parseError.message.includes("image-based")) {
           throw parseError;
         }
-        
+
         console.error("PDF parsing error with pdf2json:", parseError);
         throw new Error(
           `PDF parsing failed: ${parseError instanceof Error ? parseError.message : "Unknown error"}. The PDF file may be corrupted, encrypted, or in an unsupported format.`
@@ -164,7 +164,7 @@ export async function extractTextFromDocument(
       }
     } else if (
       mimeType ===
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
       mimeType === "application/msword"
     ) {
       // DOCX or DOC extraction
@@ -226,28 +226,12 @@ export async function extractTextFromDocument(
       console.log(
         `Transcript saved successfully for project ${projectId} (${extractedText.length} characters)`,
       );
-      
-      // Verify the save succeeded by checking the saved data
-      // This helps catch any silent failures
-      const savedProject = await convex.query(api.projects.getProject, {
-        projectId,
-        userId,
-      });
-      if (!savedProject?.transcript?.text || savedProject.transcript.text.length === 0) {
-        throw new Error(
-          "Transcript save verification failed: text was not saved correctly to Convex",
-        );
-      }
-      console.log(
-        `Transcript save verified: ${savedProject.transcript.text.length} characters in Convex`,
-      );
     } catch (saveError) {
       console.error("Failed to save transcript to Convex:", saveError);
       // Throw error - if we can't save, retry jobs won't work
       // Better to fail now than silently fail later
       throw new Error(
-        `Failed to save document text to database: ${
-          saveError instanceof Error ? saveError.message : "Unknown error"
+        `Failed to save document text to database: ${saveError instanceof Error ? saveError.message : "Unknown error"
         }. Please try uploading the file again.`,
       );
     }
@@ -263,8 +247,7 @@ export async function extractTextFromDocument(
   } catch (error) {
     console.error("Document text extraction failed:", error);
     throw new Error(
-      `Failed to extract text from document: ${
-        error instanceof Error ? error.message : "Unknown error"
+      `Failed to extract text from document: ${error instanceof Error ? error.message : "Unknown error"
       }`,
     );
   }

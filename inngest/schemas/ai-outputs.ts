@@ -95,24 +95,24 @@ export const powerPointSchema = z.object({
           .describe("3-8 complete, detailed bullet points with full information - ready to present. Each bullet should contain substantial content, not just a phrase. Make them comprehensive and presentation-ready."),
         notes: z
           .string()
-          .optional()
+          .nullable()
           .describe("Detailed speaker notes with additional context, talking points, and explanations for the presenter"),
         visualHint: z
           .string()
-          .optional()
+          .nullable()
           .describe(
             "Simple vector/clip-art suggestion (icon name, shape, or theme)",
           ),
         layout: z
           .string()
-          .optional()
+          .nullable()
           .describe("Suggested slide layout (title, bullets, quote, or two-column)"),
       }),
     )
     .min(15)
     .max(40)
     .describe("15-40 comprehensive slides covering ALL content from the podcast/document. Each slide must have complete, presentation-ready content."),
-  theme: z.string().optional().describe("Suggested template or visual theme"),
+  theme: z.string().nullable().describe("Suggested template or visual theme"),
   summary: z
     .string()
     .describe("Brief narrative describing the flow of the deck"),
@@ -322,3 +322,59 @@ export const engagementSchema = z.object({
 });
 
 export type Engagement = z.infer<typeof engagementSchema>;
+
+export const clinicalScenarioSchema = z.object({
+  vignette: z
+    .string()
+    .describe(
+      "Dense, professional clinical vignette paragraph including: age, sex, chief complaint, HPI, PMH, meds, vitals, and physical exam.",
+    ),
+  question: z
+    .string()
+    .describe(
+      "Board-style question stem (e.g., next best step, diagnosis, mechanism, contraindication, management).",
+    ),
+  options: z
+    .array(z.string())
+    .length(5)
+    .describe("Exactly 5 answer options (A-E), each a complete choice."),
+  correctAnswer: z
+    .string()
+    .describe("Must match exactly one of the provided options."),
+  explanation: z
+    .object({
+      correct: z
+        .string()
+        .describe("Why the correct answer is correct, grounded in the source."),
+      distractors: z
+        .array(z.string())
+        .length(4)
+        .describe(
+          "Why each other option is wrong (4 entries). Each entry should reference the option letter and reasoning.",
+        ),
+    })
+    .describe(
+      "Explanations must include both 'why this is right' and 'why others are wrong'.",
+    ),
+  sourceReference: z
+    .string()
+    .describe(
+      "A verbatim quote/snippet from the provided transcript/document excerpt that supports the correct answer.",
+    ),
+  rationale: z
+    .string()
+    .describe(
+      "REQUIRED: Comprehensive clinical rationale explaining: (1) Why the correct answer is the gold standard or best choice, (2) Why each distractor is incorrect, specifically addressing any red herrings or nuances in the vignette. Should be educational and reference guidelines when applicable. This field is mandatory and must always be provided.",
+    ),
+});
+
+export const clinicalScenariosSchema = z.object({
+  scenarios: z
+    .array(clinicalScenarioSchema)
+    .min(1)
+    .max(20)
+    .describe("1-20 board-style, source-grounded QBank questions"),
+});
+
+export type ClinicalScenario = z.infer<typeof clinicalScenarioSchema>;
+export type ClinicalScenarios = z.infer<typeof clinicalScenariosSchema>;

@@ -26,7 +26,15 @@
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { convex } from "@/lib/convex-client";
-import type { Hashtags, PowerPoint, Quiz, SocialPosts, Summary, Titles } from "../../schemas/ai-outputs";
+import type {
+  ClinicalScenarios,
+  Hashtags,
+  PowerPoint,
+  Quiz,
+  SocialPosts,
+  Summary,
+  Titles,
+} from "../../schemas/ai-outputs";
 
 type KeyMoment = {
   time: string; // Human-readable timestamp
@@ -53,6 +61,7 @@ type GeneratedContent = {
   titles?: Titles;
   powerPoint?: PowerPoint;
   youtubeTimestamps?: YouTubeTimestamp[];
+  clinicalScenarios?: ClinicalScenarios;
 };
 
 /**
@@ -80,14 +89,20 @@ export async function saveResultsToConvex(
   // Transform PowerPoint AI output to match Convex schema
   const powerPointForConvex = results.powerPoint
     ? {
-        status: "completed" as const,
-        template: results.powerPoint.theme,
-        summary: results.powerPoint.summary,
-        slides: results.powerPoint.slides,
-        downloadUrl: undefined, // Will be set in Phase 2 when file is generated
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      }
+      status: "completed" as const,
+      template: results.powerPoint.theme ?? undefined,
+      summary: results.powerPoint.summary,
+      slides: results.powerPoint.slides.map((slide) => ({
+        title: slide.title,
+        bullets: slide.bullets,
+        notes: slide.notes ?? undefined,
+        visualHint: slide.visualHint ?? undefined,
+        layout: slide.layout ?? undefined,
+      })),
+      downloadUrl: undefined, // Will be set in Phase 2 when file is generated
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }
     : undefined;
 
   // Save all AI-generated content in one atomic operation
@@ -102,6 +117,7 @@ export async function saveResultsToConvex(
     titles: results.titles,
     powerPoint: powerPointForConvex as any,
     youtubeTimestamps: results.youtubeTimestamps,
+    clinicalScenarios: results.clinicalScenarios,
   });
 
   // Mark project as completed

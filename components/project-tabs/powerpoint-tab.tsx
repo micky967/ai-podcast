@@ -5,16 +5,16 @@ import { Button } from "@/components/ui/button";
 interface SlideOutline {
   title: string;
   bullets: string[];
-  notes?: string;
-  visualHint?: string;
-  layout?: string;
+  notes?: string | null;
+  visualHint?: string | null;
+  layout?: string | null;
 }
 
 interface PowerPointTabProps {
   powerPoint?: {
     slides?: SlideOutline[];
     summary?: string;
-    theme?: string;
+    theme?: string | null;
     downloadUrl?: string;
   };
 }

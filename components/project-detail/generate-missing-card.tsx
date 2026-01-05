@@ -40,6 +40,7 @@ export function GenerateMissingCard({
       toast.error(
         error instanceof Error ? error.message : "Failed to generate features"
       );
+    } finally {
       setIsGenerating(false);
     }
   };

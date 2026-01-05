@@ -20,6 +20,8 @@ import { generateSocialPosts } from "../steps/ai-generation/social-posts";
 import { generateSummary } from "../steps/ai-generation/summary";
 import { generateTitles } from "../steps/ai-generation/titles";
 import { generateYouTubeTimestamps } from "../steps/ai-generation/youtube-timestamps";
+import { generateClinicalScenarios } from "../steps/ai-generation/clinical-scenarios";
+import { findSupportingSourceQuoteWithTimeout } from "../steps/ai-generation/clinical-scenarios";
 import { getUserApiKeys } from "../lib/user-api-keys";
 import type { TranscriptWithExtras } from "../types/assemblyai";
 
@@ -27,7 +29,8 @@ export const retryJobFunction = inngest.createFunction(
   { id: "retry-job" },
   { event: "podcast/retry-job" },
   async ({ event, step }) => {
-    const { projectId, job, originalPlan, currentPlan, userId } = event.data;
+    const { projectId, job, originalPlan, currentPlan, userId, difficulty } =
+      event.data;
 
     // Check if user is owner - owners bypass plan restrictions
     const isOwner = await step.run("check-user-owner", async () => {
@@ -60,12 +63,12 @@ export const retryJobFunction = inngest.createFunction(
 
     // Check if user has access to this feature with current plan (owners bypass)
     const featureKey = jobToFeature[job];
-    
+
     // Special exception: Allow free users to access Q&A on their own uploaded files
     // This matches frontend behavior where free users can see Q&A in shared files and their own files
-    const isQAndAException = 
-      featureKey === FEATURES.ENGAGEMENT && 
-      isOwnProject && 
+    const isQAndAException =
+      featureKey === FEATURES.ENGAGEMENT &&
+      isOwnProject &&
       !isOwner;
 
     // Quiz is available to all plans - no feature check needed
@@ -95,7 +98,7 @@ export const retryJobFunction = inngest.createFunction(
       project.mimeType === "application/pdf" ||
       project.mimeType === "application/msword" ||
       project.mimeType ===
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
       project.mimeType === "text/plain";
 
     // Check for transcript - required for all jobs
@@ -109,11 +112,11 @@ export const retryJobFunction = inngest.createFunction(
 
     // For documents, certain jobs are not applicable
     if (isDocument) {
-    if (
-      job === "keyMoments" ||
-      job === "youtubeTimestamps" ||
-      job === "socialPosts"
-    ) {
+      if (
+        job === "keyMoments" ||
+        job === "youtubeTimestamps" ||
+        job === "socialPosts"
+      ) {
         throw new Error(
           `${job} is not available for document files. This feature requires audio content with timestamps.`,
         );
@@ -182,6 +185,64 @@ export const retryJobFunction = inngest.createFunction(
     // Regenerate the specific job
     try {
       switch (job) {
+        case "clinicalScenarios": {
+          const existing = (project as any).clinicalScenarios?.scenarios ?? [];
+          const result = await generateClinicalScenarios(
+            step,
+            isDocument
+              ? { contentType: "document", documentText: transcript.text }
+              : { contentType: "podcast", transcript },
+            openaiApiKey,
+            existing.map((s: any) => ({
+              vignette: s.vignette,
+              question: s.question,
+            })),
+            typeof difficulty === "number" ? difficulty : undefined,
+          );
+          await step.run("save-clinical-scenarios", () =>
+            convex.mutation((api.projects.appendClinicalScenarios as any), {
+              projectId,
+              scenarios: result.scenarios,
+            }),
+          );
+
+          if (!isDocument) {
+            await step.run("audit-clinical-scenarios", async () => {
+              const latest = await convex.query(api.projects.getProject, { projectId, userId });
+              const scenarios = (latest as any)?.clinicalScenarios?.scenarios ?? [];
+
+              for (let i = 0; i < scenarios.length; i += 1) {
+                const s = scenarios[i];
+                if (s?.verifiedAccuracy === true) continue;
+
+                // Use timeout wrapper - returns null if audit takes >15s or fails
+                const quote = await findSupportingSourceQuoteWithTimeout(
+                  step,
+                  { contentType: "podcast", transcript },
+                  {
+                    vignette: s.vignette,
+                    question: s.question,
+                    options: s.options ?? [],
+                    correctAnswer: s.correctAnswer,
+                    sourceReference: s.sourceReference,
+                  },
+                  openaiApiKey,
+                );
+
+                if (quote) {
+                  await convex.mutation((api.projects.setClinicalScenarioVerifiedAccuracy as any), {
+                    projectId,
+                    scenarioIndex: i,
+                    verifiedAccuracy: true,
+                    sourceQuote: quote,
+                  });
+                }
+              }
+            });
+          }
+          break;
+        }
+
         case "keyMoments": {
           const result = await generateKeyMoments(transcript);
           await step.run("save-key-moments", () =>
