@@ -172,7 +172,7 @@ export async function createProjectAction(input: CreateProjectInput) {
     if (!apiKeyValidation.valid) {
       throw new Error(
         apiKeyValidation.error ||
-          "API keys are required. Please configure OpenAI and AssemblyAI keys in Settings before processing podcasts.",
+        "API keys are required. Please configure OpenAI and AssemblyAI keys in Settings before processing podcasts.",
       );
     }
 
@@ -229,7 +229,7 @@ export async function createProjectAction(input: CreateProjectInput) {
           `[INNGEST] ✅ Event sent successfully for project ${projectId}`,
         );
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.error(
           `[INNGEST] ❌ Failed to send event for project ${projectId}:`,
           error,
@@ -410,7 +410,7 @@ export async function generateQuizAction(input: {
       project.mimeType === "application/pdf" ||
       project.mimeType === "application/msword" ||
       project.mimeType ===
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
       project.mimeType === "text/plain";
 
     // Get user's current plan

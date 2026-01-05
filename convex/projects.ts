@@ -299,6 +299,199 @@ export const getProject = query({
 });
 
 /**
+ * Gets all user projects with shared files (no pagination, for search)
+ */
+export const getAllUserProjectsWithShared = query({
+  args: {
+    userId: v.string(),
+    filter: v.optional(v.union(v.literal("own"), v.literal("shared"), v.literal("all"))),
+  },
+  handler: async (ctx, args) => {
+    const filter = args.filter ?? "all";
+
+    // Check if user is owner
+    const userSettings = await ctx.db
+      .query("userSettings")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .first();
+    const isOwner = userSettings?.role === "owner";
+
+    // Moderator view - return all projects
+    if (isOwner && filter === "all") {
+      return await ctx.db
+        .query("projects")
+        .filter((q) => q.eq(q.field("deletedAt"), undefined))
+        .order("desc")
+        .collect();
+    }
+
+    // Fetch own projects
+    let ownProjects: Doc<"projects">[] = [];
+    if (filter === "own" || filter === "all") {
+      ownProjects = await ctx.db
+        .query("projects")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .filter((q) => q.eq(q.field("deletedAt"), undefined))
+        .collect();
+    }
+
+    // Fetch shared projects
+    let sharedProjects: Doc<"projects">[] = [];
+    if (filter === "shared" || filter === "all") {
+      const memberGroups = await ctx.db
+        .query("groupMembers")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .filter((q) => q.eq(q.field("status"), "active"))
+        .collect();
+
+      const groupOwners = new Set<string>();
+      for (const m of memberGroups) {
+        const group = await ctx.db.get(m.groupId);
+        if (group) groupOwners.add(group.ownerId);
+      }
+
+      const sharedArrays = await Promise.all(
+        Array.from(groupOwners).map((ownerId) =>
+          ctx.db.query("projects").withIndex("by_user", (q) => q.eq("userId", ownerId)).filter((q) => q.eq(q.field("deletedAt"), undefined)).collect()
+        )
+      );
+      sharedProjects = sharedArrays.flat();
+    }
+
+    // Combine and dedupe
+    const seenIds = new Set();
+    const allCombined: Doc<"projects">[] = [];
+    for (const p of [...ownProjects, ...sharedProjects]) {
+      if (!seenIds.has(p._id)) {
+        if (filter === "all" || (filter === "own" && p.userId === args.userId) || (filter === "shared" && p.userId !== args.userId)) {
+          allCombined.push(p);
+          seenIds.add(p._id);
+        }
+      }
+    }
+
+    allCombined.sort((a, b) => b.createdAt - a.createdAt);
+    return allCombined;
+  },
+});
+
+/**
+ * Gets all projects for migration scripts
+ */
+export const getAllProjectsForMigration = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("projects").collect();
+  },
+});
+
+/**
+ * Bulk insert projects for migration
+ */
+export const bulkInsertProjects = mutation({
+  args: {
+    projects: v.array(v.any()),
+  },
+  handler: async (ctx, args) => {
+    const inserted: string[] = [];
+    const skippedFileNames: string[] = [];
+
+    for (const project of args.projects) {
+      // Check if project with same inputUrl already exists
+      const existing = await ctx.db
+        .query("projects")
+        .filter((q) => q.eq(q.field("inputUrl"), project.inputUrl))
+        .first();
+
+      if (existing) {
+        skippedFileNames.push(project.fileName || project.inputUrl);
+        continue;
+      }
+
+      // Insert the project
+      const id = await ctx.db.insert("projects", project);
+      inserted.push(id);
+    }
+
+    return {
+      inserted: inserted.length,
+      skipped: skippedFileNames.length,
+      total: args.projects.length,
+      skippedFileNames,
+    };
+  },
+});
+
+/**
+ * Gets user project count for tier limit checking
+ */
+export const getUserProjectCount = query({
+  args: {
+    userId: v.string(),
+    includeDeleted: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const includeDeleted = args.includeDeleted ?? false;
+
+    let query = ctx.db
+      .query("projects")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId));
+
+    if (!includeDeleted) {
+      query = query.filter((q) => q.eq(q.field("deletedAt"), undefined));
+    }
+
+    const projects = await query.collect();
+    return projects.length;
+  },
+});
+
+/**
+ * Lists all projects for a user (basic list without sharing)
+ */
+export const listUserProjects = query({
+  args: {
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const projects = await ctx.db
+      .query("projects")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("deletedAt"), undefined))
+      .order("desc")
+      .collect();
+
+    return projects;
+  },
+});
+
+/**
+ * Lists user projects filtered by category
+ */
+export const listUserProjectsByCategory = query({
+  args: {
+    userId: v.string(),
+    categoryId: v.id("categories"),
+  },
+  handler: async (ctx, args) => {
+    const projects = await ctx.db
+      .query("projects")
+      .withIndex("by_user_and_category", (q) =>
+        q.eq("userId", args.userId).eq("categoryId", args.categoryId)
+      )
+      .filter((q) => q.eq(q.field("deletedAt"), undefined))
+      .order("desc")
+      .collect();
+
+    return {
+      page: projects,
+      continueCursor: null,
+      isDone: true,
+    };
+  },
+});
+
+/**
  * Lists user projects including shared files with pagination and filtering
  */
 export const listUserProjectsWithShared = query({
@@ -429,6 +622,62 @@ export const setClinicalScenarioVerifiedAccuracy = mutation({
 
 
 /**
+ * Updates a project's display name
+ */
+export const updateProjectDisplayName = mutation({
+  args: {
+    projectId: v.id("projects"),
+    userId: v.string(),
+    displayName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project) throw new Error("Project not found");
+
+    // Verify ownership
+    if (project.userId !== args.userId) {
+      throw new Error("Unauthorized: You do not own this project");
+    }
+
+    await ctx.db.patch(args.projectId, {
+      displayName: args.displayName,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+/**
+ * Updates a project's category and subcategory
+ */
+export const updateProjectCategory = mutation({
+  args: {
+    projectId: v.id("projects"),
+    userId: v.string(),
+    categoryId: v.optional(v.id("categories")),
+    subcategoryId: v.optional(v.id("categories")),
+  },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project) throw new Error("Project not found");
+
+    // Verify ownership
+    if (project.userId !== args.userId) {
+      throw new Error("Unauthorized: You do not own this project");
+    }
+
+    await ctx.db.patch(args.projectId, {
+      categoryId: args.categoryId,
+      subcategoryId: args.subcategoryId,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+/**
  * Deletes a project by marking it as deleted (Soft Delete)
  */
 export const deleteProject = mutation({
@@ -444,6 +693,8 @@ export const deleteProject = mutation({
       deletedAt: Date.now(),
       updatedAt: Date.now(),
     });
+
+    return { inputUrl: project.inputUrl };
   },
 });
 
