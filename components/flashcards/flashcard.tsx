@@ -1,15 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface FlashcardProps {
   front: string;
   back: string;
   rationale?: string;
+  resetKey?: number; // When this changes, card flips back to front
 }
 
-export function Flashcard({ front, back, rationale }: FlashcardProps) {
+export function Flashcard({ front, back, rationale, resetKey = 0 }: FlashcardProps) {
   const [isFlipped, setIsFlipped] = useState(false);
+
+  // Reset to front side when resetKey changes
+  useEffect(() => {
+    setIsFlipped(false);
+  }, [resetKey]);
 
   return (
     <div 

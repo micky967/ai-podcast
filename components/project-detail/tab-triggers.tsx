@@ -113,10 +113,21 @@ export function MobileTabItem({
     return true;
   }, [tab.feature, isShared, isOwner, has]);
 
+  // Dynamic label for titles tab - show "Flashcards" if flashcards have been generated
+  const displayLabel = React.useMemo(() => {
+    if (tab.value === "titles") {
+      const flashcardStatus = (project as any).flashcardStatus;
+      if (flashcardStatus === "completed" || flashcardStatus === "generating") {
+        return "Flashcards";
+      }
+    }
+    return tab.label;
+  }, [tab.value, tab.label, project]);
+
   return (
     <SelectItem value={tab.value}>
       <span className="flex items-center gap-2">
-        {tab.label}
+        {displayLabel}
         {shouldShowLock && (
           <Lock
             className="h-3 w-3 text-red-600 shrink-0"
@@ -220,6 +231,17 @@ export function DesktopTabTrigger({
     return true;
   }, [tab.feature, isShared, isOwner, has]);
 
+  // Dynamic label for titles tab - show "Flashcards" if flashcards have been generated
+  const displayLabel = React.useMemo(() => {
+    if (tab.value === "titles") {
+      const flashcardStatus = (project as any).flashcardStatus;
+      if (flashcardStatus === "completed" || flashcardStatus === "generating") {
+        return "Flashcards";
+      }
+    }
+    return tab.label;
+  }, [tab.value, tab.label, project]);
+
   return (
     <TabsTrigger
       value={tab.value}
@@ -235,7 +257,7 @@ export function DesktopTabTrigger({
         {hasError && (
           <AlertCircle className="size-[12px] text-destructive shrink-0 relative top-[1px] mr-0.5" />
         )}
-        {tab.label}
+        {displayLabel}
       </span>
     </TabsTrigger>
   );

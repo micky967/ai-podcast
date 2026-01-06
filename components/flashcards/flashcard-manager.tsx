@@ -18,6 +18,7 @@ export function FlashcardManager({ projectId }: { projectId: Id<"projects"> }) {
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [completedCards, setCompletedCards] = useState<Set<number>>(new Set());
   const [isStudyMode, setIsStudyMode] = useState(false);
+  const [resetKey, setResetKey] = useState(0); // Increment to reset all cards to front
 
   // 1. Fetch the project data
   const project = useQuery(
@@ -70,6 +71,7 @@ export function FlashcardManager({ projectId }: { projectId: Id<"projects"> }) {
     setCurrentCardIndex(0);
     setCompletedCards(new Set());
     setIsStudyMode(true);
+    setResetKey(prev => prev + 1); // Flip all cards back to question side
   };
 
   const markCardComplete = (index: number) => {
@@ -140,10 +142,11 @@ export function FlashcardManager({ projectId }: { projectId: Id<"projects"> }) {
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {allCompleted && (
+              {/* Show Restart button after first card is clicked */}
+              {completedCards.size > 0 && (
                 <Button onClick={handleRetest} size="sm" className="gap-2 gradient-emerald text-white hover-glow cursor-pointer">
                   <RotateCcw className="h-4 w-4" />
-                  Retest
+                  Restart
                 </Button>
               )}
               <Button 
@@ -187,6 +190,7 @@ export function FlashcardManager({ projectId }: { projectId: Id<"projects"> }) {
                   front={card.front}
                   back={card.back}
                   rationale={card.rationale}
+                  resetKey={resetKey}
                 />
               </div>
             ))}
