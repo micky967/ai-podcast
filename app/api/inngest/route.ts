@@ -27,6 +27,7 @@ import { NextRequest } from "next/server";
 import { inngest } from "../../../inngest/client";
 import { podcastProcessor } from "../../../inngest/functions/podcast-processor";
 import { retryJobFunction } from "../../../inngest/functions/retry-job";
+import { flashcardGenerator } from "../../../inngest/flashcard-generator"; // Ensure this is here ONCE
 
 // Force dynamic rendering (disable static optimization)
 // Required because Inngest needs to call this endpoint at runtime
@@ -52,7 +53,7 @@ export const maxDuration = 300;
  */
 const handlers = serve({
   client: inngest, // Inngest client instance
-  functions: [podcastProcessor, retryJobFunction], // Array of all Inngest functions to serve
+  functions: [podcastProcessor, retryJobFunction, flashcardGenerator], // Array of all Inngest functions to serve
   streaming: "allow", // Allow streaming but don't buffer logs
 });
 

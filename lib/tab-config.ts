@@ -69,7 +69,7 @@ export const PROJECT_TABS: TabConfig[] = [
   },
   {
     value: "titles",
-    label: "Titles",
+    label: "Flashcards",
     errorKey: "titles",
     feature: FEATURES.TITLES,
   },

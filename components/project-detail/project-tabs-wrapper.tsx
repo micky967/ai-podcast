@@ -3,6 +3,7 @@
 import { useQuery } from "convex/react";
 import { useState } from "react";
 import { TabContent } from "@/components/project-detail/tab-content";
+import { FlashcardManager } from "@/components/flashcards/flashcard-manager";
 import {
   DesktopTabTrigger,
   MobileTabItem,
@@ -278,7 +279,7 @@ export function ProjectTabsWrapper({
         </TabContent>
       </TabsContent>
 
-      <TabsContent value="titles" className="space-y-4">
+      {/* <TabsContent value="titles" className="space-y-4">
         <TabContent
           isLoading={showGenerating}
           data={project.titles}
@@ -292,7 +293,33 @@ export function ProjectTabsWrapper({
         >
           <TitlesTab titles={project.titles} />
         </TabContent>
-      </TabsContent>
+      </TabsContent> */}
+
+      <TabsContent value="titles" className="space-y-4">
+  <TabContent
+    isLoading={showGenerating}
+    // We pass true so the wrapper doesn't hide our new manager
+    data={true} 
+    projectId={projectId}
+    feature={FEATURES.TITLES}
+    featureName="Flashcards"
+    jobName="titles"
+    isShared={isShared}
+  >
+    {/* 1. Our New Flashcard UI */}
+    <FlashcardManager projectId={projectId} />
+    
+    {/* 2. Legacy Titles (Safe check for .length) */}
+    {Array.isArray(project.titles) && project.titles.length > 0 && (
+      <div className="mt-8 pt-8 border-t border-dashed">
+        <h4 className="text-xs font-semibold uppercase tracking-wider mb-4 text-muted-foreground">
+          Legacy AI Titles
+        </h4>
+        <TitlesTab titles={project.titles} />
+      </div>
+    )}
+  </TabContent>
+</TabsContent>
 
       <TabsContent value="engagement" className="space-y-4">
         <TabContent

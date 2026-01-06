@@ -7,12 +7,6 @@
  * - Parallel execution: Run multiple steps simultaneously for better performance
  * - Observability: Built-in logging, metrics, and tracing
  * - Type safety: Full TypeScript support for events and functions
- *
- * Architecture:
- * - Client is used to define functions and send events
- * - Functions run on Inngest's infrastructure (or self-hosted)
- * - Events trigger functions via the /api/inngest webhook
- *
  */
 import { Inngest } from "inngest";
 

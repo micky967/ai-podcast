@@ -10,6 +10,7 @@
 
 import type * as categories from "../categories.js";
 import type * as categoryData from "../categoryData.js";
+import type * as flashcards from "../flashcards.js";
 import type * as projects from "../projects.js";
 import type * as sessions from "../sessions.js";
 import type * as sharingGroups from "../sharingGroups.js";
@@ -24,6 +25,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   categories: typeof categories;
   categoryData: typeof categoryData;
+  flashcards: typeof flashcards;
   projects: typeof projects;
   sessions: typeof sessions;
   sharingGroups: typeof sharingGroups;

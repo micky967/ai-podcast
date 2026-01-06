@@ -34,6 +34,18 @@ export default defineSchema({
     fileDuration: v.optional(v.number()), // Seconds - extracted or estimated
     fileFormat: v.string(), // Extension (mp3, mp4, wav, etc.)
     mimeType: v.string(), // MIME type for validation
+    // Tracks if flashcards are generating, done, or failed
+    flashcardStatus: v.optional(
+      v.union(
+        v.literal("idle"),
+        v.literal("generating"),
+        v.literal("completed"),
+        v.literal("failed")
+      )
+    ),
+
+    // Stores the ID of the flashcard set if it's generated for this project
+    flashcardSetId: v.optional(v.id("flashcardSets")),
 
     // Overall project status - drives UI state machine
     // uploaded -> processing -> completed (or failed)
@@ -449,5 +461,30 @@ export default defineSchema({
     expiresAt: v.number(), // When session expires (24 hours from creation/update)
   })
     .index("by_user", ["userId"]), // Find all sessions for a user
+
+  // Flashcard Sets - Collections of study cards linked to projects or categories
+  flashcardSets: defineTable({
+    userId: v.string(), // Owner
+
+    // What is this set based on?
+    sourceType: v.union(v.literal("project"), v.literal("category")),
+    sourceId: v.string(), // ID of the project or category
+
+    // The actual content
+    cards: v.array(
+      v.object({
+        front: v.string(), // Question
+        back: v.string(),  // Answer
+        rationale: v.optional(v.string()), // High-yield pearl
+      })
+    ),
+
+    // Metadata
+    title: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_source", ["sourceId"]) // Fast lookup: "Does this project have cards?"
+    .index("by_user_and_source", ["userId", "sourceId"]),
 });
 
